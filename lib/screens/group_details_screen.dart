@@ -470,7 +470,7 @@ class _GroupDetailsScreenState
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 28),
 
             /// MEMBERS
             const Text(
@@ -517,27 +517,61 @@ class _GroupDetailsScreenState
                 return Card(
                   elevation: 0,
 
+                  color:
+                      Theme.of(context)
+                          .cardColor,
+
                   margin:
                       const EdgeInsets.only(
                     bottom: 10,
                   ),
 
                   child: ListTile(
+
                     leading:
-                        const CircleAvatar(
+                        CircleAvatar(
                       backgroundColor:
-                          AppTheme.primary,
+
+                          isPositive
+
+                              ? Colors.green
+                                  .withOpacity(
+                                0.12,
+                              )
+
+                              : isNegative
+
+                                  ? Colors.orange
+                                      .withOpacity(
+                                    0.12,
+                                  )
+
+                                  : Colors.blue
+                                      .withOpacity(
+                                    0.12,
+                                  ),
 
                       child: Icon(
                         Icons.person,
+
                         color:
-                            Colors.white,
+
+                            isPositive
+
+                                ? Colors.green
+
+                                : isNegative
+
+                                    ? Colors.orange
+
+                                    : Colors.blue,
                       ),
                     ),
 
                     title: Text(member),
 
                     subtitle: Text(
+
                       isPositive
 
                           ? 'Gets Rs. ${balance.toStringAsFixed(0)}'
@@ -546,8 +580,34 @@ class _GroupDetailsScreenState
 
                               ? 'Owes Rs. ${(-balance).toStringAsFixed(0)}'
 
-                              : 'Settled up',
+                              : 'Settled',
                     ),
+
+                    trailing:
+
+                        isPositive
+
+                            ? const Icon(
+                                Icons
+                                    .arrow_downward,
+                                color:
+                                    Colors.green,
+                              )
+
+                            : isNegative
+
+                                ? const Icon(
+                                    Icons
+                                        .arrow_upward,
+                                    color:
+                                        Colors.orange,
+                                  )
+
+                                : const Icon(
+                                    Icons.check,
+                                    color:
+                                        Colors.blue,
+                                  ),
                   ),
                 );
               },
@@ -592,6 +652,10 @@ class _GroupDetailsScreenState
                   return Card(
                     elevation: 0,
 
+                    color:
+                        Theme.of(context)
+                            .cardColor,
+
                     margin:
                         const EdgeInsets.only(
                       bottom: 10,
@@ -600,8 +664,15 @@ class _GroupDetailsScreenState
                     child: ListTile(
                       leading:
                           const CircleAvatar(
+                        backgroundColor:
+                            Color(
+                          0xFFE8EEFF,
+                        ),
+
                         child: Icon(
                           Icons.swap_horiz,
+                          color:
+                              AppTheme.primary,
                         ),
                       ),
 
@@ -776,6 +847,11 @@ class _GroupDetailsScreenState
 
                       return Card(
                         elevation: 0,
+
+                        color:
+                            Theme.of(
+                                    context)
+                                .cardColor,
 
                         margin:
                             const EdgeInsets.only(
