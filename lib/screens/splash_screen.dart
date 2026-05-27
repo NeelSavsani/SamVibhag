@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,17 +17,20 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
 
     Timer(const Duration(seconds: 3), () {
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => const HomeScreen(),
         ),
       );
+
     });
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
 
@@ -35,6 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
 
+            /// LOGO
             Image.asset(
               'assets/images/logo.png',
               width: 180,
@@ -42,6 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
             const SizedBox(height: 25),
 
+            /// APP NAME
             const Text(
               "SamVibhag",
               style: TextStyle(
@@ -54,6 +60,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
             const SizedBox(height: 8),
 
+            /// SANSKRIT NAME
             const Text(
               "समविभाग",
               style: TextStyle(
@@ -65,6 +72,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
             const SizedBox(height: 14),
 
+            /// TAGLINE
             const Text(
               "Fair Expense Sharing",
               style: TextStyle(
@@ -72,43 +80,14 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: Colors.white54,
               ),
             ),
+
+            const SizedBox(height: 40),
+
+            /// LOADING INDICATOR
+            const CircularProgressIndicator(
+              color: Colors.white,
+            ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-
-
-
-
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF2563EB),
-        title: const Text(
-          "SamVibhag",
-          style: TextStyle(
-            color: Colors.white,
-          ),
-        ),
-      ),
-
-      body: const Center(
-        child: Text(
-          "Welcome to SamVibhag",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
         ),
       ),
     );

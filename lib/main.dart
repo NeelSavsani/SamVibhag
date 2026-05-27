@@ -13,9 +13,12 @@ class SamVibhagApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SamVibhag',
+
       theme: ThemeData(
         primarySwatch: Colors.indigo,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
       ),
+
       home: const SplashScreen(),
     );
   }
