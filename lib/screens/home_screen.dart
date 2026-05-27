@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'analytics_screen.dart';
 import 'create_group_screen.dart';
 import 'group_details_screen.dart';
+import '../services/report_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -143,6 +144,21 @@ class _HomeScreenState
     );
   }
 
+  Future<void> openReport(
+    GroupModel group,
+  ) async {
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ReportScreen(
+          group: group,
+        ),
+      ),
+    );
+  }
+
   Future<void> confirmDeleteGroup(
     GroupModel group,
   ) async {
@@ -220,95 +236,6 @@ class _HomeScreenState
     );
   }
 
-  Future<void>
-      confirmClearAllData() async {
-
-    if (groups.isEmpty) {
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No saved data to clear',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    final shouldClear =
-        await showDialog<bool>(
-      context: context,
-
-      builder: (context) {
-
-        return AlertDialog(
-          title:
-              const Text('Clear All Data?'),
-
-          content: const Text(
-            'This will delete every group and expense saved on this device.',
-          ),
-
-          actions: [
-
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                false,
-              ),
-
-              child:
-                  const Text('Cancel'),
-            ),
-
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                true,
-              ),
-
-              child: const Text(
-                'Clear',
-
-                style: TextStyle(
-                  color:
-                      AppTheme.warning,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldClear != true ||
-        !mounted) {
-      return;
-    }
-
-    setState(() {
-      groups.clear();
-    });
-
-    await saveGroups();
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      const SnackBar(
-        content:
-            Text('All data cleared'),
-      ),
-    );
-  }
-
   double get totalBalance {
 
     return groups.fold<double>(
@@ -350,7 +277,6 @@ class _HomeScreenState
 
         actions: [
 
-          /// ANALYTICS
           IconButton(
             tooltip: 'Analytics',
 
@@ -361,40 +287,6 @@ class _HomeScreenState
 
             onPressed:
                 openAnalytics,
-          ),
-
-          /// MORE OPTIONS
-          PopupMenuButton<String>(
-            tooltip:
-                'More options',
-
-            icon: const Icon(
-              Icons.more_vert,
-              color: Colors.white,
-            ),
-
-            onSelected: (value) {
-
-              if (value ==
-                  'clear_all') {
-                confirmClearAllData();
-              }
-            },
-
-            itemBuilder: (context) {
-
-              return const [
-
-                PopupMenuItem<String>(
-                  value:
-                      'clear_all',
-
-                  child: Text(
-                    'Clear all data',
-                  ),
-                ),
-              ];
-            },
           ),
 
           const NightModeButton(),
@@ -429,7 +321,6 @@ class _HomeScreenState
 
           children: [
 
-            /// TOP SUMMARY CARD
             Container(
               width: double.infinity,
 
@@ -522,33 +413,14 @@ class _HomeScreenState
 
             const SizedBox(height: 30),
 
-            /// GROUP TITLE
-            Row(
-              mainAxisAlignment:
-                  MainAxisAlignment
-                      .spaceBetween,
+            const Text(
+              'Your Groups',
 
-              children: [
-
-                const Text(
-                  'Your Groups',
-
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
-                ),
-
-                Text(
-                  '${groups.length} Total',
-
-                  style: TextStyle(
-                    color: Colors.grey[
-                        600],
-                  ),
-                ),
-              ],
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight:
+                    FontWeight.bold,
+              ),
             ),
 
             const SizedBox(height: 20),
@@ -624,50 +496,15 @@ class _HomeScreenState
 
   Widget buildEmptyState() {
 
-    return Center(
+    return const Center(
       child: Padding(
         padding:
-            const EdgeInsets.only(
+            EdgeInsets.only(
           top: 60,
         ),
 
-        child: Column(
-          children: [
-
-            Icon(
-              Icons.groups_rounded,
-              size: 90,
-              color: Colors.grey[400],
-            ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              'No Groups Created Yet',
-
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight:
-                    FontWeight.bold,
-
-                color: Colors.grey,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            const Text(
-              'Create your first group and start splitting expenses smartly.',
-
-              textAlign:
-                  TextAlign.center,
-
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 15,
-              ),
-            ),
-          ],
+        child: Text(
+          'No Groups Created Yet',
         ),
       ),
     );
@@ -703,16 +540,6 @@ class _HomeScreenState
               BorderRadius.circular(
             20,
           ),
-
-          boxShadow: [
-
-            BoxShadow(
-              color: Colors.black
-                  .withOpacity(0.05),
-
-              blurRadius: 10,
-            ),
-          ],
         ),
 
         child: Row(
@@ -762,12 +589,6 @@ class _HomeScreenState
 
                   Text(
                     '${group.members.length} Members • ${group.expenses.length} Expenses',
-
-                    style:
-                        const TextStyle(
-                      color:
-                          Colors.grey,
-                    ),
                   ),
                 ],
               ),
@@ -794,25 +615,44 @@ class _HomeScreenState
                   ),
                 ),
 
-                const SizedBox(
-                  height: 6,
-                ),
+                Row(
+                  mainAxisSize:
+                      MainAxisSize.min,
 
-                IconButton(
-                  tooltip:
-                      'Delete group',
+                  children: [
 
-                  onPressed: () =>
-                      confirmDeleteGroup(
-                    group,
-                  ),
+                    IconButton(
+                      tooltip:
+                          'PDF Report',
 
-                  icon: const Icon(
-                    Icons.delete_outline,
+                      onPressed: () =>
+                          openReport(
+                        group,
+                      ),
 
-                    color:
-                        AppTheme.warning,
-                  ),
+                      icon: const Icon(
+                        Icons.picture_as_pdf,
+                        color: Colors.red,
+                      ),
+                    ),
+
+                    IconButton(
+                      tooltip:
+                          'Delete Group',
+
+                      onPressed: () =>
+                          confirmDeleteGroup(
+                        group,
+                      ),
+
+                      icon: const Icon(
+                        Icons.delete_outline,
+
+                        color:
+                            AppTheme.warning,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -30,6 +30,9 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
+  pdf: ^3.11.0
+  printing: ^5.13.4
+
   # Notifications
   flutter_local_notifications: ^19.4.1
 

@@ -4,7 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/expense_model.dart';
 import '../models/group_model.dart';
 import '../theme/app_theme.dart';
+
 import 'add_expense_screen.dart';
+import '../services/report_screen.dart';
 
 class GroupDetailsScreen extends StatefulWidget {
   const GroupDetailsScreen({
@@ -28,16 +30,21 @@ class _GroupDetailsScreenState
       widget.group.expenses;
 
   Future<void> addExpense() async {
+
     final ExpenseModel? result =
         await Navigator.push<ExpenseModel>(
       context,
       MaterialPageRoute(
         builder: (context) =>
-            AddExpenseScreen(group: widget.group),
+            AddExpenseScreen(
+          group: widget.group,
+        ),
       ),
     );
 
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) {
+      return;
+    }
 
     setState(() {
       widget.group.expenses.add(result);
@@ -45,7 +52,10 @@ class _GroupDetailsScreenState
 
     await widget.onGroupUpdated?.call();
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(
           '${result.title} Expense Added Successfully',
@@ -54,48 +64,41 @@ class _GroupDetailsScreenState
     );
   }
 
-  Future<void> deleteExpense(int index) async {
-    final deletedExpense = expenses[index];
+  Future<void> editExpense(
+    int index,
+  ) async {
 
-    setState(() {
-      widget.group.expenses.removeAt(index);
-    });
-
-    await widget.onGroupUpdated?.call();
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:
-            Text('${deletedExpense.title} Expense Deleted'),
-      ),
-    );
-  }
-
-  Future<void> editExpense(int index) async {
-    final currentExpense = expenses[index];
+    final currentExpense =
+        expenses[index];
 
     final ExpenseModel? updatedExpense =
         await Navigator.push<ExpenseModel>(
       context,
       MaterialPageRoute(
-        builder: (context) => AddExpenseScreen(
+        builder: (context) =>
+            AddExpenseScreen(
           group: widget.group,
           expense: currentExpense,
         ),
       ),
     );
 
-    if (updatedExpense == null || !mounted) return;
+    if (updatedExpense == null ||
+        !mounted) {
+      return;
+    }
 
     setState(() {
-      widget.group.expenses[index] = updatedExpense;
+      widget.group.expenses[index] =
+          updatedExpense;
     });
 
     await widget.onGroupUpdated?.call();
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(
           '${updatedExpense.title} Expense Updated',
@@ -104,81 +107,160 @@ class _GroupDetailsScreenState
     );
   }
 
+  Future<void> deleteExpense(
+    int index,
+  ) async {
+
+    final deletedExpense =
+        expenses[index];
+
+    setState(() {
+      widget.group.expenses
+          .removeAt(index);
+    });
+
+    await widget.onGroupUpdated?.call();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(
+          '${deletedExpense.title} Expense Deleted',
+        ),
+      ),
+    );
+  }
+
+  Future<void> openReport() async {
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ReportScreen(
+          group: widget.group,
+        ),
+      ),
+    );
+  }
+
   Future<void> shareSettlements() async {
-    final settlements = widget.group.settlements;
+
+    final settlements =
+        widget.group.settlements;
 
     if (expenses.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Add an expense before sharing',
           ),
         ),
       );
+
       return;
     }
 
-    final settlementText = settlements.isEmpty
-        ? 'Everyone is settled up.'
-        : settlements
-            .map(
-              (settlement) =>
-                  '${settlement.from} pays ${settlement.to}: Rs. ${settlement.amount.toStringAsFixed(0)}',
-            )
-            .join('\n');
+    final settlementText =
+        settlements.isEmpty
 
-    final message = Uri.encodeComponent(
+            ? 'Everyone is settled up.'
+
+            : settlements
+                .map(
+                  (settlement) =>
+                      '${settlement.from} pays ${settlement.to}: Rs. ${settlement.amount.toStringAsFixed(0)}',
+                )
+                .join('\n');
+
+    final message =
+        Uri.encodeComponent(
       'SamVibhag settlement for ${widget.group.groupName}\n\n'
       'Total expense: Rs. ${widget.group.totalExpense.toStringAsFixed(0)}\n\n'
       '$settlementText',
     );
 
-    final uri =
-        Uri.parse('https://wa.me/?text=$message');
+    final uri = Uri.parse(
+      'https://wa.me/?text=$message',
+    );
 
     if (await canLaunchUrl(uri)) {
+
       await launchUrl(
         uri,
-        mode: LaunchMode.externalApplication,
+        mode:
+            LaunchMode
+                .externalApplication,
       );
+
       return;
     }
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       const SnackBar(
-        content: Text('Could not open WhatsApp'),
+        content: Text(
+          'Could not open WhatsApp',
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor:
-          Theme.of(context).scaffoldBackgroundColor,
+          Theme.of(context)
+              .scaffoldBackgroundColor,
 
       appBar: AppBar(
         title: Text(
           widget.group.groupName,
+
           style: const TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
           ),
         ),
 
         actions: [
+
+          /// PDF REPORT
+          IconButton(
+            tooltip: 'Export PDF',
+
+            onPressed: openReport,
+
+            icon: const Icon(
+              Icons.picture_as_pdf,
+              color: Colors.white,
+            ),
+          ),
+
+          /// SHARE
           if (expenses.isNotEmpty)
             IconButton(
-              tooltip: 'Share settlements',
-              onPressed: shareSettlements,
+              tooltip:
+                  'Share settlements',
+
+              onPressed:
+                  shareSettlements,
+
               icon: const Icon(
                 Icons.share,
                 color: Colors.white,
               ),
             ),
 
+          /// DARK MODE
           const NightModeButton(),
         ],
       ),
@@ -186,18 +268,24 @@ class _GroupDetailsScreenState
       floatingActionButton:
           FloatingActionButton.extended(
         onPressed: addExpense,
+
         icon: const Icon(
           Icons.add,
           color: Colors.white,
         ),
+
         label: const Text(
           'Add Expense',
-          style: TextStyle(color: Colors.white),
+
+          style: TextStyle(
+            color: Colors.white,
+          ),
         ),
       ),
 
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
 
         child: Column(
           crossAxisAlignment:
@@ -208,51 +296,72 @@ class _GroupDetailsScreenState
             /// SUMMARY CARD
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+
+              padding:
+                  const EdgeInsets.all(
+                20,
+              ),
 
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary,
+                color:
+                    Theme.of(context)
+                        .colorScheme
+                        .primary,
 
                 borderRadius:
-                    BorderRadius.circular(20),
+                    BorderRadius.circular(
+                  20,
+                ),
               ),
 
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    CrossAxisAlignment
+                        .start,
 
                 children: [
 
                   Text(
                     '${widget.group.members.length} Members',
 
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style:
+                        const TextStyle(
+                      color:
+                          Colors.white70,
                       fontSize: 16,
                     ),
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(
+                    height: 10,
+                  ),
 
                   Text(
                     'Rs. ${widget.group.totalExpense.toStringAsFixed(0)}',
 
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style:
+                        const TextStyle(
+                      color:
+                          Colors.white,
+
                       fontSize: 36,
-                      fontWeight: FontWeight.bold,
+
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(
+                    height: 8,
+                  ),
 
                   const Text(
                     'Total Group Expense',
 
                     style: TextStyle(
-                      color: Colors.white70,
+                      color:
+                          Colors.white70,
+
                       fontSize: 15,
                     ),
                   ),
@@ -268,7 +377,8 @@ class _GroupDetailsScreenState
 
               style: TextStyle(
                 fontSize: 22,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
 
@@ -276,32 +386,44 @@ class _GroupDetailsScreenState
 
             ListView.builder(
               shrinkWrap: true,
+
               physics:
                   const NeverScrollableScrollPhysics(),
 
               itemCount:
-                  widget.group.members.length,
+                  widget.group.members
+                      .length,
 
-              itemBuilder: (context, index) {
+              itemBuilder:
+                  (context, index) {
+
                 final member =
-                    widget.group.members[index];
+                    widget.group
+                        .members[index];
 
                 final balance =
-                    widget.group.memberBalances[
-                            member] ??
-                        0;
+                    widget.group
+                            .memberBalances[
+                        member] ??
+                    0;
 
-                final isPositive = balance > 0.01;
-                final isNegative = balance < -0.01;
+                final isPositive =
+                    balance > 0.01;
+
+                final isNegative =
+                    balance < -0.01;
 
                 return Card(
                   elevation: 0,
+
                   color:
-                      Theme.of(context).cardColor,
+                      Theme.of(context)
+                          .cardColor,
 
                   margin:
                       const EdgeInsets.only(
-                          bottom: 10),
+                    bottom: 10,
+                  ),
 
                   child: ListTile(
                     leading:
@@ -311,7 +433,8 @@ class _GroupDetailsScreenState
 
                       child: Icon(
                         Icons.person,
-                        color: Colors.white,
+                        color:
+                            Colors.white,
                       ),
                     ),
 
@@ -319,9 +442,13 @@ class _GroupDetailsScreenState
 
                     subtitle: Text(
                       isPositive
+
                           ? 'Gets Rs. ${balance.toStringAsFixed(0)}'
+
                           : isNegative
+
                               ? 'Owes Rs. ${(-balance).toStringAsFixed(0)}'
+
                               : 'Settled up',
                     ),
                   ),
@@ -330,6 +457,7 @@ class _GroupDetailsScreenState
             ),
 
             if (expenses.isNotEmpty) ...[
+
               const SizedBox(height: 20),
 
               /// SETTLEMENTS
@@ -338,7 +466,8 @@ class _GroupDetailsScreenState
 
                 style: TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
 
@@ -346,31 +475,41 @@ class _GroupDetailsScreenState
 
               ListView.builder(
                 shrinkWrap: true,
+
                 physics:
                     const NeverScrollableScrollPhysics(),
 
                 itemCount:
-                    widget.group.settlements.length,
+                    widget.group
+                        .settlements
+                        .length,
 
-                itemBuilder: (context, index) {
+                itemBuilder:
+                    (context, index) {
+
                   final settlement =
                       widget.group
-                          .settlements[index];
+                              .settlements[
+                          index];
 
                   return Card(
                     elevation: 0,
-                    color: Theme.of(context)
-                        .cardColor,
+
+                    color:
+                        Theme.of(context)
+                            .cardColor,
 
                     margin:
                         const EdgeInsets.only(
-                            bottom: 10),
+                      bottom: 10,
+                    ),
 
                     child: ListTile(
                       leading:
                           const CircleAvatar(
-                        child:
-                            Icon(Icons.swap_horiz),
+                        child: Icon(
+                          Icons.swap_horiz,
+                        ),
                       ),
 
                       title: Text(
@@ -380,11 +519,15 @@ class _GroupDetailsScreenState
                       trailing: Text(
                         'Rs. ${settlement.amount.toStringAsFixed(0)}',
 
-                        style: const TextStyle(
+                        style:
+                            const TextStyle(
                           color:
-                              AppTheme.primary,
+                              AppTheme
+                                  .primary,
+
                           fontWeight:
-                              FontWeight.bold,
+                              FontWeight
+                                  .bold,
                         ),
                       ),
                     ),
@@ -401,47 +544,61 @@ class _GroupDetailsScreenState
 
               style: TextStyle(
                 fontSize: 22,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
 
             const SizedBox(height: 12),
 
             expenses.isEmpty
+
                 ? const Center(
                     child: Padding(
                       padding:
-                          EdgeInsets.all(30),
+                          EdgeInsets.all(
+                        30,
+                      ),
+
                       child: Text(
                         'No expenses added yet',
                       ),
                     ),
                   )
+
                 : ListView.builder(
                     shrinkWrap: true,
+
                     physics:
                         const NeverScrollableScrollPhysics(),
 
-                    itemCount: expenses.length,
+                    itemCount:
+                        expenses.length,
 
                     itemBuilder:
                         (context, index) {
+
                       final expense =
                           expenses[index];
 
                       return Card(
                         elevation: 0,
-                        color: Theme.of(context)
-                            .cardColor,
+
+                        color:
+                            Theme.of(
+                                    context)
+                                .cardColor,
 
                         margin:
                             const EdgeInsets.only(
-                                bottom: 12),
+                          bottom: 12,
+                        ),
 
                         child: Padding(
                           padding:
                               const EdgeInsets.all(
-                                  12),
+                            12,
+                          ),
 
                           child: Column(
                             crossAxisAlignment:
@@ -455,7 +612,8 @@ class _GroupDetailsScreenState
 
                                   Expanded(
                                     child: Text(
-                                      expense.title,
+                                      expense
+                                          .title,
 
                                       style:
                                           const TextStyle(
@@ -471,10 +629,10 @@ class _GroupDetailsScreenState
 
                                   Container(
                                     padding:
-                                        const EdgeInsets
-                                            .symmetric(
+                                        const EdgeInsets.symmetric(
                                       horizontal:
                                           10,
+
                                       vertical:
                                           4,
                                     ),
@@ -489,9 +647,9 @@ class _GroupDetailsScreenState
                                               0.12),
 
                                       borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                                  20),
+                                          BorderRadius.circular(
+                                        20,
+                                      ),
                                     ),
 
                                     child: Text(
@@ -518,14 +676,16 @@ class _GroupDetailsScreenState
                               ),
 
                               const SizedBox(
-                                  height: 8),
+                                height: 8,
+                              ),
 
                               Text(
                                 'Paid by ${expense.paidBy} • Split between ${expense.splitBetween.length}',
                               ),
 
                               const SizedBox(
-                                  height: 4),
+                                height: 4,
+                              ),
 
                               Text(
                                 '${expense.date.day}/${expense.date.month}/${expense.date.year} • '
@@ -540,7 +700,73 @@ class _GroupDetailsScreenState
                               ),
 
                               const SizedBox(
-                                  height: 10),
+                                height: 10,
+                              ),
+
+                              if (expense
+                                      .splitType ==
+                                  'custom')
+
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+
+                                  children: expense
+                                      .customSplits
+                                      .entries
+                                      .map(
+                                    (entry) {
+
+                                      return Container(
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal:
+                                              10,
+
+                                          vertical:
+                                              6,
+                                        ),
+
+                                        decoration:
+                                            BoxDecoration(
+                                          color: Theme.of(
+                                                  context)
+                                              .colorScheme
+                                              .primary
+                                              .withOpacity(
+                                                  0.08),
+
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+
+                                        child: Text(
+                                          '${entry.key}: Rs. ${entry.value.toStringAsFixed(0)}',
+
+                                          style:
+                                              TextStyle(
+                                            color: Theme.of(
+                                                    context)
+                                                .colorScheme
+                                                .primary,
+
+                                            fontSize:
+                                                12,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ).toList(),
+                                ),
+
+                              if (expense
+                                      .splitType ==
+                                  'custom')
+                                const SizedBox(
+                                  height: 10,
+                                ),
 
                               Row(
                                 mainAxisAlignment:
@@ -554,10 +780,12 @@ class _GroupDetailsScreenState
 
                                     style:
                                         const TextStyle(
-                                      color: AppTheme
-                                          .primary,
+                                      color:
+                                          AppTheme
+                                              .primary,
 
-                                      fontSize: 18,
+                                      fontSize:
+                                          18,
 
                                       fontWeight:
                                           FontWeight
@@ -572,7 +800,8 @@ class _GroupDetailsScreenState
                                         onPressed:
                                             () =>
                                                 editExpense(
-                                                    index),
+                                          index,
+                                        ),
 
                                         icon:
                                             const Icon(
@@ -589,7 +818,8 @@ class _GroupDetailsScreenState
                                         onPressed:
                                             () =>
                                                 deleteExpense(
-                                                    index),
+                                          index,
+                                        ),
 
                                         icon:
                                             const Icon(
