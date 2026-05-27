@@ -68,6 +68,39 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     );
   }
 
+  Future<void> editExpense(int index) async {
+    final currentExpense = expenses[index];
+    final updatedExpense = await Navigator.push<ExpenseModel>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddExpenseScreen(
+          group: widget.group,
+          expense: currentExpense,
+        ),
+      ),
+    );
+
+    if (updatedExpense == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      widget.group.expenses[index] = updatedExpense;
+    });
+
+    await widget.onGroupUpdated?.call();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${updatedExpense.title} Expense Updated'),
+      ),
+    );
+  }
+
   Future<void> shareSettlements() async {
     final settlements = widget.group.settlements;
 
@@ -404,6 +437,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     color: AppTheme.primary,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Edit expense',
+                  onPressed: () => editExpense(index),
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    color: AppTheme.primary,
                   ),
                 ),
                 IconButton(

@@ -8,9 +8,11 @@ class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({
     super.key,
     required this.group,
+    this.expense,
   });
 
   final GroupModel group;
+  final ExpenseModel? expense;
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -26,8 +28,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    paidBy = widget.group.members.first;
-    selectedMembers = List<String>.from(widget.group.members);
+    final expense = widget.expense;
+
+    paidBy = expense?.paidBy ?? widget.group.members.first;
+    selectedMembers = List<String>.from(
+      expense?.splitBetween ?? widget.group.members,
+    );
+
+    if (expense != null) {
+      titleController.text = expense.title;
+      amountController.text = expense.amount.toStringAsFixed(0);
+    }
   }
 
   @override
@@ -67,7 +78,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       amount: amount,
       paidBy: paidBy,
       splitBetween: List<String>.from(selectedMembers),
-      date: DateTime.now(),
+      date: widget.expense?.date ?? DateTime.now(),
     );
 
     Navigator.pop(context, expense);
@@ -78,8 +89,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Add Expense',
+        title: Text(
+          widget.expense == null ? 'Add Expense' : 'Edit Expense',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -187,8 +198,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  'Save Expense',
+                child: Text(
+                  widget.expense == null ? 'Save Expense' : 'Update Expense',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
