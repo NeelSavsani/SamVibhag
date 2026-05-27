@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/group_model.dart';
 import 'create_group_screen.dart';
 import 'group_details_screen.dart';
+import '../theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,7 +14,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const String storageBoxName = 'samvibhag_storage';
+  static const String groupsKey = 'groups';
+
   final List<GroupModel> groups = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadGroups();
+  }
+
+  void loadGroups() {
+    final box = Hive.box(storageBoxName);
+    final savedGroups = List<dynamic>.from(box.get(groupsKey, defaultValue: []));
+
+    groups
+      ..clear()
+      ..addAll(
+        savedGroups.map((groupMap) => GroupModel.fromMap(groupMap as Map)),
+      );
+  }
+
+  Future<void> saveGroups() async {
+    final box = Hive.box(storageBoxName);
+    await box.put(
+      groupsKey,
+      groups.map((group) => group.toMap()).toList(),
+    );
+  }
 
   Future<void> createGroup() async {
     final result = await Navigator.push<GroupModel>(
@@ -30,6 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
       groups.add(result);
     });
 
+    await saveGroups();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${result.groupName} Group Created Successfully'),
@@ -37,22 +69,136 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void openGroupDetails(GroupModel group) {
-    Navigator.push(
+  Future<void> openGroupDetails(GroupModel group) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => GroupDetailsScreen(group: group),
+        builder: (context) => GroupDetailsScreen(
+          group: group,
+          onGroupUpdated: saveGroups,
+        ),
       ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {});
+    await saveGroups();
+  }
+
+  Future<void> confirmDeleteGroup(GroupModel group) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Group?'),
+          content: Text(
+            'This will delete ${group.groupName} and all its expenses.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: AppTheme.warning),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      groups.remove(group);
+    });
+
+    await saveGroups();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${group.groupName} Group Deleted'),
+      ),
+    );
+  }
+
+  Future<void> confirmClearAllData() async {
+    if (groups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No saved data to clear')),
+      );
+      return;
+    }
+
+    final shouldClear = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Clear All Data?'),
+          content: const Text(
+            'This will delete every group and expense saved on this device.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                'Clear',
+                style: TextStyle(color: AppTheme.warning),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldClear != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      groups.clear();
+    });
+
+    await saveGroups();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('All data cleared')),
+    );
+  }
+
+  double get totalBalance {
+    return groups.fold<double>(
+      0,
+      (total, group) => total + group.totalExpense,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2563EB),
-        elevation: 0,
         title: const Text(
           'SamVibhag',
           style: TextStyle(
@@ -60,9 +206,28 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: 'More options',
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              if (value == 'clear_all') {
+                confirmClearAllData();
+              }
+            },
+            itemBuilder: (context) {
+              return const [
+                PopupMenuItem<String>(
+                  value: 'clear_all',
+                  child: Text('Clear all data'),
+                ),
+              ];
+            },
+          ),
+          const NightModeButton(),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF2563EB),
         onPressed: createGroup,
         child: const Icon(
           Icons.add,
@@ -79,29 +244,29 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                color: const Color(0xFF2563EB),
+                color: Theme.of(context).colorScheme.primary,
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Total Balance',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 16,
                     ),
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Text(
-                    '₹ 0',
-                    style: TextStyle(
+                    'Rs. ${totalBalance.toStringAsFixed(0)}',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 15),
-                  Row(
+                  const SizedBox(height: 15),
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Column(
@@ -115,9 +280,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           SizedBox(height: 5),
                           Text(
-                            '₹ 0',
+                            'Rs. 0',
                             style: TextStyle(
-                              color: Colors.redAccent,
+                              color: AppTheme.warning,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -135,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           SizedBox(height: 5),
                           Text(
-                            '₹ 0',
+                            'Rs. 0',
                             style: TextStyle(
                               color: Colors.greenAccent,
                               fontSize: 18,
@@ -180,8 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       return buildGroupCard(
                         group: group,
-                        amount: '₹ 0',
-                        color: Colors.blue,
+                        color: AppTheme.primary,
                       );
                     },
                   ),
@@ -193,7 +357,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget buildGroupCard({
     required GroupModel group,
-    required String amount,
     required Color color,
   }) {
     return InkWell(
@@ -203,7 +366,7 @@ class _HomeScreenState extends State<HomeScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -244,13 +407,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            Text(
-              amount,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2563EB),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Rs. ${group.totalExpense.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Delete group',
+                  onPressed: () => confirmDeleteGroup(group),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: AppTheme.warning,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

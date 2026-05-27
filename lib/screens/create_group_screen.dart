@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/group_model.dart';
+import '../theme/app_theme.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -36,13 +37,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2563EB),
-
         title: const Text(
           "Create Group",
           style: TextStyle(color: Colors.white),
         ),
+        actions: const [
+          NightModeButton(),
+        ],
       ),
 
       body: Padding(
@@ -90,8 +93,6 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   onPressed: addMember,
 
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 18,
@@ -127,7 +128,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         return Card(
                           child: ListTile(
                             leading: const CircleAvatar(
-                              backgroundColor: Color(0xFF2563EB),
+                              backgroundColor: AppTheme.primary,
 
                               child: Icon(Icons.person, color: Colors.white),
                             ),
@@ -135,7 +136,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                             title: Text(members[index]),
 
                             trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
+                              icon: const Icon(
+                                Icons.delete,
+                                color: AppTheme.warning,
+                              ),
 
                               onPressed: () {
                                 setState(() {
@@ -182,8 +186,6 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 },
 
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-
                   padding: const EdgeInsets.symmetric(vertical: 18),
 
                   shape: RoundedRectangleBorder(
