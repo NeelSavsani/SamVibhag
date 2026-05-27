@@ -28,6 +28,8 @@ class _HomeScreenState
 
   final List<GroupModel> groups = [];
 
+  String searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -122,12 +124,9 @@ class _HomeScreenState
       ),
     );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {});
-
     await saveGroups();
   }
 
@@ -222,9 +221,7 @@ class _HomeScreenState
 
     await saveGroups();
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context)
         .showSnackBar(
@@ -254,6 +251,22 @@ class _HomeScreenState
     }
 
     return total;
+  }
+
+  List<GroupModel> get filteredGroups {
+
+    if (searchQuery.trim().isEmpty) {
+      return groups;
+    }
+
+    return groups.where((group) {
+
+      return group.groupName
+          .toLowerCase()
+          .contains(
+            searchQuery.toLowerCase(),
+          );
+    }).toList();
   }
 
   @override
@@ -321,6 +334,7 @@ class _HomeScreenState
 
           children: [
 
+            /// SUMMARY CARD
             Container(
               width: double.infinity,
 
@@ -357,7 +371,6 @@ class _HomeScreenState
                     style: TextStyle(
                       color:
                           Colors.white70,
-
                       fontSize: 16,
                     ),
                   ),
@@ -411,22 +424,87 @@ class _HomeScreenState
               ),
             ),
 
+            const SizedBox(height: 25),
+
+            /// SEARCH BAR
+            TextField(
+              decoration: InputDecoration(
+                hintText:
+                    'Search groups...',
+
+                prefixIcon:
+                    const Icon(
+                  Icons.search,
+                ),
+
+                filled: true,
+
+                fillColor:
+                    Theme.of(context)
+                        .cardColor,
+
+                border:
+                    OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(
+                    18,
+                  ),
+
+                  borderSide:
+                      BorderSide.none,
+                ),
+              ),
+
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                });
+              },
+            ),
+
             const SizedBox(height: 30),
 
-            const Text(
-              'Your Groups',
+            /// TITLE
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment
+                      .spaceBetween,
 
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight:
-                    FontWeight.bold,
-              ),
+              children: [
+
+                const Text(
+                  'Your Groups',
+
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+
+                Text(
+                  '${filteredGroups.length} Total',
+                ),
+              ],
             ),
 
             const SizedBox(height: 20),
 
-            groups.isEmpty
-                ? buildEmptyState()
+            filteredGroups.isEmpty
+
+                ? const Center(
+                    child: Padding(
+                      padding:
+                          EdgeInsets.all(
+                        40,
+                      ),
+
+                      child: Text(
+                        'No matching groups found',
+                      ),
+                    ),
+                  )
+
                 : ListView.builder(
                     shrinkWrap: true,
 
@@ -434,13 +512,14 @@ class _HomeScreenState
                         const NeverScrollableScrollPhysics(),
 
                     itemCount:
-                        groups.length,
+                        filteredGroups.length,
 
                     itemBuilder:
                         (context, index) {
 
                       final group =
-                          groups[index];
+                          filteredGroups[
+                              index];
 
                       return buildGroupCard(
                         group: group,
@@ -491,22 +570,6 @@ class _HomeScreenState
           ),
         ),
       ],
-    );
-  }
-
-  Widget buildEmptyState() {
-
-    return const Center(
-      child: Padding(
-        padding:
-            EdgeInsets.only(
-          top: 60,
-        ),
-
-        child: Text(
-          'No Groups Created Yet',
-        ),
-      ),
     );
   }
 

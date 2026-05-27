@@ -29,6 +29,62 @@ class _GroupDetailsScreenState
   List<ExpenseModel> get expenses =>
       widget.group.expenses;
 
+  String searchQuery = '';
+  String selectedCategory = 'All';
+
+  List<String> get categories {
+
+    final uniqueCategories =
+        expenses
+            .map(
+              (e) => e.category,
+            )
+            .toSet()
+            .toList();
+
+    uniqueCategories.sort();
+
+    return [
+      'All',
+      ...uniqueCategories,
+    ];
+  }
+
+  List<ExpenseModel> get filteredExpenses {
+
+    return expenses.where((expense) {
+
+      final matchesSearch =
+          expense.title
+                  .toLowerCase()
+                  .contains(
+                    searchQuery
+                        .toLowerCase(),
+                  ) ||
+              expense.category
+                  .toLowerCase()
+                  .contains(
+                    searchQuery
+                        .toLowerCase(),
+                  ) ||
+              expense.paidBy
+                  .toLowerCase()
+                  .contains(
+                    searchQuery
+                        .toLowerCase(),
+                  );
+
+      final matchesCategory =
+          selectedCategory ==
+                  'All' ||
+              expense.category ==
+                  selectedCategory;
+
+      return matchesSearch &&
+          matchesCategory;
+    }).toList();
+  }
+
   Future<void> addExpense() async {
 
     final ExpenseModel? result =
@@ -69,7 +125,12 @@ class _GroupDetailsScreenState
   ) async {
 
     final currentExpense =
-        expenses[index];
+        filteredExpenses[index];
+
+    final originalIndex =
+        expenses.indexOf(
+      currentExpense,
+    );
 
     final ExpenseModel? updatedExpense =
         await Navigator.push<ExpenseModel>(
@@ -89,7 +150,8 @@ class _GroupDetailsScreenState
     }
 
     setState(() {
-      widget.group.expenses[index] =
+      widget.group.expenses[
+              originalIndex] =
           updatedExpense;
     });
 
@@ -111,12 +173,65 @@ class _GroupDetailsScreenState
     int index,
   ) async {
 
-    final deletedExpense =
-        expenses[index];
+    final expense =
+        filteredExpenses[index];
+
+    final shouldDelete =
+        await showDialog<bool>(
+      context: context,
+
+      builder: (context) {
+
+        return AlertDialog(
+          title:
+              const Text('Delete Expense?'),
+
+          content: Text(
+            'Delete ${expense.title} expense?',
+          ),
+
+          actions: [
+
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(
+                context,
+                false,
+              ),
+
+              child:
+                  const Text('Cancel'),
+            ),
+
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(
+                context,
+                true,
+              ),
+
+              child: const Text(
+                'Delete',
+
+                style: TextStyle(
+                  color:
+                      AppTheme.warning,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true ||
+        !mounted) {
+      return;
+    }
 
     setState(() {
       widget.group.expenses
-          .removeAt(index);
+          .remove(expense);
     });
 
     await widget.onGroupUpdated?.call();
@@ -127,7 +242,7 @@ class _GroupDetailsScreenState
         .showSnackBar(
       SnackBar(
         content: Text(
-          '${deletedExpense.title} Expense Deleted',
+          '${expense.title} Expense Deleted',
         ),
       ),
     );
@@ -157,7 +272,7 @@ class _GroupDetailsScreenState
           .showSnackBar(
         const SnackBar(
           content: Text(
-            'Add an expense before sharing',
+            'No expenses to share',
           ),
         ),
       );
@@ -172,15 +287,14 @@ class _GroupDetailsScreenState
 
             : settlements
                 .map(
-                  (settlement) =>
-                      '${settlement.from} pays ${settlement.to}: Rs. ${settlement.amount.toStringAsFixed(0)}',
+                  (s) =>
+                      '${s.from} pays ${s.to}: Rs. ${s.amount.toStringAsFixed(0)}',
                 )
                 .join('\n');
 
     final message =
         Uri.encodeComponent(
-      'SamVibhag settlement for ${widget.group.groupName}\n\n'
-      'Total expense: Rs. ${widget.group.totalExpense.toStringAsFixed(0)}\n\n'
+      'SamVibhag Settlement - ${widget.group.groupName}\n\n'
       '$settlementText',
     );
 
@@ -196,20 +310,7 @@ class _GroupDetailsScreenState
             LaunchMode
                 .externalApplication,
       );
-
-      return;
     }
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Could not open WhatsApp',
-        ),
-      ),
-    );
   }
 
   @override
@@ -233,7 +334,6 @@ class _GroupDetailsScreenState
 
         actions: [
 
-          /// PDF REPORT
           IconButton(
             tooltip: 'Export PDF',
 
@@ -245,22 +345,19 @@ class _GroupDetailsScreenState
             ),
           ),
 
-          /// SHARE
-          if (expenses.isNotEmpty)
-            IconButton(
-              tooltip:
-                  'Share settlements',
+          IconButton(
+            tooltip:
+                'Share settlements',
 
-              onPressed:
-                  shareSettlements,
+            onPressed:
+                shareSettlements,
 
-              icon: const Icon(
-                Icons.share,
-                color: Colors.white,
-              ),
+            icon: const Icon(
+              Icons.share,
+              color: Colors.white,
             ),
+          ),
 
-          /// DARK MODE
           const NightModeButton(),
         ],
       ),
@@ -299,18 +396,21 @@ class _GroupDetailsScreenState
 
               padding:
                   const EdgeInsets.all(
-                20,
+                22,
               ),
 
               decoration: BoxDecoration(
-                color:
-                    Theme.of(context)
-                        .colorScheme
-                        .primary,
-
                 borderRadius:
                     BorderRadius.circular(
-                  20,
+                  24,
+                ),
+
+                gradient:
+                    const LinearGradient(
+                  colors: [
+                    AppTheme.primary,
+                    Color(0xFF1D4ED8),
+                  ],
                 ),
               ),
 
@@ -328,6 +428,7 @@ class _GroupDetailsScreenState
                         const TextStyle(
                       color:
                           Colors.white70,
+
                       fontSize: 16,
                     ),
                   ),
@@ -369,7 +470,7 @@ class _GroupDetailsScreenState
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 25),
 
             /// MEMBERS
             const Text(
@@ -416,10 +517,6 @@ class _GroupDetailsScreenState
                 return Card(
                   elevation: 0,
 
-                  color:
-                      Theme.of(context)
-                          .cardColor,
-
                   margin:
                       const EdgeInsets.only(
                     bottom: 10,
@@ -458,7 +555,7 @@ class _GroupDetailsScreenState
 
             if (expenses.isNotEmpty) ...[
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
               /// SETTLEMENTS
               const Text(
@@ -494,10 +591,6 @@ class _GroupDetailsScreenState
 
                   return Card(
                     elevation: 0,
-
-                    color:
-                        Theme.of(context)
-                            .cardColor,
 
                     margin:
                         const EdgeInsets.only(
@@ -536,22 +629,120 @@ class _GroupDetailsScreenState
               ),
             ],
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
 
-            /// EXPENSES TITLE
-            const Text(
-              'Expenses',
+            /// SEARCH BAR
+            TextField(
+              decoration: InputDecoration(
+                hintText:
+                    'Search expenses...',
 
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight:
-                    FontWeight.bold,
+                prefixIcon:
+                    const Icon(
+                  Icons.search,
+                ),
+
+                filled: true,
+
+                fillColor:
+                    Theme.of(context)
+                        .cardColor,
+
+                border:
+                    OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(
+                    18,
+                  ),
+
+                  borderSide:
+                      BorderSide.none,
+                ),
+              ),
+
+              onChanged: (value) {
+
+                setState(() {
+                  searchQuery = value;
+                });
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            /// CATEGORY FILTERS
+            SizedBox(
+              height: 42,
+
+              child: ListView(
+                scrollDirection:
+                    Axis.horizontal,
+
+                children:
+                    categories.map(
+                  (category) {
+
+                    final selected =
+                        selectedCategory ==
+                            category;
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(
+                        right: 10,
+                      ),
+
+                      child: ChoiceChip(
+                        label:
+                            Text(category),
+
+                        selected:
+                            selected,
+
+                        onSelected:
+                            (_) {
+
+                          setState(() {
+                            selectedCategory =
+                                category;
+                          });
+                        },
+                      ),
+                    );
+                  },
+                ).toList(),
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 25),
 
-            expenses.isEmpty
+            /// EXPENSES TITLE
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment
+                      .spaceBetween,
+
+              children: [
+
+                const Text(
+                  'Expenses',
+
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+
+                Text(
+                  '${filteredExpenses.length} Total',
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 15),
+
+            filteredExpenses.isEmpty
 
                 ? const Center(
                     child: Padding(
@@ -561,7 +752,7 @@ class _GroupDetailsScreenState
                       ),
 
                       child: Text(
-                        'No expenses added yet',
+                        'No matching expenses found',
                       ),
                     ),
                   )
@@ -573,31 +764,28 @@ class _GroupDetailsScreenState
                         const NeverScrollableScrollPhysics(),
 
                     itemCount:
-                        expenses.length,
+                        filteredExpenses
+                            .length,
 
                     itemBuilder:
                         (context, index) {
 
                       final expense =
-                          expenses[index];
+                          filteredExpenses[
+                              index];
 
                       return Card(
                         elevation: 0,
 
-                        color:
-                            Theme.of(
-                                    context)
-                                .cardColor,
-
                         margin:
                             const EdgeInsets.only(
-                          bottom: 12,
+                          bottom: 14,
                         ),
 
                         child: Padding(
                           padding:
                               const EdgeInsets.all(
-                            12,
+                            14,
                           ),
 
                           child: Column(
@@ -617,12 +805,12 @@ class _GroupDetailsScreenState
 
                                       style:
                                           const TextStyle(
+                                        fontSize:
+                                            18,
+
                                         fontWeight:
                                             FontWeight
                                                 .bold,
-
-                                        fontSize:
-                                            17,
                                       ),
                                     ),
                                   ),
@@ -644,7 +832,8 @@ class _GroupDetailsScreenState
                                           .colorScheme
                                           .primary
                                           .withOpacity(
-                                              0.12),
+                                            0.12,
+                                          ),
 
                                       borderRadius:
                                           BorderRadius.circular(
@@ -655,21 +844,6 @@ class _GroupDetailsScreenState
                                     child: Text(
                                       expense
                                           .category,
-
-                                      style:
-                                          TextStyle(
-                                        color: Theme.of(
-                                                context)
-                                            .colorScheme
-                                            .primary,
-
-                                        fontSize:
-                                            12,
-
-                                        fontWeight:
-                                            FontWeight
-                                                .w600,
-                                      ),
                                     ),
                                   ),
                                 ],
@@ -680,7 +854,7 @@ class _GroupDetailsScreenState
                               ),
 
                               Text(
-                                'Paid by ${expense.paidBy} • Split between ${expense.splitBetween.length}',
+                                'Paid by ${expense.paidBy}',
                               ),
 
                               const SizedBox(
@@ -688,15 +862,7 @@ class _GroupDetailsScreenState
                               ),
 
                               Text(
-                                '${expense.date.day}/${expense.date.month}/${expense.date.year} • '
-                                '${expense.date.hour}:${expense.date.minute.toString().padLeft(2, '0')}',
-
-                                style:
-                                    const TextStyle(
-                                  fontSize: 12,
-                                  color:
-                                      Colors.grey,
-                                ),
+                                '${expense.date.day}/${expense.date.month}/${expense.date.year}',
                               ),
 
                               const SizedBox(
@@ -734,7 +900,8 @@ class _GroupDetailsScreenState
                                               .colorScheme
                                               .primary
                                               .withOpacity(
-                                                  0.08),
+                                                0.08,
+                                              ),
 
                                           borderRadius:
                                               BorderRadius.circular(
@@ -744,17 +911,6 @@ class _GroupDetailsScreenState
 
                                         child: Text(
                                           '${entry.key}: Rs. ${entry.value.toStringAsFixed(0)}',
-
-                                          style:
-                                              TextStyle(
-                                            color: Theme.of(
-                                                    context)
-                                                .colorScheme
-                                                .primary,
-
-                                            fontSize:
-                                                12,
-                                          ),
                                         ),
                                       );
                                     },
@@ -785,7 +941,7 @@ class _GroupDetailsScreenState
                                               .primary,
 
                                       fontSize:
-                                          18,
+                                          20,
 
                                       fontWeight:
                                           FontWeight
@@ -842,7 +998,7 @@ class _GroupDetailsScreenState
                     },
                   ),
 
-            const SizedBox(height: 90),
+            const SizedBox(height: 100),
           ],
         ),
       ),
