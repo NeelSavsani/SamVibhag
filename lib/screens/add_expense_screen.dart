@@ -34,6 +34,11 @@ class _AddExpenseScreenState
 
   late String selectedCategory;
 
+  String splitType = 'equal';
+
+  final Map<String, TextEditingController>
+      customSplitControllers = {};
+
   final List<String> categories = [
     'Food',
     'Travel',
@@ -62,6 +67,21 @@ class _AddExpenseScreenState
     selectedCategory =
         expense?.category ?? 'Food';
 
+    splitType =
+        expense?.splitType ?? 'equal';
+
+    for (final member
+        in widget.group.members) {
+
+      customSplitControllers[member] =
+          TextEditingController(
+        text: expense
+                ?.customSplits[member]
+                ?.toStringAsFixed(0) ??
+            '',
+      );
+    }
+
     if (expense != null) {
       titleController.text = expense.title;
 
@@ -72,13 +92,20 @@ class _AddExpenseScreenState
 
   @override
   void dispose() {
+
     titleController.dispose();
     amountController.dispose();
+
+    for (final controller
+        in customSplitControllers.values) {
+      controller.dispose();
+    }
 
     super.dispose();
   }
 
   void saveExpense() {
+
     final title =
         titleController.text.trim();
 
@@ -87,7 +114,8 @@ class _AddExpenseScreenState
     );
 
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Please enter expense title',
@@ -99,7 +127,8 @@ class _AddExpenseScreenState
     }
 
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Please enter valid amount',
@@ -111,7 +140,8 @@ class _AddExpenseScreenState
     }
 
     if (selectedMembers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Please select at least one member',
@@ -122,16 +152,60 @@ class _AddExpenseScreenState
       return;
     }
 
+    Map<String, double> customSplits = {};
+
+    if (splitType == 'custom') {
+
+      double totalCustomAmount = 0;
+
+      for (final member
+          in selectedMembers) {
+
+        final customAmount =
+            double.tryParse(
+                  customSplitControllers[
+                              member]
+                          ?.text ??
+                      '',
+                ) ??
+                0;
+
+        customSplits[member] =
+            customAmount;
+
+        totalCustomAmount +=
+            customAmount;
+      }
+
+      if (totalCustomAmount != amount) {
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Custom split total must equal expense amount',
+            ),
+          ),
+        );
+
+        return;
+      }
+    }
+
     final expense = ExpenseModel(
       title: title,
       amount: amount,
       paidBy: paidBy,
       splitBetween:
-          List<String>.from(selectedMembers),
+          List<String>.from(
+        selectedMembers,
+      ),
       date:
           widget.expense?.date ??
           DateTime.now(),
       category: selectedCategory,
+      splitType: splitType,
+      customSplits: customSplits,
     );
 
     Navigator.pop(context, expense);
@@ -139,6 +213,7 @@ class _AddExpenseScreenState
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor:
           Theme.of(context)
@@ -175,11 +250,15 @@ class _AddExpenseScreenState
               controller: titleController,
 
               decoration: InputDecoration(
-                labelText: 'Expense Title',
+                labelText:
+                    'Expense Title',
 
-                border: OutlineInputBorder(
+                border:
+                    OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(14),
+                      BorderRadius.circular(
+                    14,
+                  ),
                 ),
               ),
             ),
@@ -188,7 +267,8 @@ class _AddExpenseScreenState
 
             /// AMOUNT
             TextField(
-              controller: amountController,
+              controller:
+                  amountController,
 
               keyboardType:
                   TextInputType.number,
@@ -197,9 +277,12 @@ class _AddExpenseScreenState
                 labelText: 'Amount',
                 prefixText: 'Rs. ',
 
-                border: OutlineInputBorder(
+                border:
+                    OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(14),
+                      BorderRadius.circular(
+                    14,
+                  ),
                 ),
               ),
             ),
@@ -213,25 +296,32 @@ class _AddExpenseScreenState
               decoration: InputDecoration(
                 labelText: 'Category',
 
-                border: OutlineInputBorder(
+                border:
+                    OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(14),
+                      BorderRadius.circular(
+                    14,
+                  ),
                 ),
               ),
 
               items:
-                  categories.map((category) {
-                return DropdownMenuItem<String>(
-                  value: category,
-                  child: Text(category),
-                );
-              }).toList(),
+                  categories.map(
+                (category) {
+                  return DropdownMenuItem<
+                      String>(
+                    value: category,
+                    child: Text(category),
+                  );
+                },
+              ).toList(),
 
               onChanged: (value) {
                 if (value == null) return;
 
                 setState(() {
-                  selectedCategory = value;
+                  selectedCategory =
+                      value;
                 });
               },
             ),
@@ -245,21 +335,25 @@ class _AddExpenseScreenState
               decoration: InputDecoration(
                 labelText: 'Paid By',
 
-                border: OutlineInputBorder(
+                border:
+                    OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(14),
+                      BorderRadius.circular(
+                    14,
+                  ),
                 ),
               ),
 
               items:
-                  widget.group.members.map(
-                (member) {
-                  return DropdownMenuItem<String>(
-                    value: member,
-                    child: Text(member),
-                  );
-                },
-              ).toList(),
+                  widget.group.members
+                      .map((member) {
+
+                return DropdownMenuItem<
+                    String>(
+                  value: member,
+                  child: Text(member),
+                );
+              }).toList(),
 
               onChanged: (value) {
                 if (value == null) return;
@@ -272,13 +366,68 @@ class _AddExpenseScreenState
 
             const SizedBox(height: 24),
 
+            /// SPLIT TYPE
+            const Text(
+              'Split Type',
+
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+
+                Expanded(
+                  child:
+                      RadioListTile<String>(
+                    value: 'equal',
+                    groupValue: splitType,
+                    title:
+                        const Text('Equal'),
+
+                    onChanged: (value) {
+                      setState(() {
+                        splitType =
+                            value!;
+                      });
+                    },
+                  ),
+                ),
+
+                Expanded(
+                  child:
+                      RadioListTile<String>(
+                    value: 'custom',
+                    groupValue: splitType,
+                    title:
+                        const Text('Custom'),
+
+                    onChanged: (value) {
+                      setState(() {
+                        splitType =
+                            value!;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
             /// SPLIT BETWEEN
             const Text(
               'Split Between',
 
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
 
@@ -287,16 +436,19 @@ class _AddExpenseScreenState
             Expanded(
               child: ListView.builder(
                 itemCount:
-                    widget.group.members.length,
+                    widget.group.members
+                        .length,
 
                 itemBuilder:
                     (context, index) {
 
                   final member =
-                      widget.group.members[index];
+                      widget.group
+                          .members[index];
 
                   final isSelected =
-                      selectedMembers.contains(
+                      selectedMembers
+                          .contains(
                     member,
                   );
 
@@ -307,7 +459,8 @@ class _AddExpenseScreenState
                         Theme.of(context)
                             .cardColor,
 
-                    child: CheckboxListTile(
+                    child:
+                        CheckboxListTile(
                       activeColor:
                           Theme.of(context)
                               .colorScheme
@@ -315,17 +468,70 @@ class _AddExpenseScreenState
 
                       value: isSelected,
 
-                      title: Text(member),
+                      title: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+
+                        children: [
+
+                          Text(member),
+
+                          if (splitType ==
+                              'custom')
+                            Padding(
+                              padding:
+                                  const EdgeInsets
+                                      .only(
+                                top: 10,
+                              ),
+
+                              child: TextField(
+                                controller:
+                                    customSplitControllers[
+                                        member],
+
+                                keyboardType:
+                                    TextInputType
+                                        .number,
+
+                                decoration:
+                                    InputDecoration(
+                                  labelText:
+                                      'Custom Amount',
+
+                                  prefixText:
+                                      'Rs. ',
+
+                                  border:
+                                      OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius
+                                            .circular(
+                                      12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
 
                       onChanged: (value) {
                         setState(() {
-                          if (value == true) {
-                            selectedMembers.add(
+
+                          if (value ==
+                              true) {
+
+                            selectedMembers
+                                .add(member);
+
+                          } else {
+
+                            selectedMembers
+                                .remove(
                               member,
                             );
-                          } else {
-                            selectedMembers
-                                .remove(member);
                           }
                         });
                       },
@@ -342,13 +548,16 @@ class _AddExpenseScreenState
               child: ElevatedButton(
                 onPressed: saveExpense,
 
-                style: ElevatedButton.styleFrom(
+                style:
+                    ElevatedButton.styleFrom(
                   padding:
-                      const EdgeInsets.symmetric(
+                      const EdgeInsets
+                          .symmetric(
                     vertical: 18,
                   ),
 
-                  shape: RoundedRectangleBorder(
+                  shape:
+                      RoundedRectangleBorder(
                     borderRadius:
                         BorderRadius.circular(
                       14,
