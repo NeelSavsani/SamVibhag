@@ -15,29 +15,58 @@ class AddExpenseScreen extends StatefulWidget {
   final ExpenseModel? expense;
 
   @override
-  State<AddExpenseScreen> createState() => _AddExpenseScreenState();
+  State<AddExpenseScreen> createState() =>
+      _AddExpenseScreenState();
 }
 
-class _AddExpenseScreenState extends State<AddExpenseScreen> {
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController amountController = TextEditingController();
+class _AddExpenseScreenState
+    extends State<AddExpenseScreen> {
+
+  final TextEditingController titleController =
+      TextEditingController();
+
+  final TextEditingController amountController =
+      TextEditingController();
 
   late String paidBy;
+
   late List<String> selectedMembers;
+
+  late String selectedCategory;
+
+  final List<String> categories = [
+    'Food',
+    'Travel',
+    'Shopping',
+    'Fuel',
+    'Rent',
+    'Party',
+    'Other',
+  ];
 
   @override
   void initState() {
     super.initState();
+
     final expense = widget.expense;
 
-    paidBy = expense?.paidBy ?? widget.group.members.first;
+    paidBy =
+        expense?.paidBy ??
+        widget.group.members.first;
+
     selectedMembers = List<String>.from(
-      expense?.splitBetween ?? widget.group.members,
+      expense?.splitBetween ??
+          widget.group.members,
     );
+
+    selectedCategory =
+        expense?.category ?? 'Food';
 
     if (expense != null) {
       titleController.text = expense.title;
-      amountController.text = expense.amount.toStringAsFixed(0);
+
+      amountController.text =
+          expense.amount.toStringAsFixed(0);
     }
   }
 
@@ -45,31 +74,51 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void dispose() {
     titleController.dispose();
     amountController.dispose();
+
     super.dispose();
   }
 
   void saveExpense() {
-    final title = titleController.text.trim();
-    final amount = double.tryParse(amountController.text.trim());
+    final title =
+        titleController.text.trim();
+
+    final amount = double.tryParse(
+      amountController.text.trim(),
+    );
 
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter expense title')),
+        const SnackBar(
+          content: Text(
+            'Please enter expense title',
+          ),
+        ),
       );
+
       return;
     }
 
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter valid amount')),
+        const SnackBar(
+          content: Text(
+            'Please enter valid amount',
+          ),
+        ),
       );
+
       return;
     }
 
     if (selectedMembers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one member')),
+        const SnackBar(
+          content: Text(
+            'Please select at least one member',
+          ),
+        ),
       );
+
       return;
     }
 
@@ -77,8 +126,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       title: title,
       amount: amount,
       paidBy: paidBy,
-      splitBetween: List<String>.from(selectedMembers),
-      date: widget.expense?.date ?? DateTime.now(),
+      splitBetween:
+          List<String>.from(selectedMembers),
+      date:
+          widget.expense?.date ??
+          DateTime.now(),
+      category: selectedCategory,
     );
 
     Navigator.pop(context, expense);
@@ -87,99 +140,192 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor:
+          Theme.of(context)
+              .scaffoldBackgroundColor,
+
       appBar: AppBar(
         title: Text(
-          widget.expense == null ? 'Add Expense' : 'Edit Expense',
-          style: TextStyle(
+          widget.expense == null
+              ? 'Add Expense'
+              : 'Edit Expense',
+
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
+
         actions: const [
           NightModeButton(),
         ],
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16),
+
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+
           children: [
+
+            /// TITLE
             TextField(
               controller: titleController,
+
               decoration: InputDecoration(
                 labelText: 'Expense Title',
+
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                      BorderRadius.circular(14),
                 ),
               ),
             ),
+
             const SizedBox(height: 18),
+
+            /// AMOUNT
             TextField(
               controller: amountController,
-              keyboardType: TextInputType.number,
+
+              keyboardType:
+                  TextInputType.number,
+
               decoration: InputDecoration(
                 labelText: 'Amount',
                 prefixText: 'Rs. ',
+
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                      BorderRadius.circular(14),
                 ),
               ),
             ),
+
             const SizedBox(height: 18),
+
+            /// CATEGORY
             DropdownButtonFormField<String>(
-              value: paidBy,
+              value: selectedCategory,
+
               decoration: InputDecoration(
-                labelText: 'Paid By',
+                labelText: 'Category',
+
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                      BorderRadius.circular(14),
                 ),
               ),
-              items: widget.group.members.map((member) {
+
+              items:
+                  categories.map((category) {
                 return DropdownMenuItem<String>(
-                  value: member,
-                  child: Text(member),
+                  value: category,
+                  child: Text(category),
                 );
               }).toList(),
+
               onChanged: (value) {
-                if (value == null) {
-                  return;
-                }
+                if (value == null) return;
+
+                setState(() {
+                  selectedCategory = value;
+                });
+              },
+            ),
+
+            const SizedBox(height: 18),
+
+            /// PAID BY
+            DropdownButtonFormField<String>(
+              value: paidBy,
+
+              decoration: InputDecoration(
+                labelText: 'Paid By',
+
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(14),
+                ),
+              ),
+
+              items:
+                  widget.group.members.map(
+                (member) {
+                  return DropdownMenuItem<String>(
+                    value: member,
+                    child: Text(member),
+                  );
+                },
+              ).toList(),
+
+              onChanged: (value) {
+                if (value == null) return;
 
                 setState(() {
                   paidBy = value;
                 });
               },
             ),
+
             const SizedBox(height: 24),
+
+            /// SPLIT BETWEEN
             const Text(
               'Split Between',
+
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 10),
+
             Expanded(
               child: ListView.builder(
-                itemCount: widget.group.members.length,
-                itemBuilder: (context, index) {
-                  final member = widget.group.members[index];
-                  final isSelected = selectedMembers.contains(member);
+                itemCount:
+                    widget.group.members.length,
+
+                itemBuilder:
+                    (context, index) {
+
+                  final member =
+                      widget.group.members[index];
+
+                  final isSelected =
+                      selectedMembers.contains(
+                    member,
+                  );
 
                   return Card(
                     elevation: 0,
-                    color: Theme.of(context).cardColor,
+
+                    color:
+                        Theme.of(context)
+                            .cardColor,
+
                     child: CheckboxListTile(
-                      activeColor: Theme.of(context).colorScheme.primary,
+                      activeColor:
+                          Theme.of(context)
+                              .colorScheme
+                              .primary,
+
                       value: isSelected,
+
                       title: Text(member),
+
                       onChanged: (value) {
                         setState(() {
                           if (value == true) {
-                            selectedMembers.add(member);
+                            selectedMembers.add(
+                              member,
+                            );
                           } else {
-                            selectedMembers.remove(member);
+                            selectedMembers
+                                .remove(member);
                           }
                         });
                       },
@@ -188,19 +334,34 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 },
               ),
             ),
+
+            /// SAVE BUTTON
             SizedBox(
               width: double.infinity,
+
               child: ElevatedButton(
                 onPressed: saveExpense,
+
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  padding:
+                      const EdgeInsets.symmetric(
+                    vertical: 18,
+                  ),
+
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius:
+                        BorderRadius.circular(
+                      14,
+                    ),
                   ),
                 ),
+
                 child: Text(
-                  widget.expense == null ? 'Save Expense' : 'Update Expense',
-                  style: TextStyle(
+                  widget.expense == null
+                      ? 'Save Expense'
+                      : 'Update Expense',
+
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                   ),

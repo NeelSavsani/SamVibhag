@@ -4,6 +4,7 @@ class ExpenseModel {
   final String paidBy;
   final List<String> splitBetween;
   final DateTime date;
+  final String category;
 
   ExpenseModel({
     required this.title,
@@ -11,6 +12,7 @@ class ExpenseModel {
     required this.paidBy,
     required this.splitBetween,
     required this.date,
+    required this.category,
   });
 
   factory ExpenseModel.fromMap(Map<dynamic, dynamic> map) {
@@ -20,6 +22,7 @@ class ExpenseModel {
       paidBy: map['paidBy'] as String,
       splitBetween: List<String>.from(map['splitBetween'] as List),
       date: DateTime.parse(map['date'] as String),
+      category: map['category'] as String? ?? 'Other',
     );
   }
 
@@ -30,6 +33,7 @@ class ExpenseModel {
       'paidBy': paidBy,
       'splitBetween': splitBetween,
       'date': date.toIso8601String(),
+      'category': category,
     };
   }
 }
