@@ -5,28 +5,19 @@ import '../models/group_model.dart';
 import '../theme/app_theme.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({
-    super.key,
-    required this.group,
-    this.expense,
-  });
+  const AddExpenseScreen({super.key, required this.group, this.expense});
 
   final GroupModel group;
   final ExpenseModel? expense;
 
   @override
-  State<AddExpenseScreen> createState() =>
-      _AddExpenseScreenState();
+  State<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
-class _AddExpenseScreenState
-    extends State<AddExpenseScreen> {
+class _AddExpenseScreenState extends State<AddExpenseScreen> {
+  final TextEditingController titleController = TextEditingController();
 
-  final TextEditingController titleController =
-      TextEditingController();
-
-  final TextEditingController amountController =
-      TextEditingController();
+  final TextEditingController amountController = TextEditingController();
 
   late String paidBy;
 
@@ -36,8 +27,9 @@ class _AddExpenseScreenState
 
   String splitType = 'equal';
 
-  final Map<String, TextEditingController>
-      customSplitControllers = {};
+  final Map<String, TextEditingController> customSplitControllers = {};
+
+  final Set<String> manuallyEditedMembers = {};
 
   final List<String> categories = [
     'Food',
@@ -55,98 +47,118 @@ class _AddExpenseScreenState
 
     final expense = widget.expense;
 
-    paidBy =
-        expense?.paidBy ??
-        widget.group.members.first;
+    paidBy = expense?.paidBy ?? widget.group.members.first;
 
     selectedMembers = List<String>.from(
-      expense?.splitBetween ??
-          widget.group.members,
+      expense?.splitBetween ?? widget.group.members,
     );
 
-    selectedCategory =
-        expense?.category ?? 'Food';
+    selectedCategory = expense?.category ?? 'Food';
 
-    splitType =
-        expense?.splitType ?? 'equal';
+    splitType = expense?.splitType ?? 'equal';
 
-    for (final member
-        in widget.group.members) {
-
-      customSplitControllers[member] =
-          TextEditingController(
-        text: expense
-                ?.customSplits[member]
-                ?.toStringAsFixed(0) ??
-            '',
+    for (final member in widget.group.members) {
+      customSplitControllers[member] = TextEditingController(
+        text: expense?.customSplits[member]?.toStringAsFixed(0) ?? '',
       );
     }
 
     if (expense != null) {
       titleController.text = expense.title;
 
-      amountController.text =
-          expense.amount.toStringAsFixed(0);
+      amountController.text = expense.amount.toStringAsFixed(0);
     }
   }
 
   @override
   void dispose() {
-
     titleController.dispose();
     amountController.dispose();
 
-    for (final controller
-        in customSplitControllers.values) {
+    for (final controller in customSplitControllers.values) {
       controller.dispose();
     }
 
     super.dispose();
   }
 
-  void saveExpense() {
+  void redistributeCustomAmounts() {
+    final totalAmount = double.tryParse(amountController.text.trim());
 
-    final title =
-        titleController.text.trim();
+    if (splitType != 'custom' ||
+        totalAmount == null ||
+        totalAmount < 0 ||
+        selectedMembers.isEmpty) {
+      return;
+    }
 
-    final amount = double.tryParse(
-      amountController.text.trim(),
+    manuallyEditedMembers.removeWhere(
+      (member) => !selectedMembers.contains(member),
     );
 
+    double manuallyAssigned = 0;
+
+    for (final member in manuallyEditedMembers) {
+      manuallyAssigned +=
+          double.tryParse(customSplitControllers[member]?.text.trim() ?? '') ??
+          0;
+    }
+
+    final automaticMembers = selectedMembers
+        .where((member) => !manuallyEditedMembers.contains(member))
+        .toList();
+
+    if (automaticMembers.isEmpty) {
+      return;
+    }
+
+    final remainingCents = ((totalAmount - manuallyAssigned) * 100)
+        .round()
+        .clamp(0, 1 << 31);
+
+    final baseCents = remainingCents ~/ automaticMembers.length;
+
+    final extraCents = remainingCents % automaticMembers.length;
+
+    for (var index = 0; index < automaticMembers.length; index++) {
+      final member = automaticMembers[index];
+
+      final memberCents = baseCents + (index < extraCents ? 1 : 0);
+
+      customSplitControllers[member]?.text = (memberCents / 100)
+          .toStringAsFixed(2);
+    }
+  }
+
+  void updateCustomAmount(String member) {
+    manuallyEditedMembers.add(member);
+    redistributeCustomAmounts();
+  }
+
+  void saveExpense() {
+    final title = titleController.text.trim();
+
+    final amount = double.tryParse(amountController.text.trim());
+
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please enter expense title',
-          ),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter expense title')),
       );
 
       return;
     }
 
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please enter valid amount',
-          ),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid amount')),
       );
 
       return;
     }
 
     if (selectedMembers.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please select at least one member',
-          ),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one member')),
       );
 
       return;
@@ -155,36 +167,21 @@ class _AddExpenseScreenState
     Map<String, double> customSplits = {};
 
     if (splitType == 'custom') {
-
       double totalCustomAmount = 0;
 
-      for (final member
-          in selectedMembers) {
-
+      for (final member in selectedMembers) {
         final customAmount =
-            double.tryParse(
-                  customSplitControllers[
-                              member]
-                          ?.text ??
-                      '',
-                ) ??
-                0;
+            double.tryParse(customSplitControllers[member]?.text ?? '') ?? 0;
 
-        customSplits[member] =
-            customAmount;
+        customSplits[member] = customAmount;
 
-        totalCustomAmount +=
-            customAmount;
+        totalCustomAmount += customAmount;
       }
 
-      if (totalCustomAmount != amount) {
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
+      if ((totalCustomAmount - amount).abs() > 0.01) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Custom split total must equal expense amount',
-            ),
+            content: Text('Custom split total must equal expense amount'),
           ),
         );
 
@@ -196,13 +193,8 @@ class _AddExpenseScreenState
       title: title,
       amount: amount,
       paidBy: paidBy,
-      splitBetween:
-          List<String>.from(
-        selectedMembers,
-      ),
-      date:
-          widget.expense?.date ??
-          DateTime.now(),
+      splitBetween: List<String>.from(selectedMembers),
+      date: widget.expense?.date ?? DateTime.now(),
       category: selectedCategory,
       splitType: splitType,
       customSplits: customSplits,
@@ -213,17 +205,12 @@ class _AddExpenseScreenState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      backgroundColor:
-          Theme.of(context)
-              .scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       appBar: AppBar(
         title: Text(
-          widget.expense == null
-              ? 'Add Expense'
-              : 'Edit Expense',
+          widget.expense == null ? 'Add Expense' : 'Edit Expense',
 
           style: const TextStyle(
             color: Colors.white,
@@ -231,34 +218,25 @@ class _AddExpenseScreenState
           ),
         ),
 
-        actions: const [
-          NightModeButton(),
-        ],
+        actions: const [NightModeButton()],
       ),
 
       body: Padding(
         padding: const EdgeInsets.all(16),
 
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
-
             /// TITLE
             TextField(
               controller: titleController,
 
               decoration: InputDecoration(
-                labelText:
-                    'Expense Title',
+                labelText: 'Expense Title',
 
-                border:
-                    OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
@@ -267,22 +245,22 @@ class _AddExpenseScreenState
 
             /// AMOUNT
             TextField(
-              controller:
-                  amountController,
+              controller: amountController,
 
-              keyboardType:
-                  TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+
+              onChanged: (_) {
+                redistributeCustomAmounts();
+              },
 
               decoration: InputDecoration(
                 labelText: 'Amount',
                 prefixText: 'Rs. ',
 
-                border:
-                    OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
@@ -296,32 +274,23 @@ class _AddExpenseScreenState
               decoration: InputDecoration(
                 labelText: 'Category',
 
-                border:
-                    OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
 
-              items:
-                  categories.map(
-                (category) {
-                  return DropdownMenuItem<
-                      String>(
-                    value: category,
-                    child: Text(category),
-                  );
-                },
-              ).toList(),
+              items: categories.map((category) {
+                return DropdownMenuItem<String>(
+                  value: category,
+                  child: Text(category),
+                );
+              }).toList(),
 
               onChanged: (value) {
                 if (value == null) return;
 
                 setState(() {
-                  selectedCategory =
-                      value;
+                  selectedCategory = value;
                 });
               },
             ),
@@ -335,21 +304,13 @@ class _AddExpenseScreenState
               decoration: InputDecoration(
                 labelText: 'Paid By',
 
-                border:
-                    OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
 
-              items:
-                  widget.group.members
-                      .map((member) {
-
-                return DropdownMenuItem<
-                    String>(
+              items: widget.group.members.map((member) {
+                return DropdownMenuItem<String>(
                   value: member,
                   child: Text(member),
                 );
@@ -370,47 +331,44 @@ class _AddExpenseScreenState
             const Text(
               'Split Type',
 
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight:
-                    FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 12),
 
             Row(
               children: [
-
                 Expanded(
-                  child:
-                      RadioListTile<String>(
+                  child: RadioListTile<String>(
                     value: 'equal',
                     groupValue: splitType,
-                    title:
-                        const Text('Equal'),
+                    title: const Text('Equal'),
 
                     onChanged: (value) {
                       setState(() {
-                        splitType =
-                            value!;
+                        splitType = value!;
+
+                        manuallyEditedMembers.clear();
+
+                        redistributeCustomAmounts();
                       });
                     },
                   ),
                 ),
 
                 Expanded(
-                  child:
-                      RadioListTile<String>(
+                  child: RadioListTile<String>(
                     value: 'custom',
                     groupValue: splitType,
-                    title:
-                        const Text('Custom'),
+                    title: const Text('Custom'),
 
                     onChanged: (value) {
                       setState(() {
-                        splitType =
-                            value!;
+                        splitType = value!;
+
+                        manuallyEditedMembers.clear();
+
+                        redistributeCustomAmounts();
                       });
                     },
                   ),
@@ -424,92 +382,59 @@ class _AddExpenseScreenState
             const Text(
               'Split Between',
 
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight:
-                    FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
 
             Expanded(
               child: ListView.builder(
-                itemCount:
-                    widget.group.members
-                        .length,
+                itemCount: widget.group.members.length,
 
-                itemBuilder:
-                    (context, index) {
+                itemBuilder: (context, index) {
+                  final member = widget.group.members[index];
 
-                  final member =
-                      widget.group
-                          .members[index];
-
-                  final isSelected =
-                      selectedMembers
-                          .contains(
-                    member,
-                  );
+                  final isSelected = selectedMembers.contains(member);
 
                   return Card(
                     elevation: 0,
 
-                    color:
-                        Theme.of(context)
-                            .cardColor,
+                    color: Theme.of(context).cardColor,
 
-                    child:
-                        CheckboxListTile(
-                      activeColor:
-                          Theme.of(context)
-                              .colorScheme
-                              .primary,
+                    child: CheckboxListTile(
+                      activeColor: Theme.of(context).colorScheme.primary,
 
                       value: isSelected,
 
                       title: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
 
                         children: [
-
                           Text(member),
 
-                          if (splitType ==
-                              'custom')
+                          if (splitType == 'custom')
                             Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .only(
-                                top: 10,
-                              ),
+                              padding: const EdgeInsets.only(top: 10),
 
                               child: TextField(
-                                controller:
-                                    customSplitControllers[
-                                        member],
+                                controller: customSplitControllers[member],
+
+                                enabled: isSelected,
 
                                 keyboardType:
-                                    TextInputType
-                                        .number,
-
-                                decoration:
-                                    InputDecoration(
-                                  labelText:
-                                      'Custom Amount',
-
-                                  prefixText:
-                                      'Rs. ',
-
-                                  border:
-                                      OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius
-                                            .circular(
-                                      12,
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
                                     ),
+
+                                onChanged: (_) => updateCustomAmount(member),
+
+                                decoration: InputDecoration(
+                                  labelText: 'Custom Amount',
+
+                                  prefixText: 'Rs. ',
+
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
                               ),
@@ -519,20 +444,19 @@ class _AddExpenseScreenState
 
                       onChanged: (value) {
                         setState(() {
+                          if (value == true) {
+                            selectedMembers.add(member);
 
-                          if (value ==
-                              true) {
-
-                            selectedMembers
-                                .add(member);
-
+                            manuallyEditedMembers.remove(member);
                           } else {
+                            selectedMembers.remove(member);
 
-                            selectedMembers
-                                .remove(
-                              member,
-                            );
+                            manuallyEditedMembers.remove(member);
+
+                            customSplitControllers[member]?.clear();
                           }
+
+                          redistributeCustomAmounts();
                         });
                       },
                     ),
@@ -548,32 +472,18 @@ class _AddExpenseScreenState
               child: ElevatedButton(
                 onPressed: saveExpense,
 
-                style:
-                    ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets
-                          .symmetric(
-                    vertical: 18,
-                  ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
 
-                  shape:
-                      RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(
-                      14,
-                    ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
 
                 child: Text(
-                  widget.expense == null
-                      ? 'Save Expense'
-                      : 'Update Expense',
+                  widget.expense == null ? 'Save Expense' : 'Update Expense',
 
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 18),
                 ),
               ),
             ),
