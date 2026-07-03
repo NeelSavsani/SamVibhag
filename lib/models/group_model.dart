@@ -1,51 +1,183 @@
 import 'expense_model.dart';
 
-class SettlementModel {
+class Settlement {
   final String from;
   final String to;
   final double amount;
 
-  SettlementModel({
+  Settlement({
     required this.from,
     required this.to,
     required this.amount,
   });
+
+  factory Settlement.fromMap(Map<dynamic, dynamic> map) {
+    return Settlement(
+      from: map['from'],
+      to: map['to'],
+      amount: (map['amount'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'from': from,
+      'to': to,
+      'amount': amount,
+    };
+  }
 }
 
 class GroupModel {
-  final String groupName;
-  final List<String> members;
-  final List<ExpenseModel> expenses;
+  final String id;
+
+  String groupName;
+
+  /// NEW
+  String description;
+
+  /// Local image path
+  String avatarPath;
+
+  /// Group creation date
+  DateTime createdAt;
+
+  List<String> members;
+
+  List<ExpenseModel> expenses;
 
   GroupModel({
+    required this.id,
     required this.groupName,
     required this.members,
-    List<ExpenseModel>? expenses,
-  }) : expenses = expenses ?? [];
+    required this.expenses,
+
+    this.description = '',
+    this.avatarPath = '',
+
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  double get totalExpense {
+    return expenses.fold(
+      0,
+      (sum, expense) => sum + expense.amount,
+    );
+  }
+
+  Map<String, double> get memberBalances {
+    final balances = <String, double>{};
+
+    for (final member in members) {
+      balances[member] = 0;
+    }
+
+    for (final expense in expenses) {
+      balances[expense.paidBy] =
+          (balances[expense.paidBy] ?? 0) + expense.amount;
+
+      if (expense.splitType == 'custom') {
+        expense.customSplits.forEach((member, amount) {
+          balances[member] =
+              (balances[member] ?? 0) - amount;
+        });
+      } else {
+        final share =
+            expense.amount / expense.splitBetween.length;
+
+        for (final member in expense.splitBetween) {
+          balances[member] =
+              (balances[member] ?? 0) - share;
+        }
+      }
+    }
+
+    return balances;
+  }
+
+  List<Settlement> get settlements {
+    final balances =
+        Map<String, double>.from(memberBalances);
+
+    final creditors = <MapEntry<String, double>>[];
+    final debtors = <MapEntry<String, double>>[];
+
+    balances.forEach((member, balance) {
+      if (balance > 0.01) {
+        creditors.add(MapEntry(member, balance));
+      } else if (balance < -0.01) {
+        debtors.add(MapEntry(member, -balance));
+      }
+    });
+
+    final result = <Settlement>[];
+
+    int i = 0;
+    int j = 0;
+
+    while (i < debtors.length &&
+        j < creditors.length) {
+      final debtor = debtors[i];
+      final creditor = creditors[j];
+
+      final amount =
+          debtor.value < creditor.value
+              ? debtor.value
+              : creditor.value;
+
+      result.add(
+        Settlement(
+          from: debtor.key,
+          to: creditor.key,
+          amount: amount,
+        ),
+      );
+
+      debtors[i] =
+          MapEntry(debtor.key, debtor.value - amount);
+
+      creditors[j] = MapEntry(
+          creditor.key,
+          creditor.value - amount);
+
+      if (debtors[i].value <= 0.01) {
+        i++;
+      }
+
+      if (creditors[j].value <= 0.01) {
+        j++;
+      }
+    }
+
+    return result;
+  }
 
   factory GroupModel.fromMap(
-    Map<dynamic, dynamic> map,
-  ) {
-
-    final expenseMaps =
-        List<dynamic>.from(
-      map['expenses'] as List? ?? [],
-    );
-
+      Map<dynamic, dynamic> map) {
     return GroupModel(
-      groupName:
-          map['groupName'] as String,
+      id: map['id'] as String,
+
+      groupName: map['groupName'] as String,
+
+      description:
+          map['description'] as String? ?? '',
+
+      avatarPath:
+          map['avatarPath'] as String? ?? '',
+
+      createdAt: map['createdAt'] == null
+          ? DateTime.now()
+          : DateTime.parse(
+              map['createdAt']),
 
       members: List<String>.from(
-        map['members'] as List,
+        map['members'],
       ),
 
-      expenses: expenseMaps
+      expenses: (map['expenses'] as List)
           .map(
-            (expenseMap) =>
-                ExpenseModel.fromMap(
-              expenseMap as Map,
-            ),
+            (expense) =>
+                ExpenseModel.fromMap(expense),
           )
           .toList(),
     );
@@ -53,7 +185,17 @@ class GroupModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
+
       'groupName': groupName,
+
+      'description': description,
+
+      'avatarPath': avatarPath,
+
+      'createdAt':
+          createdAt.toIso8601String(),
+
       'members': members,
 
       'expenses': expenses
@@ -63,156 +205,5 @@ class GroupModel {
           )
           .toList(),
     };
-  }
-
-  double get totalExpense {
-
-    return expenses.fold<double>(
-      0,
-      (total, expense) =>
-          total + expense.amount,
-    );
-  }
-
-  Map<String, double> get memberBalances {
-
-    final balances = {
-      for (final member in members)
-        member: 0.0,
-    };
-
-    for (final expense in expenses) {
-
-      if (expense.splitBetween.isEmpty) {
-        continue;
-      }
-
-      balances[expense.paidBy] =
-          (balances[expense.paidBy] ??
-                  0) +
-              expense.amount;
-
-      if (expense.splitType ==
-          'equal') {
-
-        final share =
-            expense.amount /
-                expense
-                    .splitBetween
-                    .length;
-
-        for (final member
-            in expense.splitBetween) {
-
-          balances[member] =
-              (balances[member] ??
-                      0) -
-                  share;
-        }
-
-      } else {
-
-        expense.customSplits.forEach(
-          (member, amount) {
-
-            balances[member] =
-                (balances[member] ??
-                        0) -
-                    amount;
-          },
-        );
-      }
-    }
-
-    return balances;
-  }
-
-  List<SettlementModel>
-      get settlements {
-
-    final balances =
-        memberBalances;
-
-    final debtors =
-        <MapEntry<String, double>>[];
-
-    final creditors =
-        <MapEntry<String, double>>[];
-
-    for (final entry
-        in balances.entries) {
-
-      if (entry.value < -0.01) {
-
-        debtors.add(
-          MapEntry(
-            entry.key,
-            -entry.value,
-          ),
-        );
-
-      } else if (entry.value > 0.01) {
-
-        creditors.add(entry);
-      }
-    }
-
-    final settlements =
-        <SettlementModel>[];
-
-    var debtorIndex = 0;
-    var creditorIndex = 0;
-
-    while (debtorIndex <
-            debtors.length &&
-        creditorIndex <
-            creditors.length) {
-
-      final debtor =
-          debtors[debtorIndex];
-
-      final creditor =
-          creditors[creditorIndex];
-
-      final amount =
-          debtor.value <
-                  creditor.value
-              ? debtor.value
-              : creditor.value;
-
-      settlements.add(
-        SettlementModel(
-          from: debtor.key,
-          to: creditor.key,
-          amount: amount,
-        ),
-      );
-
-      debtors[debtorIndex] =
-          MapEntry(
-        debtor.key,
-        debtor.value - amount,
-      );
-
-      creditors[creditorIndex] =
-          MapEntry(
-        creditor.key,
-        creditor.value - amount,
-      );
-
-      if (debtors[debtorIndex]
-              .value <=
-          0.01) {
-        debtorIndex++;
-      }
-
-      if (creditors[creditorIndex]
-              .value <=
-          0.01) {
-        creditorIndex++;
-      }
-    }
-
-    return settlements;
   }
 }

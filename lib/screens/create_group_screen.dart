@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/group_model.dart';
 import '../theme/app_theme.dart';
@@ -11,33 +12,54 @@ class CreateGroupScreen extends StatefulWidget {
 }
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
-  final TextEditingController groupNameController = TextEditingController();
+  final TextEditingController groupNameController =
+      TextEditingController();
 
-  final TextEditingController memberController = TextEditingController();
+  final TextEditingController memberController =
+      TextEditingController();
 
-  List<String> members = [];
+  final TextEditingController descriptionController =
+      TextEditingController();
+
+  final List<String> members = [];
+
+  final uuid = const Uuid();
 
   void addMember() {
-    if (memberController.text.trim().isNotEmpty) {
-      setState(() {
-        members.add(memberController.text.trim());
-      });
+    final member = memberController.text.trim();
 
-      memberController.clear();
+    if (member.isEmpty) return;
+
+    if (members.contains(member)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Member already exists."),
+        ),
+      );
+      return;
     }
+
+    setState(() {
+      members.add(member);
+    });
+
+    memberController.clear();
   }
 
   @override
   void dispose() {
     groupNameController.dispose();
     memberController.dispose();
+    descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor:
+          Theme.of(context).scaffoldBackgroundColor,
+
       appBar: AppBar(
         title: const Text(
           "Create Group",
@@ -52,7 +74,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         padding: const EdgeInsets.all(16),
 
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
 
           children: [
             /// GROUP NAME
@@ -62,8 +85,32 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               decoration: InputDecoration(
                 labelText: "Group Name",
 
+                prefixIcon:
+                    const Icon(Icons.groups),
+
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                      BorderRadius.circular(14),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            /// DESCRIPTION
+            TextField(
+              controller: descriptionController,
+              maxLines: 2,
+
+              decoration: InputDecoration(
+                labelText: "Group Description (Optional)",
+
+                prefixIcon:
+                    const Icon(Icons.info_outline),
+
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(14),
                 ),
               ),
             ),
@@ -80,10 +127,17 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     decoration: InputDecoration(
                       labelText: "Member Name",
 
+                      prefixIcon:
+                          const Icon(Icons.person_add),
+
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius:
+                            BorderRadius.circular(
+                                14),
                       ),
                     ),
+
+                    onSubmitted: (_) => addMember(),
                   ),
                 ),
 
@@ -93,7 +147,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   onPressed: addMember,
 
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                        const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 18,
                     ),
@@ -101,7 +156,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
                   child: const Text(
                     "Add",
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -109,41 +166,69 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
             const SizedBox(height: 25),
 
-            /// MEMBERS TITLE
-            const Text(
-              "Members",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
+
+              children: [
+                const Text(
+                  "Members",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                Chip(
+                  label: Text(
+                    "${members.length}",
+                  ),
+                ),
+              ],
             ),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 12),
 
-            /// MEMBERS LIST
             Expanded(
               child: members.isEmpty
-                  ? const Center(child: Text("No Members Added"))
+                  ? const Center(
+                      child: Text(
+                        "No Members Added",
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: members.length,
 
-                      itemBuilder: (context, index) {
+                      itemBuilder:
+                          (context, index) {
                         return Card(
                           child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: AppTheme.primary,
+                            leading:
+                                const CircleAvatar(
+                              backgroundColor:
+                                  AppTheme.primary,
 
-                              child: Icon(Icons.person, color: Colors.white),
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.white,
+                              ),
                             ),
 
-                            title: Text(members[index]),
+                            title:
+                                Text(members[index]),
 
-                            trailing: IconButton(
+                            trailing:
+                                IconButton(
                               icon: const Icon(
-                                Icons.delete,
-                                color: AppTheme.warning,
+                                Icons.delete_outline,
+                                color:
+                                    AppTheme.warning,
                               ),
 
                               onPressed: () {
                                 setState(() {
-                                  members.removeAt(index);
+                                  members.removeAt(
+                                      index);
                                 });
                               },
                             ),
@@ -153,49 +238,90 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     ),
             ),
 
-            /// CREATE BUTTON
             SizedBox(
               width: double.infinity,
 
-              child: ElevatedButton(
-                onPressed: () {
-                  if (groupNameController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Please Enter Group Name")),
-                    );
+              child: ElevatedButton.icon(
+                icon:
+                    const Icon(Icons.check_circle),
 
+                label: const Text(
+                  "Create Group",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                ),
+
+                onPressed: () {
+                  if (groupNameController.text
+                      .trim()
+                      .isEmpty) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Please Enter Group Name",
+                        ),
+                      ),
+                    );
                     return;
                   }
 
                   if (members.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
                       const SnackBar(
-                        content: Text("Please Add At Least One Member"),
+                        content: Text(
+                          "Please Add At Least One Member",
+                        ),
                       ),
                     );
-
                     return;
                   }
 
                   final group = GroupModel(
-                    groupName: groupNameController.text.trim(),
-                    members: List<String>.from(members),
+                    id: uuid.v4(),
+
+                    groupName:
+                        groupNameController.text
+                            .trim(),
+
+                    description:
+                        descriptionController.text
+                            .trim(),
+
+                    avatarPath: "",
+
+                    createdAt:
+                        DateTime.now(),
+
+                    members:
+                        List<String>.from(
+                      members,
+                    ),
+
+                    expenses: [],
                   );
 
-                  Navigator.pop(context, group);
+                  Navigator.pop(
+                    context,
+                    group,
+                  );
                 },
 
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                  padding:
+                      const EdgeInsets.symmetric(
+                    vertical: 18,
                   ),
-                ),
 
-                child: const Text(
-                  "Create Group",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                            14),
+                  ),
                 ),
               ),
             ),
