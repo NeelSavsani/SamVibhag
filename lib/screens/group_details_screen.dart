@@ -1,11 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/expense_model.dart';
 import '../models/group_model.dart';
+
 import '../theme/app_theme.dart';
 
 import 'add_expense_screen.dart';
+import 'group_info_screen.dart';
+
 import '../services/report_screen.dart';
 
 class GroupDetailsScreen extends StatefulWidget {
@@ -16,6 +21,7 @@ class GroupDetailsScreen extends StatefulWidget {
   });
 
   final GroupModel group;
+
   final Future<void> Function()? onGroupUpdated;
 
   @override
@@ -30,6 +36,7 @@ class _GroupDetailsScreenState
       widget.group.expenses;
 
   String searchQuery = '';
+
   String selectedCategory = 'All';
 
   List<String> get categories {
@@ -54,29 +61,22 @@ class _GroupDetailsScreenState
 
     return expenses.where((expense) {
 
+      final search =
+          searchQuery.toLowerCase();
+
       final matchesSearch =
           expense.title
                   .toLowerCase()
-                  .contains(
-                    searchQuery
-                        .toLowerCase(),
-                  ) ||
+                  .contains(search) ||
               expense.category
                   .toLowerCase()
-                  .contains(
-                    searchQuery
-                        .toLowerCase(),
-                  ) ||
+                  .contains(search) ||
               expense.paidBy
                   .toLowerCase()
-                  .contains(
-                    searchQuery
-                        .toLowerCase(),
-                  );
+                  .contains(search);
 
       final matchesCategory =
-          selectedCategory ==
-                  'All' ||
+          selectedCategory == "All" ||
               expense.category ==
                   selectedCategory;
 
@@ -85,67 +85,75 @@ class _GroupDetailsScreenState
     }).toList();
   }
 
-  Future<void> addExpense() async {
+  Future<void> openGroupInfo() async {
 
-    final ExpenseModel? result =
-        await Navigator.push<ExpenseModel>(
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            AddExpenseScreen(
+        builder: (_) =>
+            GroupInfoScreen(
           group: widget.group,
         ),
       ),
     );
-
-    if (result == null || !mounted) {
-      return;
-    }
-
-    setState(() {
-      widget.group.expenses.add(result);
-    });
-
-    await widget.onGroupUpdated?.call();
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(
-          '${result.title} Expense Added Successfully',
+    setState(() {});
+
+    await widget.onGroupUpdated?.call();
+  }
+
+  Future<void> addExpense() async {
+
+    final ExpenseModel? result =
+        await Navigator.push<
+            ExpenseModel>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            AddExpenseScreen(
+          group: widget.group,
         ),
       ),
     );
+
+    if (result == null) return;
+
+    setState(() {
+      widget.group.expenses.add(
+        result,
+      );
+    });
+
+    await widget.onGroupUpdated
+        ?.call();
   }
 
   Future<void> editExpense(
-    int index,
-  ) async {
+      int index) async {
 
-    final currentExpense =
+    final expense =
         filteredExpenses[index];
 
     final originalIndex =
-        expenses.indexOf(
-      currentExpense,
-    );
+        expenses.indexOf(expense);
 
-    final ExpenseModel? updatedExpense =
-        await Navigator.push<ExpenseModel>(
+    final ExpenseModel?
+        updatedExpense =
+        await Navigator.push<
+            ExpenseModel>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
+        builder: (_) =>
             AddExpenseScreen(
           group: widget.group,
-          expense: currentExpense,
+          expense: expense,
         ),
       ),
     );
 
-    if (updatedExpense == null ||
-        !mounted) {
+    if (updatedExpense == null) {
       return;
     }
 
@@ -155,77 +163,56 @@ class _GroupDetailsScreenState
           updatedExpense;
     });
 
-    await widget.onGroupUpdated?.call();
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(
-          '${updatedExpense.title} Expense Updated',
-        ),
-      ),
-    );
+    await widget.onGroupUpdated
+        ?.call();
   }
 
   Future<void> deleteExpense(
-    int index,
-  ) async {
+      int index) async {
 
     final expense =
         filteredExpenses[index];
 
-    final shouldDelete =
+    final confirm =
         await showDialog<bool>(
       context: context,
 
-      builder: (context) {
+      builder: (_) =>
+          AlertDialog(
+        title: const Text(
+          "Delete Expense",
+        ),
 
-        return AlertDialog(
-          title:
-              const Text('Delete Expense?'),
+        content: Text(
+          "Delete ${expense.title} ?",
+        ),
 
-          content: Text(
-            'Delete ${expense.title} expense?',
+        actions: [
+
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(
+                    context,
+                    false),
+
+            child:
+                const Text("Cancel"),
           ),
 
-          actions: [
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(
+                    context,
+                    true),
 
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                false,
-              ),
-
-              child:
-                  const Text('Cancel'),
-            ),
-
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                true,
-              ),
-
-              child: const Text(
-                'Delete',
-
-                style: TextStyle(
-                  color:
-                      AppTheme.warning,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+            child:
+                const Text("Delete"),
+          ),
+        ],
+      ),
     );
 
-    if (shouldDelete != true ||
-        !mounted) {
+    if (confirm != true) {
       return;
     }
 
@@ -234,18 +221,8 @@ class _GroupDetailsScreenState
           .remove(expense);
     });
 
-    await widget.onGroupUpdated?.call();
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(
-          '${expense.title} Expense Deleted',
-        ),
-      ),
-    );
+    await widget.onGroupUpdated
+        ?.call();
   }
 
   Future<void> openReport() async {
@@ -266,66 +243,48 @@ class _GroupDetailsScreenState
     final settlements =
         widget.group.settlements;
 
-    if (expenses.isEmpty) {
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No expenses to share',
-          ),
-        ),
-      );
-
+    if (settlements.isEmpty) {
       return;
     }
 
-    final settlementText =
-        settlements.isEmpty
-
-            ? 'Everyone is settled up.'
-
-            : settlements
-                .map(
-                  (s) =>
-                      '${s.from} pays ${s.to}: Rs. ${s.amount.toStringAsFixed(0)}',
-                )
-                .join('\n');
-
     final message =
-        Uri.encodeComponent(
-      'SamVibhag Settlement - ${widget.group.groupName}\n\n'
-      '$settlementText',
-    );
+        settlements
+            .map(
+              (e) =>
+                  "${e.from} pays ${e.to} : Rs. ${e.amount.toStringAsFixed(0)}",
+            )
+            .join("\n");
 
     final uri = Uri.parse(
-      'https://wa.me/?text=$message',
+      "https://wa.me/?text=${Uri.encodeComponent(message)}",
     );
 
     if (await canLaunchUrl(uri)) {
-
       await launchUrl(
         uri,
-        mode:
-            LaunchMode
-                .externalApplication,
+        mode: LaunchMode
+            .externalApplication,
       );
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context) {
 
     return Scaffold(
+
       backgroundColor:
           Theme.of(context)
               .scaffoldBackgroundColor,
 
       appBar: AppBar(
+
         title: Text(
           widget.group.groupName,
 
-          style: const TextStyle(
+          style:
+              const TextStyle(
             color: Colors.white,
             fontWeight:
                 FontWeight.bold,
@@ -335,45 +294,61 @@ class _GroupDetailsScreenState
         actions: [
 
           IconButton(
-            tooltip: 'Export PDF',
-
-            onPressed: openReport,
+            tooltip:
+                "Group Information",
 
             icon: const Icon(
-              Icons.picture_as_pdf,
-              color: Colors.white,
+              Icons.edit,
+              color:
+                  Colors.white,
             ),
+
+            onPressed:
+                openGroupInfo,
           ),
 
           IconButton(
             tooltip:
-                'Share settlements',
+                "Export PDF",
+
+            icon: const Icon(
+              Icons
+                  .picture_as_pdf,
+              color:
+                  Colors.white,
+            ),
 
             onPressed:
-                shareSettlements,
+                openReport,
+          ),
+
+          IconButton(
+            tooltip:
+                "Share",
 
             icon: const Icon(
               Icons.share,
-              color: Colors.white,
+              color:
+                  Colors.white,
             ),
+
+            onPressed:
+                shareSettlements,
           ),
 
           const NightModeButton(),
         ],
-      ),
+              ),
 
       floatingActionButton:
           FloatingActionButton.extended(
         onPressed: addExpense,
-
         icon: const Icon(
           Icons.add,
           color: Colors.white,
         ),
-
         label: const Text(
-          'Add Expense',
-
+          "Add Expense",
           style: TextStyle(
             color: Colors.white,
           ),
@@ -381,8 +356,7 @@ class _GroupDetailsScreenState
       ),
 
       body: SingleChildScrollView(
-        padding:
-            const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
 
         child: Column(
           crossAxisAlignment:
@@ -390,20 +364,164 @@ class _GroupDetailsScreenState
 
           children: [
 
+            /// GROUP INFO CARD
+            Card(
+              elevation: 0,
+              shape:
+                  RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(20),
+              ),
+
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(20),
+
+                child: Row(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+
+                  children: [
+
+                    CircleAvatar(
+                      radius: 38,
+
+                      backgroundColor:
+                          AppTheme.primary
+                              .withOpacity(.12),
+
+                      backgroundImage:
+                          widget.group.avatarPath
+                                  .isNotEmpty
+                              ? FileImage(
+                                  File(
+                                    widget.group
+                                        .avatarPath,
+                                  ),
+                                )
+                              : null,
+
+                      child: widget.group
+                              .avatarPath
+                              .isEmpty
+                          ? const Icon(
+                              Icons.groups,
+                              size: 34,
+                              color:
+                                  AppTheme.primary,
+                            )
+                          : null,
+                    ),
+
+                    const SizedBox(
+                      width: 18,
+                    ),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+
+                        children: [
+
+                          Text(
+                            widget.group.groupName,
+
+                            style:
+                                const TextStyle(
+                              fontSize: 22,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+
+                          if (widget.group
+                              .description
+                              .isNotEmpty)
+                            Padding(
+                              padding:
+                                  const EdgeInsets
+                                      .only(
+                                top: 6,
+                              ),
+                              child: Text(
+                                widget.group
+                                    .description,
+                                style:
+                                    TextStyle(
+                                  color: Colors
+                                      .grey[700],
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(
+                            height: 10,
+                          ),
+
+                          Row(
+                            children: [
+
+                              const Icon(
+                                Icons.people,
+                                size: 18,
+                                color: Colors.grey,
+                              ),
+
+                              const SizedBox(
+                                width: 6,
+                              ),
+
+                              Text(
+                                "${widget.group.members.length} Members",
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(
+                            height: 6,
+                          ),
+
+                          Row(
+                            children: [
+
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 18,
+                                color: Colors.grey,
+                              ),
+
+                              const SizedBox(
+                                width: 6,
+                              ),
+
+                              Text(
+                                "Created ${widget.group.createdAt.day}/${widget.group.createdAt.month}/${widget.group.createdAt.year}",
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
             /// SUMMARY CARD
             Container(
               width: double.infinity,
 
               padding:
-                  const EdgeInsets.all(
-                22,
-              ),
+                  const EdgeInsets.all(22),
 
-              decoration: BoxDecoration(
+              decoration:
+                  BoxDecoration(
                 borderRadius:
-                    BorderRadius.circular(
-                  24,
-                ),
+                    BorderRadius.circular(24),
 
                 gradient:
                     const LinearGradient(
@@ -416,19 +534,17 @@ class _GroupDetailsScreenState
 
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    CrossAxisAlignment.start,
 
                 children: [
 
                   Text(
-                    '${widget.group.members.length} Members',
+                    "${widget.group.members.length} Members",
 
                     style:
                         const TextStyle(
                       color:
                           Colors.white70,
-
                       fontSize: 16,
                     ),
                   ),
@@ -438,15 +554,13 @@ class _GroupDetailsScreenState
                   ),
 
                   Text(
-                    'Rs. ${widget.group.totalExpense.toStringAsFixed(0)}',
+                    "₹ ${widget.group.totalExpense.toStringAsFixed(0)}",
 
                     style:
                         const TextStyle(
                       color:
                           Colors.white,
-
                       fontSize: 36,
-
                       fontWeight:
                           FontWeight.bold,
                     ),
@@ -457,13 +571,11 @@ class _GroupDetailsScreenState
                   ),
 
                   const Text(
-                    'Total Group Expense',
+                    "Total Group Expense",
 
                     style: TextStyle(
                       color:
                           Colors.white70,
-
-                      fontSize: 15,
                     ),
                   ),
                 ],
@@ -471,203 +583,178 @@ class _GroupDetailsScreenState
             ),
 
             const SizedBox(height: 28),
-
-            /// MEMBERS
+                        /// MEMBERS
             const Text(
-              'Members',
-
+              "Members",
               style: TextStyle(
                 fontSize: 22,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
             ListView.builder(
               shrinkWrap: true,
-
               physics:
                   const NeverScrollableScrollPhysics(),
-
               itemCount:
-                  widget.group.members
-                      .length,
-
-              itemBuilder:
-                  (context, index) {
+                  widget.group.members.length,
+              itemBuilder: (context, index) {
 
                 final member =
-                    widget.group
-                        .members[index];
+                    widget.group.members[index];
 
                 final balance =
-                    widget.group
-                            .memberBalances[
-                        member] ??
-                    0;
+                    widget.group.memberBalances[member] ??
+                        0;
 
-                final isPositive =
-                    balance > 0.01;
+                final isGets = balance > 0.01;
+                final isOwes = balance < -0.01;
 
-                final isNegative =
-                    balance < -0.01;
+                Color avatarColor;
+                IconData trailingIcon;
+                Color trailingColor;
+                String subtitle;
+
+                if (isGets) {
+
+                  avatarColor =
+                      Colors.green;
+
+                  trailingIcon =
+                      Icons.arrow_downward;
+
+                  trailingColor =
+                      Colors.green;
+
+                  subtitle =
+                      "Gets ₹ ${balance.toStringAsFixed(0)}";
+
+                } else if (isOwes) {
+
+                  avatarColor =
+                      Colors.orange;
+
+                  trailingIcon =
+                      Icons.arrow_upward;
+
+                  trailingColor =
+                      Colors.orange;
+
+                  subtitle =
+                      "Owes ₹ ${(-balance).toStringAsFixed(0)}";
+
+                } else {
+
+                  avatarColor =
+                      Colors.blue;
+
+                  trailingIcon =
+                      Icons.check_circle;
+
+                  trailingColor =
+                      Colors.blue;
+
+                  subtitle =
+                      "Settled";
+                }
 
                 return Card(
-                  elevation: 0,
 
-                  color:
-                      Theme.of(context)
-                          .cardColor,
+                  elevation: 0,
 
                   margin:
                       const EdgeInsets.only(
-                    bottom: 10,
+                    bottom: 12,
+                  ),
+
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(16),
                   ),
 
                   child: ListTile(
 
-                    leading:
-                        CircleAvatar(
+                    leading: CircleAvatar(
+
                       backgroundColor:
-
-                          isPositive
-
-                              ? Colors.green
-                                  .withOpacity(
-                                0.12,
-                              )
-
-                              : isNegative
-
-                                  ? Colors.orange
-                                      .withOpacity(
-                                    0.12,
-                                  )
-
-                                  : Colors.blue
-                                      .withOpacity(
-                                    0.12,
-                                  ),
+                          avatarColor.withOpacity(.15),
 
                       child: Icon(
                         Icons.person,
-
-                        color:
-
-                            isPositive
-
-                                ? Colors.green
-
-                                : isNegative
-
-                                    ? Colors.orange
-
-                                    : Colors.blue,
+                        color: avatarColor,
                       ),
                     ),
 
-                    title: Text(member),
-
-                    subtitle: Text(
-
-                      isPositive
-
-                          ? 'Gets Rs. ${balance.toStringAsFixed(0)}'
-
-                          : isNegative
-
-                              ? 'Owes Rs. ${(-balance).toStringAsFixed(0)}'
-
-                              : 'Settled',
+                    title: Text(
+                      member,
                     ),
 
-                    trailing:
+                    subtitle: Text(
+                      subtitle,
+                    ),
 
-                        isPositive
-
-                            ? const Icon(
-                                Icons
-                                    .arrow_downward,
-                                color:
-                                    Colors.green,
-                              )
-
-                            : isNegative
-
-                                ? const Icon(
-                                    Icons
-                                        .arrow_upward,
-                                    color:
-                                        Colors.orange,
-                                  )
-
-                                : const Icon(
-                                    Icons.check,
-                                    color:
-                                        Colors.blue,
-                                  ),
+                    trailing: Icon(
+                      trailingIcon,
+                      color: trailingColor,
+                    ),
                   ),
                 );
               },
             ),
 
+            const SizedBox(height: 28),
+
             if (expenses.isNotEmpty) ...[
 
-              const SizedBox(height: 25),
-
-              /// SETTLEMENTS
               const Text(
-                'Settlements',
-
+                "Settlements",
                 style: TextStyle(
                   fontSize: 22,
-                  fontWeight:
-                      FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
               ListView.builder(
                 shrinkWrap: true,
-
                 physics:
                     const NeverScrollableScrollPhysics(),
-
                 itemCount:
                     widget.group
-                        .settlements
-                        .length,
-
+                        .settlements.length,
                 itemBuilder:
                     (context, index) {
 
                   final settlement =
                       widget.group
-                              .settlements[
-                          index];
+                          .settlements[index];
 
                   return Card(
-                    elevation: 0,
 
-                    color:
-                        Theme.of(context)
-                            .cardColor,
+                    elevation: 0,
 
                     margin:
                         const EdgeInsets.only(
-                      bottom: 10,
+                      bottom: 12,
+                    ),
+
+                    shape:
+                        RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(
+                              16),
                     ),
 
                     child: ListTile(
+
                       leading:
                           const CircleAvatar(
                         backgroundColor:
-                            Color(
-                          0xFFE8EEFF,
-                        ),
+                            Color(0xFFE8EEFF),
 
                         child: Icon(
                           Icons.swap_horiz,
@@ -677,230 +764,239 @@ class _GroupDetailsScreenState
                       ),
 
                       title: Text(
-                        '${settlement.from} pays ${settlement.to}',
+                        "${settlement.from} pays ${settlement.to}",
+                      ),
+
+                      subtitle: const Text(
+                        "Settlement",
                       ),
 
                       trailing: Text(
-                        'Rs. ${settlement.amount.toStringAsFixed(0)}',
-
+                        "₹ ${settlement.amount.toStringAsFixed(0)}",
                         style:
                             const TextStyle(
-                          color:
-                              AppTheme
-                                  .primary,
-
                           fontWeight:
-                              FontWeight
-                                  .bold,
+                              FontWeight.bold,
+                          color:
+                              AppTheme.primary,
                         ),
                       ),
                     ),
                   );
                 },
               ),
+
+              const SizedBox(height: 28),
             ],
-
-            const SizedBox(height: 25),
-
-            /// SEARCH BAR
+                        /// SEARCH BAR
             TextField(
               decoration: InputDecoration(
-                hintText:
-                    'Search expenses...',
-
-                prefixIcon:
-                    const Icon(
-                  Icons.search,
-                ),
-
+                hintText: "Search expenses...",
+                prefixIcon: const Icon(Icons.search),
                 filled: true,
-
-                fillColor:
-                    Theme.of(context)
-                        .cardColor,
-
-                border:
-                    OutlineInputBorder(
+                fillColor: Theme.of(context).cardColor,
+                border: OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(
-                    18,
-                  ),
-
-                  borderSide:
-                      BorderSide.none,
+                      BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
                 ),
               ),
-
               onChanged: (value) {
-
                 setState(() {
                   searchQuery = value;
                 });
               },
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
 
-            /// CATEGORY FILTERS
+            /// CATEGORY FILTER
             SizedBox(
               height: 42,
-
               child: ListView(
-                scrollDirection:
-                    Axis.horizontal,
+                scrollDirection: Axis.horizontal,
+                children: categories.map((category) {
+                  final selected =
+                      selectedCategory == category;
 
-                children:
-                    categories.map(
-                  (category) {
-
-                    final selected =
-                        selectedCategory ==
-                            category;
-
-                    return Padding(
-                      padding:
-                          const EdgeInsets.only(
-                        right: 10,
-                      ),
-
-                      child: ChoiceChip(
-                        label:
-                            Text(category),
-
-                        selected:
-                            selected,
-
-                        onSelected:
-                            (_) {
-
-                          setState(() {
-                            selectedCategory =
-                                category;
-                          });
-                        },
-                      ),
-                    );
-                  },
-                ).toList(),
+                  return Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      right: 10,
+                    ),
+                    child: ChoiceChip(
+                      label: Text(category),
+                      selected: selected,
+                      onSelected: (_) {
+                        setState(() {
+                          selectedCategory =
+                              category;
+                        });
+                      },
+                    ),
+                  );
+                }).toList(),
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 28),
 
-            /// EXPENSES TITLE
             Row(
               mainAxisAlignment:
-                  MainAxisAlignment
-                      .spaceBetween,
-
+                  MainAxisAlignment.spaceBetween,
               children: [
 
                 const Text(
-                  'Expenses',
-
+                  "Expenses",
                   style: TextStyle(
                     fontSize: 22,
-                    fontWeight:
-                        FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
 
                 Text(
-                  '${filteredExpenses.length} Total',
+                  "${filteredExpenses.length} Total",
                 ),
               ],
             ),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 18),
 
-            filteredExpenses.isEmpty
+            if (filteredExpenses.isEmpty)
 
-                ? const Center(
-                    child: Padding(
-                      padding:
-                          EdgeInsets.all(
-                        30,
-                      ),
+              const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(
+                  child: Text(
+                    "No Expenses Found",
+                  ),
+                ),
+              )
 
-                      child: Text(
-                        'No matching expenses found',
+            else
+
+              ListView.builder(
+                shrinkWrap: true,
+                physics:
+                    const NeverScrollableScrollPhysics(),
+                itemCount:
+                    filteredExpenses.length,
+
+                itemBuilder:
+                    (context, index) {
+
+                  final expense =
+                      filteredExpenses[index];
+
+                  return Card(
+                    elevation: 0,
+
+                    margin:
+                        const EdgeInsets.only(
+                      bottom: 16,
+                    ),
+
+                    shape:
+                        RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(
+                        18,
                       ),
                     ),
-                  )
 
-                : ListView.builder(
-                    shrinkWrap: true,
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(
+                        16,
+                      ),
 
-                    physics:
-                        const NeverScrollableScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
 
-                    itemCount:
-                        filteredExpenses
-                            .length,
+                        children: [
 
-                    itemBuilder:
-                        (context, index) {
-
-                      final expense =
-                          filteredExpenses[
-                              index];
-
-                      return Card(
-                        elevation: 0,
-
-                        color:
-                            Theme.of(
-                                    context)
-                                .cardColor,
-
-                        margin:
-                            const EdgeInsets.only(
-                          bottom: 14,
-                        ),
-
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.all(
-                            14,
-                          ),
-
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
-
+                          Row(
                             children: [
 
-                              Row(
-                                children: [
-
-                                  Expanded(
-                                    child: Text(
-                                      expense
-                                          .title,
-
-                                      style:
-                                          const TextStyle(
-                                        fontSize:
-                                            18,
-
-                                        fontWeight:
-                                            FontWeight
-                                                .bold,
-                                      ),
-                                    ),
+                              Expanded(
+                                child: Text(
+                                  expense.title,
+                                  style:
+                                      const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight:
+                                        FontWeight
+                                            .bold,
                                   ),
+                                ),
+                              ),
 
-                                  Container(
+                              Container(
+                                padding:
+                                    const EdgeInsets
+                                        .symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+
+                                decoration:
+                                    BoxDecoration(
+                                  color: Theme.of(
+                                          context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(
+                                          .12),
+
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                              20),
+                                ),
+
+                                child: Text(
+                                  expense.category,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(
+                            height: 8,
+                          ),
+
+                          Text(
+                            "Paid by ${expense.paidBy}",
+                          ),
+
+                          const SizedBox(
+                            height: 4,
+                          ),
+
+                          Text(
+                            "${expense.date.day}/${expense.date.month}/${expense.date.year}",
+                          ),
+
+                          const SizedBox(
+                            height: 12,
+                          ),
+                                                    if (expense.splitType ==
+                              "custom")
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: expense
+                                  .customSplits.entries
+                                  .map(
+                                (entry) {
+                                  return Container(
                                     padding:
                                         const EdgeInsets.symmetric(
-                                      horizontal:
-                                          10,
-
-                                      vertical:
-                                          4,
+                                      horizontal: 10,
+                                      vertical: 6,
                                     ),
-
                                     decoration:
                                         BoxDecoration(
                                       color: Theme.of(
@@ -908,171 +1004,88 @@ class _GroupDetailsScreenState
                                           .colorScheme
                                           .primary
                                           .withOpacity(
-                                            0.12,
-                                          ),
-
+                                              .08),
                                       borderRadius:
-                                          BorderRadius.circular(
-                                        20,
-                                      ),
+                                          BorderRadius
+                                              .circular(
+                                                  20),
                                     ),
-
                                     child: Text(
-                                      expense
-                                          .category,
+                                      "${entry.key}: ₹ ${entry.value.toStringAsFixed(0)}",
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  );
+                                },
+                              ).toList(),
+                            ),
 
-                              const SizedBox(
-                                height: 8,
-                              ),
+                          if (expense.splitType ==
+                              "custom")
+                            const SizedBox(
+                              height: 12,
+                            ),
+
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment
+                                    .spaceBetween,
+                            children: [
 
                               Text(
-                                'Paid by ${expense.paidBy}',
-                              ),
-
-                              const SizedBox(
-                                height: 4,
-                              ),
-
-                              Text(
-                                '${expense.date.day}/${expense.date.month}/${expense.date.year}',
-                              ),
-
-                              const SizedBox(
-                                height: 10,
-                              ),
-
-                              if (expense
-                                      .splitType ==
-                                  'custom')
-
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-
-                                  children: expense
-                                      .customSplits
-                                      .entries
-                                      .map(
-                                    (entry) {
-
-                                      return Container(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal:
-                                              10,
-
-                                          vertical:
-                                              6,
-                                        ),
-
-                                        decoration:
-                                            BoxDecoration(
-                                          color: Theme.of(
-                                                  context)
-                                              .colorScheme
-                                              .primary
-                                              .withOpacity(
-                                                0.08,
-                                              ),
-
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-
-                                        child: Text(
-                                          '${entry.key}: Rs. ${entry.value.toStringAsFixed(0)}',
-                                        ),
-                                      );
-                                    },
-                                  ).toList(),
+                                "₹ ${expense.amount.toStringAsFixed(0)}",
+                                style:
+                                    const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                  color:
+                                      AppTheme.primary,
                                 ),
-
-                              if (expense
-                                      .splitType ==
-                                  'custom')
-                                const SizedBox(
-                                  height: 10,
-                                ),
+                              ),
 
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment
-                                        .spaceBetween,
-
                                 children: [
 
-                                  Text(
-                                    'Rs. ${expense.amount.toStringAsFixed(0)}',
-
-                                    style:
-                                        const TextStyle(
+                                  IconButton(
+                                    tooltip:
+                                        "Edit Expense",
+                                    onPressed: () =>
+                                        editExpense(
+                                            index),
+                                    icon:
+                                        const Icon(
+                                      Icons
+                                          .edit_outlined,
                                       color:
                                           AppTheme
                                               .primary,
-
-                                      fontSize:
-                                          20,
-
-                                      fontWeight:
-                                          FontWeight
-                                              .bold,
                                     ),
                                   ),
 
-                                  Row(
-                                    children: [
-
-                                      IconButton(
-                                        onPressed:
-                                            () =>
-                                                editExpense(
-                                          index,
-                                        ),
-
-                                        icon:
-                                            const Icon(
-                                          Icons
-                                              .edit_outlined,
-
-                                          color:
-                                              AppTheme
-                                                  .primary,
-                                        ),
-                                      ),
-
-                                      IconButton(
-                                        onPressed:
-                                            () =>
-                                                deleteExpense(
-                                          index,
-                                        ),
-
-                                        icon:
-                                            const Icon(
-                                          Icons
-                                              .delete_outline,
-
-                                          color:
-                                              AppTheme
-                                                  .warning,
-                                        ),
-                                      ),
-                                    ],
+                                  IconButton(
+                                    tooltip:
+                                        "Delete Expense",
+                                    onPressed: () =>
+                                        deleteExpense(
+                                            index),
+                                    icon:
+                                        const Icon(
+                                      Icons
+                                          .delete_outline,
+                                      color:
+                                          AppTheme
+                                              .warning,
+                                    ),
                                   ),
                                 ],
                               ),
                             ],
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
 
             const SizedBox(height: 100),
           ],
