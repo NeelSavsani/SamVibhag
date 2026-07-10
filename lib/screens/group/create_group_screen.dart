@@ -1,331 +1,496 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../models/group_model.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/group_model.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
 
   @override
-  State<CreateGroupScreen> createState() => _CreateGroupScreenState();
+  State<CreateGroupScreen> createState() =>
+      _CreateGroupScreenState();
 }
 
-class _CreateGroupScreenState extends State<CreateGroupScreen> {
-  final TextEditingController groupNameController =
+class _CreateGroupScreenState
+    extends State<CreateGroupScreen> {
+
+  final _formKey =
+      GlobalKey<FormState>();
+
+  final _groupNameController =
       TextEditingController();
 
-  final TextEditingController memberController =
-      TextEditingController();
+  String _selectedType = "Trip";
 
-  final TextEditingController descriptionController =
-      TextEditingController();
+  final List<Map<String, dynamic>>
+      _categories = [
 
-  final List<String> members = [];
+    {
+      "name": "Trip",
+      "icon": Icons.flight_takeoff_rounded,
+    },
 
-  final uuid = const Uuid();
+    {
+      "name": "Home",
+      "icon": Icons.home_rounded,
+    },
 
-  void addMember() {
-    final member = memberController.text.trim();
+    {
+      "name": "Couple",
+      "icon": Icons.favorite_rounded,
+    },
 
-    if (member.isEmpty) return;
-
-    if (members.contains(member)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Member already exists."),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      members.add(member);
-    });
-
-    memberController.clear();
-  }
+    {
+      "name": "Other",
+      "icon": Icons.category_rounded,
+    },
+  ];
 
   @override
   void dispose() {
-    groupNameController.dispose();
-    memberController.dispose();
-    descriptionController.dispose();
+
+    _groupNameController.dispose();
+
     super.dispose();
   }
 
+  void _submitGroup() {
+
+    if (!_formKey.currentState!
+        .validate()) {
+      return;
+    }
+
+    final newGroup =
+        GroupModel(
+
+      id: const Uuid().v4(),
+
+      groupName:
+          _groupNameController.text
+              .trim(),
+
+      description:
+          "A $_selectedType group.",
+
+      avatarPath: "",
+
+      members: [],
+
+      expenses: [],
+
+      createdAt: DateTime.now(),
+    );
+
+    Navigator.pop(
+      context,
+      newGroup,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context) {
+
+    final theme =
+        Theme.of(context);
+
+    final isDark =
+        theme.brightness ==
+            Brightness.dark;
+
     return Scaffold(
+
       backgroundColor:
-          Theme.of(context).scaffoldBackgroundColor,
+          theme.scaffoldBackgroundColor,
 
       appBar: AppBar(
-        title: const Text(
-          "Create Group",
-          style: TextStyle(color: Colors.white),
+
+        backgroundColor:
+            Colors.transparent,
+
+        elevation: 0,
+
+        centerTitle: true,
+
+        leading: IconButton(
+
+          onPressed: () =>
+              Navigator.pop(
+                  context),
+
+          icon: Icon(
+
+            Icons.close_rounded,
+
+            color: theme
+                .colorScheme.onSurface,
+          ),
         ),
-        actions: const [
-          NightModeButton(),
+
+        title: Text(
+
+          "Create Group",
+
+          style: TextStyle(
+
+            fontWeight:
+                FontWeight.bold,
+
+            color: theme
+                .colorScheme.onSurface,
+          ),
+        ),
+
+        actions: [
+
+          Padding(
+
+            padding:
+                const EdgeInsets.only(
+                    right: 12),
+
+            child: FilledButton(
+
+              onPressed:
+                  _submitGroup,
+
+              style:
+                  FilledButton.styleFrom(
+
+                backgroundColor:
+                    AppTheme.primary,
+
+                foregroundColor:
+                    Colors.white,
+
+                shape:
+                    RoundedRectangleBorder(
+
+                  borderRadius:
+                      BorderRadius.circular(
+                          14),
+                ),
+              ),
+
+              child:
+                  const Text("Create"),
+            ),
+          ),
         ],
       ),
-
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-
-          children: [
-            /// GROUP NAME
-            TextField(
-              controller: groupNameController,
-
-              decoration: InputDecoration(
-                labelText: "Group Name",
-
-                prefixIcon:
-                    const Icon(Icons.groups),
-
-                border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(14),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            /// DESCRIPTION
-            TextField(
-              controller: descriptionController,
-              maxLines: 2,
-
-              decoration: InputDecoration(
-                labelText: "Group Description (Optional)",
-
-                prefixIcon:
-                    const Icon(Icons.info_outline),
-
-                border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(14),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            /// MEMBER FIELD
-            Row(
+            body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: memberController,
 
-                    decoration: InputDecoration(
-                      labelText: "Member Name",
-
-                      prefixIcon:
-                          const Icon(Icons.person_add),
-
-                      border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(
-                                14),
-                      ),
-                    ),
-
-                    onSubmitted: (_) => addMember(),
+                /// Avatar + Name Card
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(20),
                   ),
-                ),
-
-                const SizedBox(width: 10),
-
-                ElevatedButton(
-                  onPressed: addMember,
-
-                  style: ElevatedButton.styleFrom(
+                  child: Padding(
                     padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                  ),
+                        const EdgeInsets.all(20),
+                    child: Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.center,
+                      children: [
 
-                  child: const Text(
-                    "Add",
-                    style: TextStyle(
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                        InkWell(
+                          borderRadius:
+                              BorderRadius.circular(18),
+                          onTap: () {},
 
-            const SizedBox(height: 25),
+                          child: Container(
+                            width: 74,
+                            height: 74,
 
-            Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween,
+                            decoration:
+                                BoxDecoration(
+                              color: AppTheme.primary
+                                  .withValues(
+                                      alpha: .12),
 
-              children: [
-                const Text(
-                  "Members",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                Chip(
-                  label: Text(
-                    "${members.length}",
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Expanded(
-              child: members.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "No Members Added",
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: members.length,
-
-                      itemBuilder:
-                          (context, index) {
-                        return Card(
-                          child: ListTile(
-                            leading:
-                                const CircleAvatar(
-                              backgroundColor:
-                                  AppTheme.primary,
-
-                              child: Icon(
-                                Icons.person,
-                                color: Colors.white,
-                              ),
+                              borderRadius:
+                                  BorderRadius.circular(
+                                      18),
                             ),
 
-                            title:
-                                Text(members[index]),
-
-                            trailing:
-                                IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color:
-                                    AppTheme.warning,
-                              ),
-
-                              onPressed: () {
-                                setState(() {
-                                  members.removeAt(
-                                      index);
-                                });
-                              },
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              color:
+                                  AppTheme.primary,
+                              size: 32,
                             ),
                           ),
-                        );
+                        ),
+
+                        const SizedBox(width: 18),
+
+                        Expanded(
+                          child: TextFormField(
+                            controller:
+                                _groupNameController,
+
+                            textCapitalization:
+                                TextCapitalization
+                                    .words,
+
+                            decoration:
+                                InputDecoration(
+                              labelText:
+                                  "Group Name",
+
+                              hintText:
+                                  "Eg. Goa Trip",
+
+                              prefixIcon:
+                                  const Icon(
+                                Icons.groups_rounded,
+                              ),
+
+                              filled: true,
+
+                              border:
+                                  OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius
+                                        .circular(
+                                            16),
+                              ),
+                            ),
+
+                            validator: (value) {
+                              if (value == null ||
+                                  value
+                                      .trim()
+                                      .isEmpty) {
+                                return "Please enter a group name";
+                              }
+
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                Text(
+                  "Choose Group Type",
+
+                  style: theme
+                      .textTheme.titleMedium
+                      ?.copyWith(
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                GridView.builder(
+
+                  shrinkWrap: true,
+
+                  physics:
+                      const NeverScrollableScrollPhysics(),
+
+                  itemCount:
+                      _categories.length,
+
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+
+                    crossAxisCount: 2,
+
+                    crossAxisSpacing: 14,
+
+                    mainAxisSpacing: 14,
+
+                    childAspectRatio: 1.55,
+                  ),
+
+                  itemBuilder:
+                      (context, index) {
+
+                    final category =
+                        _categories[index];
+
+                    final selected =
+                        _selectedType ==
+                            category["name"];
+
+                    return InkWell(
+
+                      borderRadius:
+                          BorderRadius.circular(
+                              18),
+
+                      onTap: () {
+
+                        setState(() {
+
+                          _selectedType =
+                              category["name"];
+                        });
                       },
-                    ),
-            ),
 
-            SizedBox(
-              width: double.infinity,
+                      child: AnimatedContainer(
 
-              child: ElevatedButton.icon(
-                icon:
-                    const Icon(Icons.check_circle),
+                        duration:
+                            const Duration(
+                                milliseconds:
+                                    220),
 
-                label: const Text(
-                  "Create Group",
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                  ),
-                ),
+                        decoration:
+                            BoxDecoration(
 
-                onPressed: () {
-                  if (groupNameController.text
-                      .trim()
-                      .isEmpty) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Please Enter Group Name",
+                          color: selected
+
+                              ? AppTheme.primary
+
+                              : theme.cardColor,
+
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                                      18),
+
+                          border: Border.all(
+
+                            color: selected
+
+                                ? AppTheme.primary
+
+                                : theme.dividerColor,
+                          ),
+                        ),
+
+                        child: Column(
+
+                          mainAxisAlignment:
+                              MainAxisAlignment
+                                  .center,
+
+                          children: [
+
+                            Icon(
+
+                              category["icon"],
+
+                              size: 34,
+
+                              color: selected
+
+                                  ? Colors.white
+
+                                  : AppTheme.primary,
+                            ),
+
+                            const SizedBox(
+                                height: 12),
+
+                            Text(
+
+                              category["name"],
+
+                              style: TextStyle(
+
+                                color: selected
+
+                                    ? Colors.white
+
+                                    : theme
+                                        .colorScheme
+                                        .onSurface,
+
+                                fontWeight:
+                                    FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
-                    return;
-                  }
+                  },
+                ),
 
-                  if (members.isEmpty) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Please Add At Least One Member",
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-
-                  final group = GroupModel(
-                    id: uuid.v4(),
-
-                    groupName:
-                        groupNameController.text
-                            .trim(),
-
-                    description:
-                        descriptionController.text
-                            .trim(),
-
-                    avatarPath: "",
-
-                    createdAt:
-                        DateTime.now(),
-
-                    members:
-                        List<String>.from(
-                      members,
-                    ),
-
-                    expenses: [],
-                  );
-
-                  Navigator.pop(
-                    context,
-                    group,
-                  );
-                },
-
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(
-                    vertical: 18,
+                const SizedBox(height: 30),
+                                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
                   ),
-
-                  shape:
-                      RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(
-                            14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: AppTheme.primary,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            "You can add members after creating the group. "
+                            "Expenses, settlements and reports will be available once members are added.",
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+
+                const SizedBox(height: 32),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton.icon(
+                    onPressed: _submitGroup,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.group_add_rounded,
+                    ),
+                    label: const Text(
+                      "Create Group",
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
