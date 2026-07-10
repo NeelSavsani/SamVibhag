@@ -212,9 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: createGroup,
         icon: const Icon(
