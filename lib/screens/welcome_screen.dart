@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
-import 'auth/register_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -202,12 +201,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterScreen(),
-                          ),
-                        );
+                        // FIXED: Replaced explicit routing with cleaner named route navigation
+                        Navigator.pushNamed(context, '/register');
                       },
 
                       style: ElevatedButton.styleFrom(
@@ -244,7 +239,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     height: 58,
 
                     child: OutlinedButton(
-                      onPressed: () => _showComingSoon("Login"),
+                      onPressed: () {
+                        // FIXED: Connected button to route dynamically into login_screen.dart
+                        Navigator.pushNamed(context, '/login');
+                      },
 
                       style: OutlinedButton.styleFrom(
                         foregroundColor: theme.colorScheme.onSurface,
