@@ -45,16 +45,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logged in successfully.')),
-      );
+      // Redirecting user to home screen
+      Navigator.pushReplacementNamed(context, '/home');
       
-      // Navigate to home screen or dashboard depending on your routing setup
-      // Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (error) {
       _showError(_authErrorMessage(error));
     } catch (error) {
-      _showError('An unexpected error occurred. Please try again.');
+      // FIXED: Printing the precise error to the terminal/console to pinpoint the issue
+      debugPrint("Login Navigation Exception: $error");
+      _showError('Logged in successfully, but could not load home screen. Ensure /home route is configured.');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -103,10 +102,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String _authErrorMessage(FirebaseAuthException error) {
     switch (error.code) {
+      case 'invalid-credential':
       case 'user-not-found':
-        return 'No user found with this email.';
       case 'wrong-password':
-        return 'Incorrect password. Please try again.';
+        return 'Incorrect email address or password. Please check your credentials.';
       case 'invalid-email':
         return 'Please enter a valid email address.';
       case 'user-disabled':
@@ -114,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'network-request-failed':
         return 'Network error. Check your connection.';
       default:
-        return error.message ?? 'Authentication failed.';
+        return error.message ?? 'Authentication failed. Please try again.';
     }
   }
 
@@ -146,7 +145,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: CustomScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
-              // FIXED: Added matching, transparent background SliverAppBar with the bold back arrow
               SliverAppBar(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
@@ -226,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 12),
                         Align(
-                          alignment: Alignment.center,
+                          alignment: Alignment.centerRight,
                           child: TextButton(
                             onPressed: _forgotPassword,
                             child: const Text(

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
+import 'screens/home/home_screen.dart'; // Added the missing HomeScreen import
 
 import 'firebase_options.dart';
 import 'screens/splash/splash_screen.dart';
@@ -19,6 +20,9 @@ Future<void> main() async {
 
   // Initialize Hive
   await Hive.initFlutter();
+
+  // FIXED: Explicitly opening 'samvibhag_storage' box before the UI attempts to read it
+  await Hive.openBox('samvibhag_storage');
 
   runApp(
     MultiProvider(
@@ -44,12 +48,13 @@ class SamVibhagApp extends StatelessWidget {
 
           // 2. Map path strings to your specific Screen Widgets cleanly
           routes: {
-            // FIXED: Set the initial default root to the SplashScreen to prevent route assertion crashes
             '/': (context) => const SplashScreen(),
             '/welcome': (context) => const WelcomeScreen(),
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
-            // '/home': (context) => const HomeScreen(), 
+            
+            // FIXED: Uncommented and activated the home route so Navigator can transition here
+            '/home': (context) => const HomeScreen(), 
           },
 
           theme: AppTheme.light(),
@@ -58,8 +63,6 @@ class SamVibhagApp extends StatelessWidget {
           themeMode: themeController.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
-              
-          // FIXED: Removed the 'home' property because it conflicts directly with the 'initialRoute' configuration above
         );
       },
     );
