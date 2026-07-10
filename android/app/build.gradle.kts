@@ -2,11 +2,13 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+
+    id("com.google.gms.google-services")
 }
 
 android {
 
-    namespace = "com.example.samvibhag"
+    namespace = "com.neelsavsani.samvibhag"
 
     compileSdk = flutter.compileSdkVersion
 
@@ -32,7 +34,7 @@ android {
     defaultConfig {
 
         applicationId =
-            "com.example.samvibhag"
+            "com.neelsavsani.samvibhag"
 
         minSdk = flutter.minSdkVersion
 

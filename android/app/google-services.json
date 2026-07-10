@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "889674633243",
+    "project_id": "samvibhag-a2299",
+    "storage_bucket": "samvibhag-a2299.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889674633243:android:1cce0cc8d66c1584d728be",
+        "android_client_info": {
+          "package_name": "com.neelsavsani.samvibhag"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGkneZTJtu_3p8RFkdzQmZwQq2T7Jxlh0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
