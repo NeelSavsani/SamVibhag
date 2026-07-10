@@ -8,6 +8,7 @@ import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart'; // Added the missing HomeScreen import
+import 'screens/bottom_nav_screen.dart'; // Added the missing BottomNavScreen import
 
 import 'firebase_options.dart';
 import 'screens/splash/splash_screen.dart';
@@ -56,7 +57,7 @@ class SamVibhagApp extends StatelessWidget {
             '/appearance': (context) => const AppearanceScreen(),
             
             // FIXED: Uncommented and activated the home route so Navigator can transition here
-            '/home': (context) => const HomeScreen(), 
+            '/home': (context) => const BottomNavScreen(), 
           },
 
           theme: AppTheme.light(),

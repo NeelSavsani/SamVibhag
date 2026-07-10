@@ -28,10 +28,13 @@ class AccountScreen extends StatelessWidget {
     if (shouldLogout == true) {
       await FirebaseAuth.instance.signOut();
       if (!context.mounted) return;
-      // Wipe the stack and return entirely back to the welcome screen setup
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil('/welcome', (route) => false);
+      
+      // FIXED: Added 'rootNavigator: true' to target the application's root navigator 
+      // and completely strip away the persistent bottom navigation shell layouts.
+      Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
+        '/welcome', 
+        (route) => false,
+      );
     }
   }
 
@@ -85,7 +88,6 @@ class AccountScreen extends StatelessWidget {
                     CircleAvatar(
                       radius: 32,
                       backgroundColor: AppTheme.primary.withOpacity(0.15),
-                      // FIXED: Changed NetworkProvider to NetworkImage to resolve compilation error
                       backgroundImage: photoUrl != null
                           ? NetworkImage(photoUrl)
                           : null,
@@ -152,7 +154,6 @@ class AccountScreen extends StatelessWidget {
                 icon: Icons.palette_outlined,
                 title: 'Appearance',
                 onTap: () {
-                  // Connects into dark/light mode toggle or controllers later
                   Navigator.push(
                     context,
                     MaterialPageRoute(
