@@ -7,6 +7,30 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
 
+class CountryCode {
+  const CountryCode({
+    required this.name,
+    required this.dialCode,
+    required this.flag,
+  });
+
+  final String name;
+  final String dialCode;
+  final String flag;
+}
+
+class CurrencyOption {
+  const CurrencyOption({
+    required this.name,
+    required this.code,
+    required this.symbol,
+  });
+
+  final String name;
+  final String code;
+  final String symbol;
+}
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -38,9 +62,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   );
 
   CurrencyOption _selectedCurrency = const CurrencyOption(
-    name: 'US Dollar',
-    code: 'USD',
-    symbol: r'$',
+    name: 'Indian Rupee',
+    code: 'INR',
+    symbol: '₹',
   );
 
   static const _countries = [
@@ -166,6 +190,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final email = _emailController.text.trim();
       final phone = _phoneController.text.trim();
 
+      // 1. Create User Authentication Profile
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: _passwordController.text,
@@ -179,8 +204,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
 
+      // 2. Update Display Name
       await user.updateDisplayName(fullName);
 
+      // 3. Save User Document to Cloud Firestore
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'fullName': fullName,
@@ -191,25 +218,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'currencyName': _selectedCurrency.name,
         'currencyCode': _selectedCurrency.code,
         'currencySymbol': _selectedCurrency.symbol,
-        'avatarLocalPath': _avatar?.path,
+        'avatarLocalPath': _avatar?.path ?? '',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+      // 4. Success Routine
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account created successfully.')),
       );
+
+      // Stop loading completely before popping to avoid any memory pipeline stalls
+      setState(() => _isLoading = false);
       Navigator.pop(context);
     } on FirebaseAuthException catch (error) {
+      if (mounted) setState(() => _isLoading = false);
       _showError(_authErrorMessage(error));
     } catch (error) {
-      _showError('Registration failed. Please try again.');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
+      _showError(
+        'Auth success, but profile setup failed. Check Database rules.',
+      );
     }
   }
 
@@ -770,28 +801,4 @@ class _SearchablePickerState<T> extends State<_SearchablePicker<T>> {
       ),
     );
   }
-}
-
-class CountryCode {
-  const CountryCode({
-    required this.name,
-    required this.dialCode,
-    required this.flag,
-  });
-
-  final String name;
-  final String dialCode;
-  final String flag;
-}
-
-class CurrencyOption {
-  const CurrencyOption({
-    required this.name,
-    required this.code,
-    required this.symbol,
-  });
-
-  final String name;
-  final String code;
-  final String symbol;
 }
