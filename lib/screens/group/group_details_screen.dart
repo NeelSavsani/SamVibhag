@@ -32,14 +32,15 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   List<ExpenseModel> get expenses => widget.group.expenses;
 
   String searchQuery = '';
-
   String selectedCategory = 'All';
+
+  // FIXED: State management for expandable search logic
+  bool _isSearchExpanded = false;
+  final _searchController = TextEditingController();
 
   List<String> get categories {
     final uniqueCategories = expenses.map((e) => e.category).toSet().toList();
-
     uniqueCategories.sort();
-
     return ['All', ...uniqueCategories];
   }
 
@@ -57,6 +58,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
       return matchesSearch && matchesCategory;
     }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> openGroupInfo() async {
@@ -89,7 +96,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   Future<void> editExpense(int index) async {
     final expense = filteredExpenses[index];
-
     final originalIndex = expenses.indexOf(expense);
 
     final ExpenseModel? updatedExpense = await Navigator.push<ExpenseModel>(
@@ -115,22 +121,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     final confirm = await showDialog<bool>(
       context: context,
-
       builder: (_) => AlertDialog(
         title: const Text("Delete Expense"),
-
         content: Text("Delete ${expense.title} ?"),
-
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-
             child: const Text("Cancel"),
           ),
-
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-
             child: const Text("Delete"),
           ),
         ],
@@ -179,60 +179,46 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    final theme = Theme.of(context);
 
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           widget.group.groupName,
-
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-
         actions: [
           IconButton(
             tooltip: "Group Information",
-
             icon: const Icon(Icons.edit, color: Colors.white),
-
             onPressed: openGroupInfo,
           ),
-
           IconButton(
             tooltip: "Export PDF",
-
             icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-
             onPressed: openReport,
           ),
-
           IconButton(
             tooltip: "Share",
-
             icon: const Icon(Icons.share, color: Colors.white),
-
             onPressed: shareSettlements,
           ),
-
           const NightModeButton(),
         ],
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         onPressed: addExpense,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text("Add Expense", style: TextStyle(color: Colors.white)),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
             /// GROUP INFO CARD
             Card(
@@ -240,23 +226,17 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-
               child: Padding(
                 padding: const EdgeInsets.all(20),
-
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
                     CircleAvatar(
                       radius: 38,
-
                       backgroundColor: AppTheme.primary.withOpacity(.12),
-
                       backgroundImage: widget.group.avatarPath.isNotEmpty
                           ? FileImage(File(widget.group.avatarPath))
                           : null,
-
                       child: widget.group.avatarPath.isEmpty
                           ? const Icon(
                               Icons.groups,
@@ -265,23 +245,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             )
                           : null,
                     ),
-
                     const SizedBox(width: 18),
-
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
                           Text(
                             widget.group.groupName,
-
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           if (widget.group.description.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
@@ -290,9 +265,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 style: TextStyle(color: Colors.grey[700]),
                               ),
                             ),
-
                           const SizedBox(height: 10),
-
                           Row(
                             children: [
                               const Icon(
@@ -300,15 +273,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 size: 18,
                                 color: Colors.grey,
                               ),
-
                               const SizedBox(width: 6),
-
                               Text("${widget.group.members.length} Members"),
                             ],
                           ),
-
                           const SizedBox(height: 6),
-
                           Row(
                             children: [
                               const Icon(
@@ -316,9 +285,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 size: 18,
                                 color: Colors.grey,
                               ),
-
                               const SizedBox(width: 6),
-
                               Text(
                                 "Created ${widget.group.createdAt.day}/${widget.group.createdAt.month}/${widget.group.createdAt.year}",
                               ),
@@ -337,44 +304,32 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             /// SUMMARY CARD
             Container(
               width: double.infinity,
-
               padding: const EdgeInsets.all(22),
-
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-
                 gradient: const LinearGradient(
                   colors: [AppTheme.primary, Color(0xFF1D4ED8)],
                 ),
               ),
-
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-
                 children: [
                   Text(
                     "${widget.group.members.length} Members",
-
                     style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
-
                   const SizedBox(height: 10),
-
                   Text(
                     "₹ ${widget.group.totalExpense.toStringAsFixed(0)}",
-
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   const Text(
                     "Total Group Expense",
-
                     style: TextStyle(color: Colors.white70),
                   ),
                 ],
@@ -383,93 +338,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
             const SizedBox(height: 28),
 
-            /// MEMBERS
-            const Text(
-              "Members",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 14),
-
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: widget.group.members.length,
-              itemBuilder: (context, index) {
-                final member = widget.group.members[index];
-
-                final balance = widget.group.memberBalances[member] ?? 0;
-
-                final isGets = balance > 0.01;
-                final isOwes = balance < -0.01;
-
-                Color avatarColor;
-                IconData trailingIcon;
-                Color trailingColor;
-                String subtitle;
-
-                if (isGets) {
-                  avatarColor = Colors.green;
-
-                  trailingIcon = Icons.arrow_downward;
-
-                  trailingColor = Colors.green;
-
-                  subtitle = "Gets ₹ ${balance.toStringAsFixed(0)}";
-                } else if (isOwes) {
-                  avatarColor = Colors.orange;
-
-                  trailingIcon = Icons.arrow_upward;
-
-                  trailingColor = Colors.orange;
-
-                  subtitle = "Owes ₹ ${(-balance).toStringAsFixed(0)}";
-                } else {
-                  avatarColor = Colors.blue;
-
-                  trailingIcon = Icons.check_circle;
-
-                  trailingColor = Colors.blue;
-
-                  subtitle = "Settled";
-                }
-
-                return Card(
-                  elevation: 0,
-
-                  margin: const EdgeInsets.only(bottom: 12),
-
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: avatarColor.withOpacity(.15),
-
-                      child: Icon(Icons.person, color: avatarColor),
-                    ),
-
-                    title: Text(member),
-
-                    subtitle: Text(subtitle),
-
-                    trailing: Icon(trailingIcon, color: trailingColor),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 28),
+            // FIXED: Removed the entire "/// MEMBERS" layout section from here as requested.
 
             if (expenses.isNotEmpty) ...[
               const Text(
                 "Settlements",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
-
               const SizedBox(height: 14),
-
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -479,24 +355,17 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
                   return Card(
                     elevation: 0,
-
                     margin: const EdgeInsets.only(bottom: 12),
-
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-
                     child: ListTile(
                       leading: const CircleAvatar(
                         backgroundColor: Color(0xFFE8EEFF),
-
                         child: Icon(Icons.swap_horiz, color: AppTheme.primary),
                       ),
-
                       title: Text("${settlement.from} pays ${settlement.to}"),
-
                       subtitle: const Text("Settlement"),
-
                       trailing: Text(
                         "₹ ${settlement.amount.toStringAsFixed(0)}",
                         style: const TextStyle(
@@ -508,27 +377,68 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   );
                 },
               ),
-
               const SizedBox(height: 28),
             ],
 
-            /// SEARCH BAR
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Search expenses...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Theme.of(context).cardColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
+            /// FIXED: EXPANDABLE SEARCH BAR WITH CIRCULAR BACKGROUND ON LEFT
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(opacity: animation, child: child);
               },
+              child: _isSearchExpanded
+                  ? TextField(
+                      key: const ValueKey('expanded_expense_search'),
+                      controller: _searchController,
+                      autofocus: true,
+                      style: TextStyle(color: theme.colorScheme.onSurface),
+                      decoration: InputDecoration(
+                        hintText: "Search expenses...",
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () {
+                            FocusScope.of(context).unfocus();
+                            setState(() {
+                              _searchController.clear();
+                              searchQuery = '';
+                              _isSearchExpanded = false;
+                            });
+                          },
+                        ),
+                        filled: true,
+                        fillColor: theme.cardColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                      },
+                    )
+                  : Align(
+                      key: const ValueKey('circle_expense_search_icon'),
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isSearchExpanded = true;
+                          });
+                        },
+                        child: CircleAvatar(
+                          radius: 26,
+                          backgroundColor: theme.cardColor,
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: theme.colorScheme.onSurface.withOpacity(0.85),
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
             ),
 
             const SizedBox(height: 18),
@@ -566,7 +476,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   "Expenses",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-
                 Text("${filteredExpenses.length} Total"),
               ],
             ),
@@ -583,25 +492,19 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: filteredExpenses.length,
-
                 itemBuilder: (context, index) {
                   final expense = filteredExpenses[index];
 
                   return Card(
                     elevation: 0,
-
                     margin: const EdgeInsets.only(bottom: 16),
-
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),
-
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
                           Row(
                             children: [
@@ -614,53 +517,38 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                   ),
                                 ),
                               ),
-
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 4,
                                 ),
-
                                 decoration: BoxDecoration(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withOpacity(.12),
-
+                                  color: theme.colorScheme.primary.withOpacity(.12),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-
                                 child: Text(expense.category),
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 8),
-
                           Text("Paid by ${expense.paidBy}"),
-
                           const SizedBox(height: 4),
-
                           Text(
                             "${expense.date.day}/${expense.date.month}/${expense.date.year}",
                           ),
-
                           const SizedBox(height: 12),
                           if (expense.splitType == "custom")
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
-                              children: expense.customSplits.entries.map((
-                                entry,
-                              ) {
+                              children: expense.customSplits.entries.map((entry) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary.withOpacity(.08),
+                                    color: theme.colorScheme.primary.withOpacity(.08),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
@@ -669,10 +557,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 );
                               }).toList(),
                             ),
-
                           if (expense.splitType == "custom")
                             const SizedBox(height: 12),
-
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -684,7 +570,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                   color: AppTheme.primary,
                                 ),
                               ),
-
                               Row(
                                 children: [
                                   IconButton(
@@ -695,7 +580,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                       color: AppTheme.primary,
                                     ),
                                   ),
-
                                   IconButton(
                                     tooltip: "Delete Expense",
                                     onPressed: () => deleteExpense(index),
