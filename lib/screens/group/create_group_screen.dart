@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,61 +15,80 @@ class CreateGroupScreen extends StatefulWidget {
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _groupNameController = TextEditingController();
+  bool _isLoading = false;
 
   String _selectedType = "Trip";
 
   final List<Map<String, dynamic>> _categories = [
     {"name": "Trip", "icon": Icons.flight_takeoff_rounded},
-
     {"name": "Home", "icon": Icons.home_rounded},
-
     {"name": "Couple", "icon": Icons.favorite_rounded},
-
     {"name": "Other", "icon": Icons.category_rounded},
   ];
 
   @override
   void dispose() {
     _groupNameController.dispose();
-
     super.dispose();
   }
 
-  void _submitGroup() {
-    if (!_formKey.currentState!.validate()) {
+  // FIXED: Writes the newly populated model fields directly into Cloud Firestore 
+  Future<void> _submitGroup() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Authentication required to create cloud groups.")),
+      );
       return;
     }
 
-    final newGroup = GroupModel(
-      id: const Uuid().v4(),
+    setState(() => _isLoading = true);
 
-      groupName: _groupNameController.text.trim(),
+    try {
+      final generatedId = const Uuid().v4();
+      final currentUserName = user.displayName ?? "Neel Savsani";
 
-      description: "A $_selectedType group.",
+      final newGroup = GroupModel(
+        id: generatedId,
+        groupName: _groupNameController.text.trim(),
+        description: "A $_selectedType group split.",
+        avatarPath: "",
+        // Explicitly seed the creating user as the first default group member
+        members: [currentUserName],
+        expenses: [],
+        createdAt: DateTime.now(),
+      );
 
-      avatarPath: "",
+      // Save directly into your central cloud firebase reference collection
+      await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(generatedId)
+          .set({
+            ...newGroup.toMap(),
+            'createdBy': user.uid, // Track creator explicitly for query sorting
+          });
 
-      members: [],
-
-      expenses: [],
-
-      createdAt: DateTime.now(),
-    );
-
-    Navigator.pop(context, newGroup);
+      if (!mounted) return;
+      Navigator.pop(context, newGroup);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Firebase Database Error: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -85,219 +106,188 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /// Avatar + Name Card
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: () {},
-
-                          child: Container(
-                            width: 74,
-                            height: 74,
-
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: .12),
-
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-
-                            child: const Icon(
-                              Icons.camera_alt_rounded,
-                              color: AppTheme.primary,
-                              size: 32,
-                            ),
-                          ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// Avatar + Name Card
+                      Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-
-                        const SizedBox(width: 18),
-
-                        Expanded(
-                          child: TextFormField(
-                            controller: _groupNameController,
-
-                            textCapitalization: TextCapitalization.words,
-
-                            decoration: InputDecoration(
-                              labelText: "Group Name",
-
-                              hintText: "Eg. Goa Trip",
-
-                              prefixIcon: const Icon(Icons.groups_rounded),
-
-                              filled: true,
-
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return "Please enter a group name";
-                              }
-
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                Text(
-                  "Choose Group Type",
-
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                SizedBox(
-                  height: 88,
-                  child: Row(
-                    children: _categories.map((category) {
-                      final selected = _selectedType == category["name"];
-
-                      return Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              setState(() {
-                                _selectedType = category["name"];
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? AppTheme.primary
-                                    : theme.cardColor,
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              InkWell(
                                 borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: selected
-                                      ? AppTheme.primary
-                                      : theme.dividerColor,
+                                onTap: () {},
+                                child: Container(
+                                  width: 74,
+                                  height: 74,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primary.withValues(alpha: .12),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: AppTheme.primary,
+                                    size: 32,
+                                  ),
                                 ),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    category["icon"],
-                                    size: 30,
-                                    color: selected
-                                        ? Colors.white
-                                        : AppTheme.primary,
-                                  ),
-
-                                  const SizedBox(height: 10),
-
-                                  Text(
-                                    category["name"],
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: selected
-                                          ? Colors.white
-                                          : theme.colorScheme.onSurface,
+                              const SizedBox(width: 18),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _groupNameController,
+                                  textCapitalization: TextCapitalization.words,
+                                  decoration: InputDecoration(
+                                    labelText: "Group Name",
+                                    hintText: "Eg. Goa Trip",
+                                    prefixIcon: const Icon(Icons.groups_rounded),
+                                    filled: true,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
-                                ],
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return "Please enter a group name";
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      Text(
+                        "Choose Group Type",
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 88,
+                        child: Row(
+                          children: _categories.map((category) {
+                            final selected = _selectedType == category["name"];
+
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedType = category["name"];
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    decoration: BoxDecoration(
+                                      color: selected ? AppTheme.primary : theme.cardColor,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: selected ? AppTheme.primary : theme.dividerColor,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          category["icon"],
+                                          size: 30,
+                                          color: selected ? Colors.white : AppTheme.primary,
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          category["name"],
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: selected ? Colors.white : theme.colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                color: AppTheme.primary,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  "You can add members after creating the group. "
+                                  "Expenses, settlements and reports will be available once members are added.",
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    height: 1.45,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: FilledButton.icon(
+                          onPressed: _submitGroup,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(Icons.group_add_rounded),
+                          label: const Text(
+                            "Create Group",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.info_outline_rounded,
-                          color: AppTheme.primary,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            "You can add members after creating the group. "
-                            "Expenses, settlements and reports will be available once members are added.",
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              height: 1.45,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton.icon(
-                    onPressed: _submitGroup,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
-                    icon: const Icon(Icons.group_add_rounded),
-                    label: const Text(
-                      "Create Group",
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }

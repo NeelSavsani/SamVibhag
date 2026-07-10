@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'account/appearance_screen.dart';
 import '../../core/theme/app_theme.dart';
 
 class AccountScreen extends StatelessWidget {
@@ -29,7 +29,9 @@ class AccountScreen extends StatelessWidget {
       await FirebaseAuth.instance.signOut();
       if (!context.mounted) return;
       // Wipe the stack and return entirely back to the welcome screen setup
-      Navigator.of(context).pushNamedAndRemoveUntil('/welcome', (route) => false);
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil('/welcome', (route) => false);
     }
   }
 
@@ -45,7 +47,9 @@ class AccountScreen extends StatelessWidget {
     final String? photoUrl = user?.photoURL;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF121214)
+          : const Color(0xFFF8FAFC),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -70,7 +74,9 @@ class AccountScreen extends StatelessWidget {
                   color: theme.cardColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(isDark ? 0.08 : 0.05),
+                    color: theme.colorScheme.outline.withOpacity(
+                      isDark ? 0.08 : 0.05,
+                    ),
                   ),
                 ),
                 child: Row(
@@ -80,13 +86,19 @@ class AccountScreen extends StatelessWidget {
                       radius: 32,
                       backgroundColor: AppTheme.primary.withOpacity(0.15),
                       // FIXED: Changed NetworkProvider to NetworkImage to resolve compilation error
-                      backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                      backgroundImage: photoUrl != null
+                          ? NetworkImage(photoUrl)
+                          : null,
                       child: photoUrl == null
-                          ? const Icon(Icons.person_rounded, color: AppTheme.primary, size: 32)
+                          ? const Icon(
+                              Icons.person_rounded,
+                              color: AppTheme.primary,
+                              size: 32,
+                            )
                           : null,
                     ),
                     const SizedBox(width: 16),
-                    
+
                     // User Metadata Details Stack Block
                     Expanded(
                       child: Column(
@@ -122,7 +134,9 @@ class AccountScreen extends StatelessWidget {
                             userEmail,
                             style: TextStyle(
                               fontSize: 14,
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              color: theme.colorScheme.onSurface.withOpacity(
+                                0.6,
+                              ),
                             ),
                           ),
                         ],
@@ -139,7 +153,12 @@ class AccountScreen extends StatelessWidget {
                 title: 'Appearance',
                 onTap: () {
                   // Connects into dark/light mode toggle or controllers later
-                  Navigator.pushNamed(context, '/appearance');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AppearanceScreen(),
+                    ),
+                  );
                 },
               ),
               _AccountTile(
@@ -163,7 +182,7 @@ class AccountScreen extends StatelessWidget {
                   // In-App review trigger action mapping
                 },
               ),
-              
+
               const SizedBox(height: 12),
               const Divider(height: 1, thickness: 0.5),
               const SizedBox(height: 12),
@@ -199,7 +218,9 @@ class _AccountTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final targetColor = isDestructive ? Colors.red : theme.colorScheme.onSurface;
+    final targetColor = isDestructive
+        ? Colors.red
+        : theme.colorScheme.onSurface;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -209,7 +230,9 @@ class _AccountTile extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: Icon(
           icon,
-          color: isDestructive ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.7),
+          color: isDestructive
+              ? Colors.red
+              : theme.colorScheme.onSurface.withOpacity(0.7),
           size: 24,
         ),
         title: Text(

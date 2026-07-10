@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-
 import 'home/home_screen.dart';
 import 'activity_screen.dart';
 import 'account_screen.dart';
-import '../models/group_model.dart'; // Ensure correct import mapping
 
 class BottomNavScreen extends StatefulWidget {
   const BottomNavScreen({super.key});
@@ -15,49 +12,62 @@ class BottomNavScreen extends StatefulWidget {
 
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int _selectedIndex = 0;
-  final List<GroupModel> _groups = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadGroupsData();
-  }
-
-  // Pull local storage data locally to distribute efficiently down into our tabs
-  void _loadGroupsData() {
-    try {
-      final box = Hive.box('samvibhag_storage');
-      final savedGroups = List<dynamic>.from(box.get('groups', defaultValue: []));
-      setState(() {
-        _groups.clear();
-        _groups.addAll(savedGroups.map((g) => GroupModel.fromMap(g as Map)));
-      });
-    } catch (e) {
-      debugPrint("Error updating bottom nav metrics: $e");
-    }
-  }
+  // Private keys to maintain distinct state historical back-stacks for each tab module
+  final GlobalKey<NavigatorState> _groupsTabKey = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _activityTabKey = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _accountTabKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
-    // Dynamically rebuilds pages tracking data lists
-    final List<Widget> pages = [
-      const HomeScreen(),
-      ActivityScreen(groups: _groups), // FIXED: Inject data to drive Analytics card
-      const AccountScreen(),
-    ];
-
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: pages,
+        children: [
+          // Tab 1: Groups (With nested navigation shell)
+          Navigator(
+            key: _groupsTabKey,
+            onGenerateRoute: (routeSettings) {
+              return MaterialPageRoute(
+                builder: (context) => const HomeScreen(),
+              );
+            },
+          ),
+          
+          // Tab 2: Activity (With nested navigation shell)
+          Navigator(
+            key: _activityTabKey,
+            onGenerateRoute: (routeSettings) {
+              return MaterialPageRoute(
+                builder: (context) => const ActivityScreen(),
+              );
+            },
+          ),
+
+          // Tab 3: Account (With nested navigation shell)
+          Navigator(
+            key: _accountTabKey,
+            onGenerateRoute: (routeSettings) {
+              return MaterialPageRoute(
+                builder: (context) => const AccountScreen(),
+              );
+            },
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          if (index == 1) _loadGroupsData(); // Auto-refresh data when tapping activity
+          if (index == _selectedIndex) {
+            // Optional: Pop back to root list view if active tab icon is tapped again
+            if (index == 0) _groupsTabKey.currentState?.popUntil((r) => r.isFirst);
+            if (index == 1) _activityTabKey.currentState?.popUntil((r) => r.isFirst);
+            if (index == 2) _accountTabKey.currentState?.popUntil((r) => r.isFirst);
+          } else {
+            setState(() {
+              _selectedIndex = index;
+            });
+          }
         },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF00B386),
