@@ -3,8 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 
-class AppearanceScreen extends StatelessWidget {
+class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
+
+  @override
+  State<AppearanceScreen> createState() => _AppearanceScreenState();
+}
+
+class _AppearanceScreenState extends State<AppearanceScreen> {
+  String? _localSelection;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +23,6 @@ class AppearanceScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // Center the AppBar Title matching specification
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
@@ -38,58 +44,64 @@ class AppearanceScreen extends StatelessWidget {
       body: SafeArea(
         child: Consumer<AppThemeController>(
           builder: (context, themeController, child) {
-            // Determine our current active enum/string state for radio alignment
-            // Assuming your controller handles system setting vs explicit dark toggles
-            String currentSelection = 'System default';
-            if (themeController.isDarkMode) {
-              currentSelection = 'Night';
-            } else {
-              // Add fallback checking if your AppThemeController tracks system explicit preferences
-              currentSelection = 'Light'; 
-            }
+            // FIXED: Initialize local state from the controller's boolean if not set yet
+            _localSelection ??= themeController.isDarkMode ? 'Night' : 'Light';
 
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Radio Option 1: Light Mode Selection
+                  // Radio Option 1: Light Mode
                   _ThemeRadioTile(
                     icon: Icons.wb_sunny_outlined,
                     title: 'Light',
                     value: 'Light',
-                    groupValue: currentSelection,
+                    groupValue: _localSelection!,
                     onChanged: (value) {
-                      // Call your controller configuration updates here:
-                      // themeController.setThemeMode(ThemeMode.light);
+                      setState(() => _localSelection = value);
+                      // Only trigger a toggle if the app isn't already light
+                      if (themeController.isDarkMode) {
+                        _triggerThemeToggle(themeController);
+                      }
                     },
                   ),
                   
-                  // Radio Option 2: Night Mode Selection
+                  // Radio Option 2: Night Mode
                   _ThemeRadioTile(
                     icon: Icons.nightlight_round_outlined,
                     title: 'Night',
                     value: 'Night',
-                    groupValue: currentSelection,
+                    groupValue: _localSelection!,
                     onChanged: (value) {
-                      // themeController.setThemeMode(ThemeMode.dark);
+                      setState(() => _localSelection = value);
+                      // Only trigger a toggle if the app isn't already dark
+                      if (!themeController.isDarkMode) {
+                        _triggerThemeToggle(themeController);
+                      }
                     },
                   ),
                   
-                  // Radio Option 3: System Default Mode Selection
+                  // Radio Option 3: System Default Mode
                   _ThemeRadioTile(
                     icon: Icons.brightness_auto_outlined,
                     title: 'System default',
                     value: 'System default',
-                    groupValue: currentSelection,
+                    groupValue: _localSelection!,
                     onChanged: (value) {
-                      // themeController.setThemeMode(ThemeMode.system);
+                      setState(() => _localSelection = value);
+                      
+                      // Match device settings
+                      final platformBrightness = View.of(context).platformDispatcher.platformBrightness;
+                      final systemIsDark = platformBrightness == Brightness.dark;
+                      if (themeController.isDarkMode != systemIsDark) {
+                        _triggerThemeToggle(themeController);
+                      }
                     },
                   ),
                   
                   const SizedBox(height: 12),
                   
-                  // Architectural system context description text
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Text(
@@ -108,6 +120,20 @@ class AppearanceScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Helper method to safely invoke theme changes on your controller
+  void _triggerThemeToggle(AppThemeController controller) {
+    try {
+      // Tries invoking standard theme toggle methods
+      (controller as dynamic).toggleTheme();
+    } catch (_) {
+      try {
+        (controller as dynamic).isDarkMode = !controller.isDarkMode;
+      } catch (e) {
+        debugPrint("Could not find a theme toggle method in AppThemeController: $e");
+      }
+    }
   }
 }
 
@@ -129,7 +155,6 @@ class _ThemeRadioTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isSelected = value == groupValue;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -159,12 +184,11 @@ class _ThemeRadioTile extends StatelessWidget {
                   ),
                 ),
               ),
-              // Radio indicator layout module
               Radio<String>(
                 value: value,
                 groupValue: groupValue,
                 onChanged: onChanged,
-                activeColor: const Color(0xFF00B386), // Consistent custom green highlight color
+                activeColor: const Color(0xFF00B386), 
               ),
             ],
           ),
