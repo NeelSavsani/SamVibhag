@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart'; // REQUIRED FOR TAP RECOGNIZERS
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -305,7 +306,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 pinned: true,
                 leading: IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_rounded),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AppTheme.primary,
+                    size: 24,
+                  ),
                 ),
               ),
               SliverPadding(
@@ -518,7 +523,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           currency: _selectedCurrency,
                           onChange: _selectCurrency,
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(
+                          height: 46,
+                        ), // Spacing above the terms text
+
+                        Center(
+                          child: SizedBox(
+                            width: double
+                                .infinity, // Ensures the layout container spans the full form width
+                            child: Text.rich(
+                              TextSpan(
+                                text:
+                                    'By signing up, you accept the SamVibhag ',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontSize: 13,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  height: 1.4,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: 'Terms of Service',
+                                    style: const TextStyle(
+                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    recognizer: TapGestureRecognizer()
+                                      ..onTap = () {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Terms of Service Coming Soon',
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                  ),
+                                  const TextSpan(text: ' and '),
+                                  TextSpan(
+                                    text: '\nPrivacy Policy',
+                                    style: const TextStyle(
+                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    recognizer: TapGestureRecognizer()
+                                      ..onTap = () {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Privacy Policy Coming Soon',
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                  ),
+                                  const TextSpan(text: '.'),
+                                ],
+                              ),
+                              textAlign: TextAlign
+                                  .center, // Centers multi-line text dynamically
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 20,
+                        ), // Spacing between terms text and register button
                         SizedBox(
                           width: double.infinity,
                           height: 58,
