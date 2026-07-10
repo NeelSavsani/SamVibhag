@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-import '../models/group_model.dart';
-import '../theme/app_theme.dart';
+import '../../models/group_model.dart';
+import '../../core/theme/app_theme.dart';
 
 class GroupInfoScreen extends StatefulWidget {
   const GroupInfoScreen({super.key, required this.group});

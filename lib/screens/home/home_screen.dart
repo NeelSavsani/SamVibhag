@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import '../models/group_model.dart';
-import '../theme/app_theme.dart';
+import '../../models/group_model.dart';
+import '../../core/theme/app_theme.dart';
 
-import 'analytics_screen.dart';
-import 'create_group_screen.dart';
-import 'group_details_screen.dart';
-import '../services/report_screen.dart';
+import '../analytics/analytics_screen.dart';
+import '../group/create_group_screen.dart';
+import '../group/group_details_screen.dart';
+import '../report_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

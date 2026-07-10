@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/group_model.dart';
-import '../theme/app_theme.dart';
+import '../../models/group_model.dart';
+import '../../core/theme/app_theme.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});

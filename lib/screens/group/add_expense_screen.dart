@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../models/expense_model.dart';
-import '../models/group_model.dart';
-import '../theme/app_theme.dart';
+import '../../models/expense_model.dart';
+import '../../models/group_model.dart';
+import '../../core/theme/app_theme.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({super.key, required this.group, this.expense});

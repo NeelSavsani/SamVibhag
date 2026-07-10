@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
-import 'welcome_screen.dart';
+import '../welcome_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,26 +11,20 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-
   @override
   void initState() {
     super.initState();
 
     Timer(const Duration(seconds: 3), () {
-
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const WelcomeScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       );
-
     });
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
 
@@ -39,12 +32,8 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
             /// LOGO
-            Image.asset(
-              'assets/images/logo.png',
-              width: 180,
-            ),
+            Image.asset('assets/images/logo.png', width: 180),
 
             const SizedBox(height: 25),
 
@@ -76,18 +65,13 @@ class _SplashScreenState extends State<SplashScreen> {
             /// TAGLINE
             const Text(
               "Fair Expense Sharing",
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white54,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.white54),
             ),
 
             const SizedBox(height: 40),
 
             /// LOADING INDICATOR
-            const CircularProgressIndicator(
-              color: Colors.white,
-            ),
+            const CircularProgressIndicator(color: Colors.white),
           ],
         ),
       ),

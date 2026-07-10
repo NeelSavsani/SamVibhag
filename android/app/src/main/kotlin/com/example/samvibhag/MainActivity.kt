@@ -1,5 +1,2 @@
-package com.example.samvibhag
-
-import io.flutter.embedding.android.FlutterActivity
-
-class MainActivity : FlutterActivity()
+// MainActivity has moved to:
+// android/app/src/main/kotlin/com/neelsavsani/samvibhag/MainActivity.kt

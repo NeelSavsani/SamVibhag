@@ -1,8 +1,6 @@
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../core/theme/app_theme.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -243,7 +241,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       // Google Sign In
                     },
 
-                    icon: Image.asset(  
+                    icon: Image.asset(
                       "assets/images/google.png",
 
                       height: 24,

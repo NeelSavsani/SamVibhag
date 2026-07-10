@@ -12,7 +12,20 @@
           "package_name": "com.neelsavsani.samvibhag"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "889674633243-h1us8hasb3ss9f2j7q9vkggkjns8qi47.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.neelsavsani.samvibhag",
+            "certificate_hash": "55237e04efa66dc8479217fef3a5fdc30c0db8cb"
+          }
+        },
+        {
+          "client_id": "889674633243-4d18vqv878tuj8jtb0rvo07lb79v5bqe.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDGkneZTJtu_3p8RFkdzQmZwQq2T7Jxlh0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "889674633243-4d18vqv878tuj8jtb0rvo07lb79v5bqe.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

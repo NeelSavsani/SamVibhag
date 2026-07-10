@@ -2,9 +2,9 @@
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:flutter/material.dart';
 
-import '../models/group_model.dart';
-import '../services/analytics_service.dart';
-import '../theme/app_theme.dart';
+import '../../models/group_model.dart';
+import '../../services/analytics_service.dart';
+import '../../core/theme/app_theme.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key, required this.groups});
