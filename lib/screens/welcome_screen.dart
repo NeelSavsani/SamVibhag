@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import 'auth/register_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -200,7 +201,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     height: 58,
 
                     child: ElevatedButton(
-                      onPressed: () => _showComingSoon("Create account"),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
+                      },
 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
