@@ -19,7 +19,7 @@ class AccountScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Log out', style: TextStyle(color: AppTheme.warning)),
+            child: const Text('Log out', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -139,6 +139,7 @@ class AccountScreen extends StatelessWidget {
                 title: 'Appearance',
                 onTap: () {
                   // Connects into dark/light mode toggle or controllers later
+                  Navigator.pushNamed(context, '/appearance');
                 },
               ),
               _AccountTile(

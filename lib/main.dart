@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/account/appearance_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -52,6 +53,7 @@ class SamVibhagApp extends StatelessWidget {
             '/welcome': (context) => const WelcomeScreen(),
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
+            '/appearance': (context) => const AppearanceScreen(),
             
             // FIXED: Uncommented and activated the home route so Navigator can transition here
             '/home': (context) => const HomeScreen(), 
