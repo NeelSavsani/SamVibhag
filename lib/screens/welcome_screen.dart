@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
@@ -41,249 +43,359 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     super.dispose();
   }
 
+  void _showComingSoon(String title) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text('$title will be connected soon.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? const [
+                    Color(0xFF07111F),
+                    Color(0xFF0F172A),
+                    Color(0xFF172554),
+                  ]
+                : const [
+                    Color(0xFFEFF6FF),
+                    Color(0xFFFFFBF7),
+                    Color(0xFFDBEAFE),
+                  ],
+          ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
 
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
 
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Column(
+                children: [
+                  const Spacer(),
 
-            child: Column(
-              children: [
-                const Spacer(),
+                  ScaleTransition(
+                    scale: _logoAnimation,
 
-                ScaleTransition(
-                  scale: _logoAnimation,
+                    child: Hero(
+                      tag: "app_logo",
 
-                  child: Hero(
-                    tag: "app_logo",
-
-                    child: Container(
-                      height: 130,
-                      width: 130,
-
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-
-                        borderRadius: BorderRadius.circular(32),
-
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(.15),
-
-                            blurRadius: 20,
-
-                            offset: const Offset(0, 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(34),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                          child: Container(
+                            height: 132,
+                            width: 132,
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(
+                                alpha: isDark ? .10 : .88,
+                              ),
+                              borderRadius: BorderRadius.circular(34),
+                              border: Border.all(
+                                color: Colors.white.withValues(
+                                  alpha: isDark ? .12 : .90,
+                                ),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primary.withValues(
+                                    alpha: .22,
+                                  ),
+                                  blurRadius: 34,
+                                  offset: const Offset(0, 18),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset("assets/images/logo.png"),
                           ),
-                        ],
-                      ),
-
-                      padding: const EdgeInsets.all(18),
-
-                      child: Image.asset("assets/images/logo.png"),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 35),
-
-                Text(
-                  "SamVibhag",
-
-                  textAlign: TextAlign.center,
-
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-
-                    color: AppTheme.primary,
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                const Text(
-                  "Smart Expense Splitter",
-
-                  textAlign: TextAlign.center,
-
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-
-                const SizedBox(height: 22),
-
-                Text(
-                  "Split bills effortlessly with friends, family and colleagues.\nTrack every expense and settle up with ease.",
-
-                  textAlign: TextAlign.center,
-
-                  style: TextStyle(
-                    fontSize: 16,
-
-                    color: Colors.grey.shade600,
-
-                    height: 1.6,
-                  ),
-                ),
-
-                SizedBox(height: size.height * .08),
-                SizedBox(
-                  width: double.infinity,
-                  height: 58,
-
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // TODO:
-                      // Navigator.push(
-                      //   context,
-                      //   MaterialPageRoute(
-                      //     builder: (_) =>
-                      //         const RegisterScreen(),
-                      //   ),
-                      // );
-                    },
-
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-
-                    child: const Text(
-                      "Create Account",
-
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 58,
-
-                  child: OutlinedButton(
-                    onPressed: () {
-                      // TODO:
-                      // Navigator.push(
-                      //   context,
-                      //   MaterialPageRoute(
-                      //     builder: (_) =>
-                      //         const LoginScreen(),
-                      //   ),
-                      // );
-                    },
-
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.primary, width: 2),
-
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-
-                    child: const Text(
-                      "Log In",
-
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                Row(
-                  children: [
-                    const Expanded(child: Divider()),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-
-                      child: Text(
-                        "OR",
-
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
+                  ),
 
-                    const Expanded(child: Divider()),
-                  ],
-                ),
+                  const SizedBox(height: 35),
 
-                const SizedBox(height: 18),
+                  Text(
+                    "SamVibhag",
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 58,
+                    textAlign: TextAlign.center,
 
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO:
-                      // Google Sign In
-                    },
-
-                    icon: Image.asset(
-                      "assets/images/google.png",
-
-                      height: 24,
-                      width: 24,
+                    style: theme.textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -.8,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
+                  ),
 
-                    label: const Text(
-                      "Continue with Google",
+                  const SizedBox(height: 12),
 
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
+                  Text(
+                    "Split expenses without splitting friendships.",
+
+                    textAlign: TextAlign.center,
+
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      height: 1.45,
+                      color: theme.colorScheme.onSurface.withValues(alpha: .72),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Text(
+                    "Track group bills, custom splits and settlements in one calm, simple place.",
+
+                    textAlign: TextAlign.center,
+
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: theme.colorScheme.onSurface.withValues(alpha: .62),
+                      height: 1.55,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: const [
+                      _FeaturePill(
+                        icon: Icons.receipt_long_rounded,
+                        label: "Track bills",
                       ),
-                    ),
+                      _FeaturePill(
+                        icon: Icons.groups_2_rounded,
+                        label: "Share groups",
+                      ),
+                      _FeaturePill(
+                        icon: Icons.balance_rounded,
+                        label: "Settle smart",
+                      ),
+                    ],
+                  ),
 
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                  SizedBox(height: size.height * .06),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+
+                    child: ElevatedButton(
+                      onPressed: () => _showComingSoon("Create account"),
+
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Create Account",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward_rounded),
+                        ],
                       ),
                     ),
                   ),
-                ),
 
-                const Spacer(),
+                  const SizedBox(height: 18),
 
-                TextButton(
-                  onPressed: () {},
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
 
-                  child: const Text("Privacy Policy • Terms of Service"),
-                ),
+                    child: OutlinedButton(
+                      onPressed: () => _showComingSoon("Login"),
 
-                const SizedBox(height: 8),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.onSurface,
+                        side: BorderSide(
+                          color: AppTheme.primary.withValues(alpha: .45),
+                          width: 1.4,
+                        ),
 
-                Text(
-                  "Version 1.0.0",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
 
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
+                      child: const Text(
+                        "Log In",
 
-                const SizedBox(height: 18),
-              ],
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+
+                        child: Text(
+                          "OR",
+
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: .55,
+                            ),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showComingSoon("Google sign in"),
+
+                      icon: Image.asset(
+                        "assets/images/google.png",
+
+                        height: 24,
+                        width: 24,
+                      ),
+
+                      label: const Text(
+                        "Continue with Google",
+
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.onSurface,
+                        side: BorderSide(
+                          color: theme.colorScheme.outline.withValues(
+                            alpha: .18,
+                          ),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  TextButton(
+                    onPressed: () => _showComingSoon("Privacy policy"),
+                    child: Text(
+                      "Privacy Policy • Terms of Service",
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: .62,
+                        ),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    "Version 1.0.0",
+
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: .52),
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+                ],
+              ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeaturePill extends StatelessWidget {
+  const _FeaturePill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+          decoration: BoxDecoration(
+            color: theme.cardColor.withValues(alpha: .72),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: .12),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: AppTheme.primary),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
         ),
       ),
