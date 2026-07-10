@@ -8,71 +8,44 @@ class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
 
   @override
-  State<CreateGroupScreen> createState() =>
-      _CreateGroupScreenState();
+  State<CreateGroupScreen> createState() => _CreateGroupScreenState();
 }
 
-class _CreateGroupScreenState
-    extends State<CreateGroupScreen> {
+class _CreateGroupScreenState extends State<CreateGroupScreen> {
+  final _formKey = GlobalKey<FormState>();
 
-  final _formKey =
-      GlobalKey<FormState>();
-
-  final _groupNameController =
-      TextEditingController();
+  final _groupNameController = TextEditingController();
 
   String _selectedType = "Trip";
 
-  final List<Map<String, dynamic>>
-      _categories = [
+  final List<Map<String, dynamic>> _categories = [
+    {"name": "Trip", "icon": Icons.flight_takeoff_rounded},
 
-    {
-      "name": "Trip",
-      "icon": Icons.flight_takeoff_rounded,
-    },
+    {"name": "Home", "icon": Icons.home_rounded},
 
-    {
-      "name": "Home",
-      "icon": Icons.home_rounded,
-    },
+    {"name": "Couple", "icon": Icons.favorite_rounded},
 
-    {
-      "name": "Couple",
-      "icon": Icons.favorite_rounded,
-    },
-
-    {
-      "name": "Other",
-      "icon": Icons.category_rounded,
-    },
+    {"name": "Other", "icon": Icons.category_rounded},
   ];
 
   @override
   void dispose() {
-
     _groupNameController.dispose();
 
     super.dispose();
   }
 
   void _submitGroup() {
-
-    if (!_formKey.currentState!
-        .validate()) {
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final newGroup =
-        GroupModel(
-
+    final newGroup = GroupModel(
       id: const Uuid().v4(),
 
-      groupName:
-          _groupNameController.text
-              .trim(),
+      groupName: _groupNameController.text.trim(),
 
-      description:
-          "A $_selectedType group.",
+      description: "A $_selectedType group.",
 
       avatarPath: "",
 
@@ -83,152 +56,70 @@ class _CreateGroupScreenState
       createdAt: DateTime.now(),
     );
 
-    Navigator.pop(
-      context,
-      newGroup,
-    );
+    Navigator.pop(context, newGroup);
   }
 
   @override
-  Widget build(
-      BuildContext context) {
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
-    final theme =
-        Theme.of(context);
-
-    final isDark =
-        theme.brightness ==
-            Brightness.dark;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-
-      backgroundColor:
-          theme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
 
       appBar: AppBar(
-
-        backgroundColor:
-            Colors.transparent,
-
+        backgroundColor: Colors.transparent,
         elevation: 0,
-
         centerTitle: true,
-
         leading: IconButton(
-
-          onPressed: () =>
-              Navigator.pop(
-                  context),
-
-          icon: Icon(
-
-            Icons.close_rounded,
-
-            color: theme
-                .colorScheme.onSurface,
-          ),
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.close_rounded, color: theme.colorScheme.onSurface),
         ),
-
         title: Text(
-
           "Create Group",
-
           style: TextStyle(
-
-            fontWeight:
-                FontWeight.bold,
-
-            color: theme
-                .colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-
-        actions: [
-
-          Padding(
-
-            padding:
-                const EdgeInsets.only(
-                    right: 12),
-
-            child: FilledButton(
-
-              onPressed:
-                  _submitGroup,
-
-              style:
-                  FilledButton.styleFrom(
-
-                backgroundColor:
-                    AppTheme.primary,
-
-                foregroundColor:
-                    Colors.white,
-
-                shape:
-                    RoundedRectangleBorder(
-
-                  borderRadius:
-                      BorderRadius.circular(
-                          14),
-                ),
-              ),
-
-              child:
-                  const Text("Create"),
-            ),
-          ),
-        ],
       ),
-            body: SafeArea(
+      body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 /// Avatar + Name Card
                 Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Padding(
-                    padding:
-                        const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(20),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-
                         InkWell(
-                          borderRadius:
-                              BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(18),
                           onTap: () {},
 
                           child: Container(
                             width: 74,
                             height: 74,
 
-                            decoration:
-                                BoxDecoration(
-                              color: AppTheme.primary
-                                  .withValues(
-                                      alpha: .12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: .12),
 
-                              borderRadius:
-                                  BorderRadius.circular(
-                                      18),
+                              borderRadius: BorderRadius.circular(18),
                             ),
 
                             child: const Icon(
                               Icons.camera_alt_rounded,
-                              color:
-                                  AppTheme.primary,
+                              color: AppTheme.primary,
                               size: 32,
                             ),
                           ),
@@ -238,42 +129,26 @@ class _CreateGroupScreenState
 
                         Expanded(
                           child: TextFormField(
-                            controller:
-                                _groupNameController,
+                            controller: _groupNameController,
 
-                            textCapitalization:
-                                TextCapitalization
-                                    .words,
+                            textCapitalization: TextCapitalization.words,
 
-                            decoration:
-                                InputDecoration(
-                              labelText:
-                                  "Group Name",
+                            decoration: InputDecoration(
+                              labelText: "Group Name",
 
-                              hintText:
-                                  "Eg. Goa Trip",
+                              hintText: "Eg. Goa Trip",
 
-                              prefixIcon:
-                                  const Icon(
-                                Icons.groups_rounded,
-                              ),
+                              prefixIcon: const Icon(Icons.groups_rounded),
 
                               filled: true,
 
-                              border:
-                                  OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                            16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
                             ),
 
                             validator: (value) {
-                              if (value == null ||
-                                  value
-                                      .trim()
-                                      .isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return "Please enter a group name";
                               }
 
@@ -291,145 +166,80 @@ class _CreateGroupScreenState
                 Text(
                   "Choose Group Type",
 
-                  style: theme
-                      .textTheme.titleMedium
-                      ?.copyWith(
-                    fontWeight:
-                        FontWeight.bold,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
 
                 const SizedBox(height: 18),
 
-                GridView.builder(
+                SizedBox(
+                  height: 88,
+                  child: Row(
+                    children: _categories.map((category) {
+                      final selected = _selectedType == category["name"];
 
-                  shrinkWrap: true,
-
-                  physics:
-                      const NeverScrollableScrollPhysics(),
-
-                  itemCount:
-                      _categories.length,
-
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-
-                    crossAxisCount: 2,
-
-                    crossAxisSpacing: 14,
-
-                    mainAxisSpacing: 14,
-
-                    childAspectRatio: 1.55,
-                  ),
-
-                  itemBuilder:
-                      (context, index) {
-
-                    final category =
-                        _categories[index];
-
-                    final selected =
-                        _selectedType ==
-                            category["name"];
-
-                    return InkWell(
-
-                      borderRadius:
-                          BorderRadius.circular(
-                              18),
-
-                      onTap: () {
-
-                        setState(() {
-
-                          _selectedType =
-                              category["name"];
-                        });
-                      },
-
-                      child: AnimatedContainer(
-
-                        duration:
-                            const Duration(
-                                milliseconds:
-                                    220),
-
-                        decoration:
-                            BoxDecoration(
-
-                          color: selected
-
-                              ? AppTheme.primary
-
-                              : theme.cardColor,
-
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                                      18),
-
-                          border: Border.all(
-
-                            color: selected
-
-                                ? AppTheme.primary
-
-                                : theme.dividerColor,
-                          ),
-                        ),
-
-                        child: Column(
-
-                          mainAxisAlignment:
-                              MainAxisAlignment
-                                  .center,
-
-                          children: [
-
-                            Icon(
-
-                              category["icon"],
-
-                              size: 34,
-
-                              color: selected
-
-                                  ? Colors.white
-
-                                  : AppTheme.primary,
-                            ),
-
-                            const SizedBox(
-                                height: 12),
-
-                            Text(
-
-                              category["name"],
-
-                              style: TextStyle(
-
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () {
+                              setState(() {
+                                _selectedType = category["name"];
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              decoration: BoxDecoration(
                                 color: selected
+                                    ? AppTheme.primary
+                                    : theme.cardColor,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: selected
+                                      ? AppTheme.primary
+                                      : theme.dividerColor,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    category["icon"],
+                                    size: 30,
+                                    color: selected
+                                        ? Colors.white
+                                        : AppTheme.primary,
+                                  ),
 
-                                    ? Colors.white
+                                  const SizedBox(height: 10),
 
-                                    : theme
-                                        .colorScheme
-                                        .onSurface,
-
-                                fontWeight:
-                                    FontWeight.bold,
+                                  Text(
+                                    category["name"],
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: selected
+                                          ? Colors.white
+                                          : theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    }).toList(),
+                  ),
                 ),
 
                 const SizedBox(height: 30),
-                                Card(
+                Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -437,8 +247,7 @@ class _CreateGroupScreenState
                   child: Padding(
                     padding: const EdgeInsets.all(18),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(
                           Icons.info_outline_rounded,
@@ -470,13 +279,10 @@ class _CreateGroupScreenState
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.group_add_rounded,
-                    ),
+                    icon: const Icon(Icons.group_add_rounded),
                     label: const Text(
                       "Create Group",
                       style: TextStyle(
