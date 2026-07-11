@@ -31,9 +31,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   void initState() {
     super.initState();
     groupNameController = TextEditingController(text: widget.group.groupName);
-    descriptionController = TextEditingController(
-      text: widget.group.description,
-    );
+    descriptionController = TextEditingController(text: widget.group.description);
     members = List<String>.from(widget.group.members);
     avatarPath = widget.group.avatarPath.trim();
   }
@@ -114,9 +112,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     if (isUsedByExpense) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            "Can't remove $member because they are included in an expense",
-          ),
+          content: Text("Can't remove $member because they are included in an expense"),
         ),
       );
       return;
@@ -229,9 +225,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       ),
       body: SafeArea(
         child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppTheme.primary),
-              )
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -243,28 +237,16 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         children: [
                           CircleAvatar(
                             radius: 60,
-                            backgroundColor: AppTheme.primary.withValues(
-                              alpha: 0.15,
-                            ),
-                            backgroundImage: avatarPath.isEmpty
-                                ? null
-                                : FileImage(File(avatarPath)),
+                            backgroundColor: AppTheme.primary.withOpacity(0.15),
+                            backgroundImage: avatarPath.isEmpty ? null : FileImage(File(avatarPath)),
                             child: avatarPath.isEmpty
-                                ? const Icon(
-                                    Icons.groups,
-                                    size: 60,
-                                    color: AppTheme.primary,
-                                  )
+                                ? const Icon(Icons.groups, size: 60, color: AppTheme.primary)
                                 : null,
                           ),
                           CircleAvatar(
                             radius: 18,
                             backgroundColor: AppTheme.primary,
-                            child: const Icon(
-                              Icons.camera_alt,
-                              size: 18,
-                              color: Colors.white,
-                            ),
+                            child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
                           ),
                         ],
                       ),
@@ -276,58 +258,40 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       decoration: InputDecoration(
                         labelText: "Group Name",
                         prefixIcon: const Icon(Icons.groups),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                     ),
                     const SizedBox(height: 18),
-
                     TextField(
                       controller: descriptionController,
-                      maxLines: null, // Grows dynamically according to description text contents
+                      maxLines: null,
                       keyboardType: TextInputType.multiline,
                       style: TextStyle(color: theme.colorScheme.onSurface),
                       decoration: InputDecoration(
                         labelText: "Description",
                         prefixIcon: const Icon(Icons.info_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Card(
                       elevation: 0,
                       child: ListTile(
-                        leading: const Icon(
-                          Icons.calendar_today,
-                          color: AppTheme.primary,
-                        ),
+                        leading: const Icon(Icons.calendar_today, color: AppTheme.primary),
                         title: const Text("Created"),
                         subtitle: Text(createdDate),
                       ),
                     ),
                     const SizedBox(height: 12),
-
-                    // FIXED: Export PDF button cleanly added inside group settings panel container
                     Card(
                       elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: openReport,
                         child: const ListTile(
-                          leading: Icon(
-                            Icons.picture_as_pdf,
-                            color: Colors.red,
-                          ),
-                          title: Text(
-                            "Export PDF Report",
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
+                          leading: Icon(Icons.picture_as_pdf, color: Colors.red),
+                          title: Text("Export PDF Report", style: TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: Text("Generate and download expense balance statements"),
                           trailing: Icon(Icons.chevron_right_rounded),
                         ),
@@ -337,13 +301,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Members",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        const Text("Members", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                         FilledButton.icon(
                           onPressed: addMember,
                           icon: const Icon(Icons.person_add),
@@ -360,43 +318,28 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                               color: theme.cardColor,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Center(
-                              child: Text(
-                                "No Members",
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ),
+                            child: const Center(child: Text("No Members", style: TextStyle(fontSize: 16))),
                           )
                         : ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: members.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
+                            separatorBuilder: (_, _) => const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               return Card(
                                 elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: AppTheme.primary
-                                        .withValues(alpha: 0.15),
-                                    child: const Icon(
-                                      Icons.person,
-                                      color: AppTheme.primary,
-                                    ),
+                                    backgroundColor: AppTheme.primary.withOpacity(0.15),
+                                    child: const Icon(Icons.person, color: AppTheme.primary),
                                   ),
                                   title: Text(members[index]),
                                   subtitle: Text("Member ${index + 1}"),
                                   trailing: IconButton(
                                     tooltip: "Remove Member",
                                     onPressed: () => removeMember(index),
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      color: Colors.red,
-                                    ),
+                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
                                   ),
                                 ),
                               );
@@ -414,10 +357,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         icon: const Icon(Icons.save),
                         label: const Padding(
                           padding: EdgeInsets.symmetric(vertical: 14),
-                          child: Text(
-                            "Save Changes",
-                            style: TextStyle(fontSize: 17),
-                          ),
+                          child: Text("Save Changes", style: TextStyle(fontSize: 17)),
                         ),
                       ),
                     ),

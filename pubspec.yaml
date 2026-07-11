@@ -1,9 +1,6 @@
 name: samvibhag
-
 description: "SamVibhag - Smart Expense Splitter App"
-
 publish_to: "none"
-
 version: 1.0.0+1
 
 environment:
@@ -45,7 +42,7 @@ dependencies:
   intl: ^0.20.2
   uuid: ^4.5.1
 
-  # fl_chart: ^0.68.0
+  # Charts
   syncfusion_flutter_charts: ^30.2.7
 
   # Open WhatsApp / URLs
@@ -63,11 +60,15 @@ dev_dependencies:
   # App Icon Generator
   flutter_launcher_icons: ^0.14.4
 
+# Configuration for Flutter Launcher Icons
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/logo.png"
   min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/logo.png"
 
 flutter:
   uses-material-design: true
