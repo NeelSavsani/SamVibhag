@@ -34,7 +34,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   String searchQuery = '';
   String selectedCategory = 'All';
 
-  // FIXED: State management for expandable search logic
+  // State management for expandable search logic
   bool _isSearchExpanded = false;
   final _searchController = TextEditingController();
 
@@ -180,34 +180,42 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
+      // FIXED: Titlebar copied from appearance_screen.dart configuration
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: isDark ? Colors.white : Colors.black87,
+            size: 22,
+          ),
+        ),
         title: Text(
           widget.group.groupName,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            tooltip: "Group Information",
-            icon: const Icon(Icons.edit, color: Colors.white),
-            onPressed: openGroupInfo,
-          ),
-          IconButton(
             tooltip: "Export PDF",
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+            icon: Icon(Icons.picture_as_pdf, color: isDark ? Colors.white : Colors.black87),
             onPressed: openReport,
           ),
           IconButton(
-            tooltip: "Share",
-            icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: shareSettlements,
+            tooltip: "Group Settings",
+            icon: Icon(Icons.settings, color: isDark ? Colors.white : Colors.black87),
+            onPressed: openGroupInfo,
           ),
-          const NightModeButton(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -338,8 +346,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
             const SizedBox(height: 28),
 
-            // FIXED: Removed the entire "/// MEMBERS" layout section from here as requested.
-
             if (expenses.isNotEmpty) ...[
               const Text(
                 "Settlements",
@@ -380,7 +386,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               const SizedBox(height: 28),
             ],
 
-            /// FIXED: EXPANDABLE SEARCH BAR WITH CIRCULAR BACKGROUND ON LEFT
+            /// EXPANDABLE SEARCH BAR WITH CIRCULAR BACKGROUND ON LEFT
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               transitionBuilder: (Widget child, Animation<double> animation) {

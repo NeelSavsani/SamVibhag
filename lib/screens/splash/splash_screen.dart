@@ -1,8 +1,6 @@
 import 'dart:async';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../welcome_screen.dart';
-import '../bottom_nav_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,11 +14,20 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
+    // Wait a brief moment for the splash branding before analyzing authentication state
     Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const BottomNavScreen()),
-      );
+      if (!mounted) return;
+
+      // FIXED: Read active login session status directly from Google Firebase
+      final currentFirebaseUser = FirebaseAuth.instance.currentUser;
+
+      if (currentFirebaseUser != null) {
+        // Logged In -> Forward straight to the bottom navigation shell
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        // No Session -> Direct user to introductory Welcome Screen
+        Navigator.pushReplacementNamed(context, '/welcome');
+      }
     });
   }
 
@@ -28,14 +35,12 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             /// LOGO
             Image.asset('assets/images/logo.png', width: 180),
-
             const SizedBox(height: 25),
 
             /// APP NAME
@@ -48,7 +53,6 @@ class _SplashScreenState extends State<SplashScreen> {
                 letterSpacing: 1,
               ),
             ),
-
             const SizedBox(height: 8),
 
             /// SANSKRIT NAME
@@ -60,7 +64,6 @@ class _SplashScreenState extends State<SplashScreen> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-
             const SizedBox(height: 14),
 
             /// TAGLINE
@@ -68,7 +71,6 @@ class _SplashScreenState extends State<SplashScreen> {
               "Fair Expense Sharing",
               style: TextStyle(fontSize: 16, color: Colors.white54),
             ),
-
             const SizedBox(height: 40),
 
             /// LOADING INDICATOR

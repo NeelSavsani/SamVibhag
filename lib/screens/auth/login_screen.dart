@@ -45,13 +45,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Redirecting user to home screen
-      Navigator.pushReplacementNamed(context, '/home');
+      // FIXED: Completely wipe all background routes so back button doesn't reload forms
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       
     } on FirebaseAuthException catch (error) {
       _showError(_authErrorMessage(error));
     } catch (error) {
-      // FIXED: Printing the precise error to the terminal/console to pinpoint the issue
       debugPrint("Login Navigation Exception: $error");
       _showError('Logged in successfully, but could not load home screen. Ensure /home route is configured.');
     } finally {
