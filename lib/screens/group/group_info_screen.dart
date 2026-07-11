@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/group_model.dart';
 import '../../core/theme/app_theme.dart';
+import '../report_screen.dart';
 
 class GroupInfoScreen extends StatefulWidget {
   const GroupInfoScreen({super.key, required this.group});
@@ -22,7 +23,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   late TextEditingController descriptionController;
   late List<String> members;
   String avatarPath = "";
-  bool _isLoading = false; // Flag to show networking actions loader spinner
+  bool _isLoading = false;
 
   final ImagePicker picker = ImagePicker();
 
@@ -196,6 +197,13 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     }
   }
 
+  Future<void> openReport() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ReportScreen(group: widget.group)),
+    );
+  }
+
   String get createdDate {
     return DateFormat("dd MMM yyyy, hh:mm a").format(widget.group.createdAt);
   }
@@ -206,9 +214,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF121214)
-          : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -277,13 +283,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     ),
                     const SizedBox(height: 18),
 
-                    /// FIXED: CONVERTED INTO RESPONSIVE DYNAMIC TEXT AREA
                     TextField(
                       controller: descriptionController,
-                      maxLines:
-                          null, // Null collapses layout limits so the field grows dynamically
-                      keyboardType: TextInputType
-                          .multiline, // Handles return/enter buttons seamlessly
+                      maxLines: null, // Grows dynamically according to description text contents
+                      keyboardType: TextInputType.multiline,
                       style: TextStyle(color: theme.colorScheme.onSurface),
                       decoration: InputDecoration(
                         labelText: "Description",
@@ -303,6 +306,31 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         ),
                         title: const Text("Created"),
                         subtitle: Text(createdDate),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // FIXED: Export PDF button cleanly added inside group settings panel container
+                    Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: openReport,
+                        child: const ListTile(
+                          leading: Icon(
+                            Icons.picture_as_pdf,
+                            color: Colors.red,
+                          ),
+                          title: Text(
+                            "Export PDF Report",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text("Generate and download expense balance statements"),
+                          trailing: Icon(Icons.chevron_right_rounded),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 25),
@@ -379,11 +407,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       width: double.infinity,
                       child: FilledButton.icon(
                         onPressed: saveGroup,
-                        // FIXED: Added styleFrom to override foreground components to white
                         style: FilledButton.styleFrom(
                           foregroundColor: Colors.white,
-                          backgroundColor: AppTheme
-                              .primary, // Keeps your theme's brand background color
+                          backgroundColor: AppTheme.primary,
                         ),
                         icon: const Icon(Icons.save),
                         label: const Padding(

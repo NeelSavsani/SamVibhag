@@ -184,7 +184,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
-      // FIXED: Titlebar copied from appearance_screen.dart configuration
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -206,11 +205,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            tooltip: "Export PDF",
-            icon: Icon(Icons.picture_as_pdf, color: isDark ? Colors.white : Colors.black87),
-            onPressed: openReport,
-          ),
+          // FIXED: Moved the Export PDF action out of this AppBar actions row
           IconButton(
             tooltip: "Group Settings",
             icon: Icon(Icons.settings, color: isDark ? Colors.white : Colors.black87),
