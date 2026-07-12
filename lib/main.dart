@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // REQUIRED: Imports SystemNavigator for clean app minimization
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
@@ -7,8 +8,8 @@ import 'screens/account/appearance_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
-import 'screens/home/home_screen.dart'; // Added the missing HomeScreen import
-import 'screens/bottom_nav_screen.dart'; // Added the missing BottomNavScreen import
+import 'screens/home/home_screen.dart'; 
+import 'screens/bottom_nav_screen.dart'; 
 
 import 'firebase_options.dart';
 import 'screens/splash/splash_screen.dart';
@@ -23,7 +24,7 @@ Future<void> main() async {
   // Initialize Hive
   await Hive.initFlutter();
 
-  // FIXED: Explicitly opening 'samvibhag_storage' box before the UI attempts to read it
+  // Explicitly opening 'samvibhag_storage' box before the UI attempts to read it
   await Hive.openBox('samvibhag_storage');
 
   runApp(
@@ -33,6 +34,9 @@ Future<void> main() async {
     ),
   );
 }
+
+// FIXED: Created a Global Key to track the navigation history stack across named routes
+final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
 class SamVibhagApp extends StatelessWidget {
   const SamVibhagApp({super.key});
@@ -44,28 +48,50 @@ class SamVibhagApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'SamVibhag',
+          
+          // FIXED: Registered the tracking key to map screen history natively
+          navigatorKey: globalNavigatorKey,
 
-          // 1. Define the screen the app opens up to first (Splash Screen)
+          // Define the screen the app opens up to first (Splash Screen)
           initialRoute: '/',
 
-          // 2. Map path strings to your specific Screen Widgets cleanly
+          // Map path strings to your specific Screen Widgets cleanly
           routes: {
             '/': (context) => const SplashScreen(),
             '/welcome': (context) => const WelcomeScreen(),
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
             '/appearance': (context) => const AppearanceScreen(),
-            
-            // FIXED: Uncommented and activated the home route so Navigator can transition here
             '/home': (context) => const BottomNavScreen(), 
           },
 
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
-
           themeMode: themeController.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
+
+          // FIXED: Injected a global PopScope wrapper around the entire router canvas 
+          // to intercept hardware keys and edge-swipes on ALL screens automatically.
+          builder: (context, navigationWidget) {
+            return PopScope(
+              canPop: false, // Tells the phone os that the app will handle the history tracking manually
+              onPopInvokedWithResult: (didPop, result) async {
+                if (didPop) return;
+
+                final NavigatorState? navigator = globalNavigatorKey.currentState;
+
+                if (navigator != null && navigator.canPop()) {
+                  // If there is any screen in the history path, step backward one page
+                  navigator.pop();
+                } else {
+                  // If we are at the root homepage view, cleanly minimize or close the app
+                  await SystemNavigator.pop();
+                }
+              },
+              child: navigationWidget ?? const SizedBox.shrink(),
+            );
+          },
         );
       },
     );
