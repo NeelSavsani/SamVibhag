@@ -1,6 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // REQUIRED: Imports SystemNavigator for clean app minimization
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
@@ -35,10 +34,6 @@ Future<void> main() async {
   );
 }
 
-// Created a Global Key to track the navigation history stack across named routes
-final GlobalKey<NavigatorState> globalNavigatorKey =
-    GlobalKey<NavigatorState>();
-
 class SamVibhagApp extends StatelessWidget {
   const SamVibhagApp({super.key});
 
@@ -49,9 +44,6 @@ class SamVibhagApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'SamVibhag',
-
-          // Registered the tracking key to map screen history natively
-          navigatorKey: globalNavigatorKey,
 
           // Define the screen the app opens up to first (Splash Screen)
           initialRoute: '/',
@@ -73,29 +65,6 @@ class SamVibhagApp extends StatelessWidget {
               ? ThemeMode.dark
               : ThemeMode.light,
 
-          // Injected a global PopScope wrapper around the entire router canvas
-          // to intercept hardware keys and edge-swipes on ALL screens automatically.
-          builder: (context, navigationWidget) {
-            return PopScope(
-              canPop:
-                  false, // Tells the phone os that the app will handle the history tracking manually
-              onPopInvokedWithResult: (didPop, result) async {
-                if (didPop) return;
-
-                final NavigatorState? navigator =
-                    globalNavigatorKey.currentState;
-
-                if (navigator != null && navigator.canPop()) {
-                  // If there is any screen in the history path, step backward one page
-                  navigator.pop();
-                } else {
-                  // If we are at the root homepage view, cleanly minimize or close the app
-                  await SystemNavigator.pop();
-                }
-              },
-              child: navigationWidget ?? const SizedBox.shrink(),
-            );
-          },
         );
       },
     );
