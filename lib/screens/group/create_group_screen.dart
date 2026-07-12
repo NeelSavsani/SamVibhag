@@ -217,7 +217,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                           overflow: TextOverflow.ellipsis,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                             color: selected ? Colors.white : theme.colorScheme.onSurface,
                                           ),
@@ -277,7 +277,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                           label: const Text(
                             "Create Group",
                             style: TextStyle(
-                              fontSize: 17,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

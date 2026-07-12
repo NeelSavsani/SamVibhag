@@ -47,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const Text(
               "SamVibhag",
               style: TextStyle(
-                fontSize: 34,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 letterSpacing: 1,
@@ -59,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const Text(
               "समविभाग",
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 20,
                 color: Colors.white70,
                 fontWeight: FontWeight.w500,
               ),
@@ -69,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> {
             /// TAGLINE
             const Text(
               "Fair Expense Sharing",
-              style: TextStyle(fontSize: 16, color: Colors.white54),
+              style: TextStyle(fontSize: 14, color: Colors.white54),
             ),
             const SizedBox(height: 40),
 

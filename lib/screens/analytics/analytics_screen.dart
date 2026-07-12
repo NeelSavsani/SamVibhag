@@ -68,7 +68,7 @@ class AnalyticsScreen extends StatelessWidget {
                   const Text(
                     'Total Expense',
 
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
 
                   const SizedBox(height: 10),
@@ -78,7 +78,7 @@ class AnalyticsScreen extends StatelessWidget {
 
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 34,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -92,7 +92,7 @@ class AnalyticsScreen extends StatelessWidget {
             const Text(
               'Category Breakdown',
 
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 20),
@@ -149,7 +149,7 @@ class AnalyticsScreen extends StatelessWidget {
             const Text(
               'Monthly Expenses',
 
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 15),
@@ -184,7 +184,7 @@ class AnalyticsScreen extends StatelessWidget {
             const Text(
               'Highest Spender',
 
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 15),

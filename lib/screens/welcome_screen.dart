@@ -199,7 +199,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     "Track group bills, custom splits and settlements in one calm, simple place.",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 13,
                       color: theme.colorScheme.onSurface.withValues(alpha: .62),
                       height: 1.55,
                     ),
@@ -246,7 +246,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           Text(
                             "Create Account",
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -277,7 +277,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       child: const Text(
                         "Log In",
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -323,7 +323,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       label: Text(
                         _isGoogleLoading ? "Connecting..." : "Continue with Google",
                         style: const TextStyle(
-                          fontSize: 17,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),

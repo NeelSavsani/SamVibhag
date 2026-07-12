@@ -145,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(title, style: const TextStyle(color: Colors.white70)),
         const SizedBox(height: 6),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(group.groupName, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+                  Text(group.groupName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Text('${group.members.length} Members • ${group.expenses.length} Expenses'),
                 ],
@@ -188,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text('Rs. ${group.totalExpense.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primary)),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -259,11 +259,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Total Balance', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                        const Text('Total Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
                         const SizedBox(height: 10),
                         Text(
                           'Rs. ${getCalculatedTotalBalance(activeCloudGroups).toStringAsFixed(0)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 18),
                         Row(
@@ -338,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Your Groups', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      const Text('Your Groups', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                       Text('${filteredGroups.length} Total'),
                     ],
                   ),

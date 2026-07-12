@@ -341,7 +341,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Members", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        const Text("Members", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         FilledButton.icon(
                           onPressed: addMember,
                           icon: const Icon(Icons.person_add),
@@ -358,7 +358,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                               color: theme.cardColor,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Center(child: Text("No Members", style: TextStyle(fontSize: 16))),
+                            child: const Center(child: Text("No Members", style: TextStyle(fontSize: 14))),
                           )
                         : ListView.separated(
                             shrinkWrap: true,
@@ -397,7 +397,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         icon: const Icon(Icons.save),
                         label: const Padding(
                           padding: EdgeInsets.symmetric(vertical: 14),
-                          child: Text("Save Changes", style: TextStyle(fontSize: 17)),
+                          child: Text("Save Changes", style: TextStyle(fontSize: 15)),
                         ),
                       ),
                     ),

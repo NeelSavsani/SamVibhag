@@ -36,7 +36,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           'Appearance',
           style: TextStyle(
             color: isDark ? Colors.white : Colors.black87,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -107,7 +107,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                     child: Text(
                       'App appearance adjusts to match your system settings.',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 11,
                         color: theme.colorScheme.onSurface.withOpacity(0.55),
                         height: 1.4,
                       ),
@@ -179,7 +179,7 @@ class _ThemeRadioTile extends StatelessWidget {
                 child: Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

@@ -210,7 +210,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             widget.group.groupName.toUpperCase(),
                             style: TextStyle(
                               color: isDark ? Colors.white : Colors.black87,
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,
                             ),
@@ -241,7 +241,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               "${widget.group.members.length} People",
                               style: TextStyle(
                                 color: isDark ? Colors.white : Colors.black87,
-                                fontSize: 13,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -271,7 +271,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       "Total Group Expense",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -279,7 +279,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       "₹ ${widget.group.totalExpense.toStringAsFixed(0)}",
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -297,7 +297,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   if (expenses.isNotEmpty) ...[
                     Text(
                       "Settlements",
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                     ),
                     const SizedBox(height: 14),
                     ListView.builder(
@@ -329,7 +329,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primary,
-                                fontSize: 16,
+                                fontSize: 14,
                               ),
                             ),
                           ),
@@ -432,7 +432,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     children: [
                       Text(
                         "Expenses",
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                       ),
                       Text("${filteredExpenses.length} Total", style: TextStyle(color: textColor.withOpacity(0.7))),
                     ],
@@ -470,7 +470,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                       child: Text(
                                         expense.title,
                                         style: TextStyle(
-                                          fontSize: 18,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                           color: textColor,
                                         ),
@@ -507,7 +507,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                         ),
                                         child: Text(
                                           "${entry.key}: ₹ ${entry.value.toStringAsFixed(0)}",
-                                          style: TextStyle(color: textColor.withOpacity(0.9), fontSize: 13),
+                                          style: TextStyle(color: textColor.withOpacity(0.9), fontSize: 11),
                                         ),
                                       );
                                     }).toList(),
@@ -519,7 +519,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     Text(
                                       "₹ ${expense.amount.toStringAsFixed(0)}",
                                       style: const TextStyle(
-                                        fontSize: 22,
+                                        fontSize: 20,
                                         fontWeight: FontWeight.bold,
                                         color: AppTheme.primary,
                                       ),

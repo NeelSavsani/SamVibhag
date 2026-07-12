@@ -93,7 +93,7 @@ class ActivityScreen extends StatelessWidget {
                             'Analytics Summary',
                             style: TextStyle(
                               color: Colors.white70, 
-                              fontSize: 14, 
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -105,7 +105,7 @@ class ActivityScreen extends StatelessWidget {
                             ),
                             child: const Row(
                               children: [
-                                Text('Charts', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                Text('Charts', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                 SizedBox(width: 4),
                                 Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
                               ],
@@ -118,13 +118,13 @@ class ActivityScreen extends StatelessWidget {
                         'Total Shared Spending',
                         style: TextStyle(
                           color: Colors.white70, 
-                          fontSize: 13,
+                          fontSize: 11,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Rs. ${totalExpensesCombined.toStringAsFixed(2)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 16),
                       const Divider(color: Colors.white24, height: 1),
@@ -145,7 +145,7 @@ class ActivityScreen extends StatelessWidget {
               /// RECENT ACTIVITY FEED BLOCK
               const Text(
                 'Recent Activities',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               
@@ -173,9 +173,9 @@ class ActivityScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
         const SizedBox(height: 4),
-        Text(val, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(val, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }

@@ -307,7 +307,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   const SizedBox(height: 24),
                   const Text(
                     'Split Type',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -345,7 +345,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   const SizedBox(height: 20),
                   const Text(
                     'Split Between',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   Expanded(
@@ -412,7 +412,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                       child: Text(
                         widget.expense == null ? 'Save Expense' : 'Update Expense',
-                        style: const TextStyle(color: Colors.white, fontSize: 18),
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
                   ),

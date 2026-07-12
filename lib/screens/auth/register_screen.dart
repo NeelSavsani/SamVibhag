@@ -126,7 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         searchText: (country) => '${country.name} ${country.dialCode}',
         itemBuilder: (context, country) {
           return ListTile(
-            leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
+            leading: Text(country.flag, style: const TextStyle(fontSize: 22)),
             title: Text(country.name),
             trailing: Text(
               country.dialCode,
@@ -536,7 +536,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 text:
                                     'By signing up, you accept the SamVibhag ',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontSize: 13,
+                                  fontSize: 11,
                                   color: theme.colorScheme.onSurface.withValues(
                                     alpha: 0.7,
                                   ),
@@ -622,7 +622,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 : const Text(
                                     'Register',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),

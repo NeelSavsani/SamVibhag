@@ -63,7 +63,7 @@ class AccountScreen extends StatelessWidget {
               const Text(
                 'Account',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.5,
                 ),
@@ -112,7 +112,7 @@ class AccountScreen extends StatelessWidget {
                               Text(
                                 displayName,
                                 style: const TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -125,7 +125,7 @@ class AccountScreen extends StatelessWidget {
                                   style: TextStyle(
                                     color: Color(0xFF00B074),
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 15,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
@@ -135,7 +135,7 @@ class AccountScreen extends StatelessWidget {
                           Text(
                             userEmail,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: theme.colorScheme.onSurface.withOpacity(
                                 0.6,
                               ),
@@ -239,7 +239,7 @@ class _AccountTile extends StatelessWidget {
         title: Text(
           title,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: isDestructive ? FontWeight.bold : FontWeight.w600,
             color: targetColor,
           ),

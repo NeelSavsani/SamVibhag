@@ -26,7 +26,7 @@ class PdfService {
               'SamVibhag Report',
 
               style: pw.TextStyle(
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight:
                     pw.FontWeight.bold,
               ),
@@ -38,7 +38,7 @@ class PdfService {
               'Group: ${group.groupName}',
 
               style: const pw.TextStyle(
-                fontSize: 20,
+                fontSize: 18,
               ),
             ),
 
@@ -51,7 +51,7 @@ class PdfService {
                 fontWeight:
                     pw.FontWeight.bold,
 
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
 
@@ -73,7 +73,7 @@ class PdfService {
                 fontWeight:
                     pw.FontWeight.bold,
 
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
 
@@ -120,7 +120,7 @@ class PdfService {
                 fontWeight:
                     pw.FontWeight.bold,
 
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
 
@@ -151,7 +151,7 @@ class PdfService {
                 fontWeight:
                     pw.FontWeight.bold,
 
-                fontSize: 20,
+                fontSize: 18,
               ),
             ),
           ];
