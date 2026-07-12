@@ -355,7 +355,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Version 1.0.0",
+                    "Version 1.0.4",
                     style: TextStyle(
                       color: theme.colorScheme.onSurface.withValues(alpha: .52),
                     ),

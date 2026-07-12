@@ -170,34 +170,49 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     String finalAvatarUrl = avatarPath;
 
     try {
-      // Upload directly to ImgBB if avatarPath is an un-uploaded local file path string
+      // Upload directly to Cloudinary if avatarPath is an un-uploaded local file path string
       if (avatarPath.isNotEmpty && !avatarPath.startsWith('http')) {
         final File file = File(avatarPath);
 
         if (await file.exists()) {
-          const String imgBbApiKey = "d2615a56e20ee14128edaa0d9ce3fadc";
-          
+          // Cloud name and unsigned upload preset are safe to keep in client code —
+          // an UNSIGNED preset has no secret attached to it by design.
+          const String cloudName = "kgtyxboo";
+          const String uploadPreset = "samvibhag_preset";
+
           final request = http.MultipartRequest(
             'POST',
-            Uri.parse('https://api.imgbb.com/1/upload?key=$imgBbApiKey'),
+            Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload'),
           );
+          request.fields['upload_preset'] = uploadPreset;
+          request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
-          request.files.add(await http.MultipartFile.fromPath('image', file.path));
           final response = await request.send();
+          final responseBody = await response.stream.bytesToString();
 
           if (response.statusCode == 200) {
-            final responseData = await response.stream.bytesToString();
-            final jsonResponse = jsonDecode(responseData);
-            
+            final jsonResponse = jsonDecode(responseBody);
+
             // Extract the direct permanent clean network URL string layout
-            finalAvatarUrl = jsonResponse['data']['url'];
+            finalAvatarUrl = jsonResponse['secure_url'];
           } else {
-            throw Exception("ImgBB Server returned status code: ${response.statusCode}");
+            // Surface Cloudinary's actual error message instead of just the status code,
+            // e.g. an invalid preset name or a disallowed format.
+            String reason = responseBody;
+            try {
+              final parsed = jsonDecode(responseBody);
+              reason = parsed['error']?['message']?.toString() ?? responseBody;
+            } catch (_) {
+              // response wasn't JSON — fall back to raw body
+            }
+            throw Exception(
+              "Cloudinary upload failed (${response.statusCode}): $reason",
+            );
           }
         }
       }
 
-      // Update Firestore database using the public ImgBB image URL link channel
+      // Update Firestore database using the public Cloudinary image URL link channel
       await FirebaseFirestore.instance
           .collection('groups')
           .doc(widget.group.id)
