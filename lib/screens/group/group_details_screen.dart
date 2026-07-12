@@ -63,13 +63,24 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Future<void> openGroupInfo() async {
-    await Navigator.push(
+    // FIXED: Catch the updated GroupModel structure returned from the pop execution context
+    final GroupModel? updatedGroup = await Navigator.push<GroupModel>(
       context,
       MaterialPageRoute(builder: (_) => GroupInfoScreen(group: widget.group)),
     );
 
     if (!mounted) return;
-    setState(() {});
+    
+    // Explicitly command the layout container to re-render using the freshly caught ImgBB cloud URL
+    setState(() {
+      if (updatedGroup != null) {
+        widget.group.groupName = updatedGroup.groupName;
+        widget.group.description = updatedGroup.description;
+        widget.group.avatarPath = updatedGroup.avatarPath;
+        widget.group.members = updatedGroup.members;
+      }
+    });
+    
     await widget.onGroupUpdated?.call();
   }
 
@@ -144,7 +155,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.colorScheme.onSurface;
     
-    // Color constant calibrated responsively for dark/light variations (#F4F3F9)
     final tileBackgroundColor = isDark ? theme.cardColor : const Color(0xFFF4F3F9);
 
     return Scaffold(
@@ -167,7 +177,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 color: isDark ? const Color(0xFF1A1B21) : const Color(0xFFE2E8F0),
                 image: widget.group.avatarPath.isNotEmpty
                     ? DecorationImage(
-                        // FIXED: Intelligently loads NetworkImage URLs cross-device or absolute local paths
+                        // Intelligently evaluates the newly populated ImgBB cloud network URL link string
                         image: widget.group.avatarPath.startsWith('http')
                             ? NetworkImage(widget.group.avatarPath)
                             : FileImage(File(widget.group.avatarPath)) as ImageProvider,
@@ -194,7 +204,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween, 
                     children: [
-                      /// Action Controls Header Navigation Bar Layer
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -225,7 +234,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       
                       const Spacer(), 
 
-                      /// People Oval Badge Layout Element
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(

@@ -170,12 +170,11 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     String finalAvatarUrl = avatarPath;
 
     try {
-      // FIXED: Upload directly to ImgBB if avatarPath is an un-uploaded local file
+      // Upload directly to ImgBB if avatarPath is an un-uploaded local file path string
       if (avatarPath.isNotEmpty && !avatarPath.startsWith('http')) {
         final File file = File(avatarPath);
 
         if (await file.exists()) {
-          // Replace with the API Key you copied in Step 1
           const String imgBbApiKey = "d2615a56e20ee14128edaa0d9ce3fadc";
           
           final request = http.MultipartRequest(
@@ -183,17 +182,14 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             Uri.parse('https://api.imgbb.com/1/upload?key=$imgBbApiKey'),
           );
 
-          // Attach file stream payload
           request.files.add(await http.MultipartFile.fromPath('image', file.path));
-
-          // Send the payload to ImgBB
           final response = await request.send();
 
           if (response.statusCode == 200) {
             final responseData = await response.stream.bytesToString();
             final jsonResponse = jsonDecode(responseData);
             
-            // Extract the direct, long-lasting URL string cleanly
+            // Extract the direct permanent clean network URL string layout
             finalAvatarUrl = jsonResponse['data']['url'];
           } else {
             throw Exception("ImgBB Server returned status code: ${response.statusCode}");
@@ -201,7 +197,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         }
       }
 
-      // Update Firestore database using the public ImgBB image URL link
+      // Update Firestore database using the public ImgBB image URL link channel
       await FirebaseFirestore.instance
           .collection('groups')
           .doc(widget.group.id)
@@ -212,12 +208,14 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             'members': members,
           });
 
+      // Synchronize changes back to the active tracking instance model
       widget.group.groupName = trimmedName;
       widget.group.description = trimmedDesc;
       widget.group.avatarPath = finalAvatarUrl;
       widget.group.members = List<String>.from(members);
 
       if (!mounted) return;
+      // Pass the updated model back to GroupDetailsScreen so the cover updates dynamically
       Navigator.pop(context, widget.group);
     } catch (e) {
       if (!mounted) return;
