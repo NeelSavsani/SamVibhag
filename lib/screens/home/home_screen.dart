@@ -1,3 +1,5 @@
+import 'dart:io'; // REQUIRED: For processing local File handles safely
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +18,6 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-// FIXED: Changed 'declare' back to 'extends' to restore the state lifecycle behaviors properly
 class _HomeScreenState extends State<HomeScreen> {
   final List<GroupModel> groups = [];
   String searchQuery = '';
@@ -162,10 +163,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Row(
           children: [
+            // FIXED: Render WhatsApp-style profile image from cloud URL or path with strict logo asset fallback
             CircleAvatar(
               radius: 30,
               backgroundColor: color.withOpacity(0.15),
-              child: Icon(Icons.groups, color: color, size: 30),
+              backgroundImage: group.avatarPath.isNotEmpty
+                  ? (group.avatarPath.startsWith('http')
+                      ? NetworkImage(group.avatarPath)
+                      : FileImage(File(group.avatarPath)) as ImageProvider)
+                  : const AssetImage('assets/images/logo.png'),
             ),
             const SizedBox(width: 16),
             Expanded(

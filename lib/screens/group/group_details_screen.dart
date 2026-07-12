@@ -144,7 +144,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.colorScheme.onSurface;
     
-    // FIXED: Color constant used responsively for light/dark mode compatibility
+    // Color constant calibrated responsively for dark/light variations (#F4F3F9)
     final tileBackgroundColor = isDark ? theme.cardColor : const Color(0xFFF4F3F9);
 
     return Scaffold(
@@ -167,7 +167,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 color: isDark ? const Color(0xFF1A1B21) : const Color(0xFFE2E8F0),
                 image: widget.group.avatarPath.isNotEmpty
                     ? DecorationImage(
-                        image: FileImage(File(widget.group.avatarPath)),
+                        // FIXED: Intelligently loads NetworkImage URLs cross-device or absolute local paths
+                        image: widget.group.avatarPath.startsWith('http')
+                            ? NetworkImage(widget.group.avatarPath)
+                            : FileImage(File(widget.group.avatarPath)) as ImageProvider,
                         fit: BoxFit.cover,
                         colorFilter: ColorFilter.mode(
                           Colors.black.withOpacity(isDark ? 0.45 : 0.25),
@@ -307,7 +310,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         return Card(
                           elevation: 0,
                           margin: const EdgeInsets.only(bottom: 12),
-                          // FIXED: Uses #f4f3f9 for light mode settlement tiles
                           color: tileBackgroundColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -365,7 +367,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 },
                               ),
                               filled: true,
-                              // FIXED: Also applies the background color directly to expanded textfield container texture
                               fillColor: tileBackgroundColor,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -389,7 +390,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               },
                               child: CircleAvatar(
                                 radius: 26,
-                                // FIXED: Uses #f4f3f9 for light mode search icon background circle
                                 backgroundColor: tileBackgroundColor,
                                 child: Icon(
                                   Icons.search_rounded,
@@ -455,7 +455,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         return Card(
                           elevation: 0,
                           margin: const EdgeInsets.only(bottom: 16),
-                          // FIXED: Uses #f4f3f9 for light mode expense tiles
                           color: tileBackgroundColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),

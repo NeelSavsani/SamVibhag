@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // REQUIRED: Imports Firebase Storage
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -165,20 +166,37 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
 
     setState(() => _isLoading = true);
 
+    String finalAvatarUrl = avatarPath;
+
     try {
+      // FIXED: If the image path is a local file string, upload it to cloud storage
+      if (avatarPath.isNotEmpty && !avatarPath.startsWith('http')) {
+        final Reference storageRef = FirebaseStorage.instance
+            .ref()
+            .child('group_covers')
+            .child('${widget.group.id}.jpg');
+
+        final UploadTask uploadTask = storageRef.putFile(File(avatarPath));
+        final TaskSnapshot snapshot = await uploadTask;
+        
+        // Retrieve the downloadable cloud token URL
+        finalAvatarUrl = await snapshot.ref.getDownloadURL();
+      }
+
+      // Update Firestore matching parameters using the web URL
       await FirebaseFirestore.instance
           .collection('groups')
           .doc(widget.group.id)
           .update({
             'groupName': trimmedName,
             'description': trimmedDesc,
-            'avatarPath': avatarPath,
+            'avatarPath': finalAvatarUrl,
             'members': members,
           });
 
       widget.group.groupName = trimmedName;
       widget.group.description = trimmedDesc;
-      widget.group.avatarPath = avatarPath;
+      widget.group.avatarPath = finalAvatarUrl;
       widget.group.members = List<String>.from(members);
 
       if (!mounted) return;
@@ -186,7 +204,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to update cloud record: $e")),
+        SnackBar(content: Text("Failed to save changes: $e")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -238,7 +256,12 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           CircleAvatar(
                             radius: 60,
                             backgroundColor: AppTheme.primary.withOpacity(0.15),
-                            backgroundImage: avatarPath.isEmpty ? null : FileImage(File(avatarPath)),
+                            // FIXED: Seamlessly display network image URLs as well as newly picked files
+                            backgroundImage: avatarPath.isEmpty
+                                ? null
+                                : (avatarPath.startsWith('http')
+                                    ? NetworkImage(avatarPath)
+                                    : FileImage(File(avatarPath)) as ImageProvider),
                             child: avatarPath.isEmpty
                                 ? const Icon(Icons.groups, size: 60, color: AppTheme.primary)
                                 : null,
