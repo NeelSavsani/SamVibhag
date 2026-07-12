@@ -1,8 +1,9 @@
+import 'dart:convert'; // REQUIRED: To parse the JSON response from ImgBB
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // REQUIRED: Imports Firebase Storage
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; // REQUIRED: For the HTTP network request
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -169,21 +170,38 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     String finalAvatarUrl = avatarPath;
 
     try {
-      // FIXED: If the image path is a local file string, upload it to cloud storage
+      // FIXED: Upload directly to ImgBB if avatarPath is an un-uploaded local file
       if (avatarPath.isNotEmpty && !avatarPath.startsWith('http')) {
-        final Reference storageRef = FirebaseStorage.instance
-            .ref()
-            .child('group_covers')
-            .child('${widget.group.id}.jpg');
+        final File file = File(avatarPath);
 
-        final UploadTask uploadTask = storageRef.putFile(File(avatarPath));
-        final TaskSnapshot snapshot = await uploadTask;
-        
-        // Retrieve the downloadable cloud token URL
-        finalAvatarUrl = await snapshot.ref.getDownloadURL();
+        if (await file.exists()) {
+          // Replace with the API Key you copied in Step 1
+          const String imgBbApiKey = "d2615a56e20ee14128edaa0d9ce3fadc";
+          
+          final request = http.MultipartRequest(
+            'POST',
+            Uri.parse('https://api.imgbb.com/1/upload?key=$imgBbApiKey'),
+          );
+
+          // Attach file stream payload
+          request.files.add(await http.MultipartFile.fromPath('image', file.path));
+
+          // Send the payload to ImgBB
+          final response = await request.send();
+
+          if (response.statusCode == 200) {
+            final responseData = await response.stream.bytesToString();
+            final jsonResponse = jsonDecode(responseData);
+            
+            // Extract the direct, long-lasting URL string cleanly
+            finalAvatarUrl = jsonResponse['data']['url'];
+          } else {
+            throw Exception("ImgBB Server returned status code: ${response.statusCode}");
+          }
+        }
       }
 
-      // Update Firestore matching parameters using the web URL
+      // Update Firestore database using the public ImgBB image URL link
       await FirebaseFirestore.instance
           .collection('groups')
           .doc(widget.group.id)
@@ -256,7 +274,6 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           CircleAvatar(
                             radius: 60,
                             backgroundColor: AppTheme.primary.withOpacity(0.15),
-                            // FIXED: Seamlessly display network image URLs as well as newly picked files
                             backgroundImage: avatarPath.isEmpty
                                 ? null
                                 : (avatarPath.startsWith('http')

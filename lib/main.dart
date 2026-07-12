@@ -8,8 +8,8 @@ import 'screens/account/appearance_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
-import 'screens/home/home_screen.dart'; 
-import 'screens/bottom_nav_screen.dart'; 
+import 'screens/home/home_screen.dart';
+import 'screens/bottom_nav_screen.dart';
 
 import 'firebase_options.dart';
 import 'screens/splash/splash_screen.dart';
@@ -35,8 +35,9 @@ Future<void> main() async {
   );
 }
 
-// FIXED: Created a Global Key to track the navigation history stack across named routes
-final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
+// Created a Global Key to track the navigation history stack across named routes
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 class SamVibhagApp extends StatelessWidget {
   const SamVibhagApp({super.key});
@@ -48,8 +49,8 @@ class SamVibhagApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'SamVibhag',
-          
-          // FIXED: Registered the tracking key to map screen history natively
+
+          // Registered the tracking key to map screen history natively
           navigatorKey: globalNavigatorKey,
 
           // Define the screen the app opens up to first (Splash Screen)
@@ -62,24 +63,27 @@ class SamVibhagApp extends StatelessWidget {
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
             '/appearance': (context) => const AppearanceScreen(),
-            '/home': (context) => const BottomNavScreen(), 
+            '/home': (context) => const BottomNavScreen(),
           },
 
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
+
           themeMode: themeController.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
 
-          // FIXED: Injected a global PopScope wrapper around the entire router canvas 
+          // Injected a global PopScope wrapper around the entire router canvas
           // to intercept hardware keys and edge-swipes on ALL screens automatically.
           builder: (context, navigationWidget) {
             return PopScope(
-              canPop: false, // Tells the phone os that the app will handle the history tracking manually
+              canPop:
+                  false, // Tells the phone os that the app will handle the history tracking manually
               onPopInvokedWithResult: (didPop, result) async {
                 if (didPop) return;
 
-                final NavigatorState? navigator = globalNavigatorKey.currentState;
+                final NavigatorState? navigator =
+                    globalNavigatorKey.currentState;
 
                 if (navigator != null && navigator.canPop()) {
                   // If there is any screen in the history path, step backward one page

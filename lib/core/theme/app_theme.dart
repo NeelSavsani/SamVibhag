@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart'; // FIXED: Add this line to import Hive!
 import 'package:provider/provider.dart';
 
 class AppThemeController extends ChangeNotifier {
-  bool _isDarkMode = false;
+  AppThemeController()
+      : _isDarkMode = Hive.box('samvibhag_storage').get(
+          'isDarkMode',
+          defaultValue: true,
+        ) as bool;
+
+  // New installations use dark mode until the user explicitly chooses otherwise.
+  bool _isDarkMode;
 
   bool get isDarkMode => _isDarkMode;
 
   void toggleTheme() {
     _isDarkMode = !_isDarkMode;
+    Hive.box('samvibhag_storage').put('isDarkMode', _isDarkMode);
     notifyListeners();
   }
 }
