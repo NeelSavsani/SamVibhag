@@ -36,7 +36,7 @@ dependencies:
   flutter_local_notifications: ^19.4.1
 
   # UI
-  google_fonts: ^6.3.1
+  google_fonts: ^8.1.0
 
   # Utilities
   intl: ^0.20.2

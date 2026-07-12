@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 class AppThemeController extends ChangeNotifier {
@@ -22,7 +23,7 @@ class AppTheme {
   static const Color darkSurface = Color(0xFF1F2937);
 
   static ThemeData light() {
-    return ThemeData(
+    final baseTheme = ThemeData(
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primary,
@@ -48,10 +49,16 @@ class AppTheme {
       cardColor: lightSurface,
       useMaterial3: true,
     );
+
+    // FIXED: Injected Ubuntu globally to the textTheme and primaryTextTheme
+    return baseTheme.copyWith(
+      textTheme: GoogleFonts.ubuntuTextTheme(baseTheme.textTheme),
+      primaryTextTheme: GoogleFonts.ubuntuTextTheme(baseTheme.primaryTextTheme),
+    );
   }
 
   static ThemeData dark() {
-    return ThemeData(
+    final baseTheme = ThemeData(
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primary,
@@ -76,6 +83,12 @@ class AppTheme {
       ),
       cardColor: darkSurface,
       useMaterial3: true,
+    );
+
+    // FIXED: Injected Ubuntu globally to the textTheme and primaryTextTheme
+    return baseTheme.copyWith(
+      textTheme: GoogleFonts.ubuntuTextTheme(baseTheme.textTheme),
+      primaryTextTheme: GoogleFonts.ubuntuTextTheme(baseTheme.primaryTextTheme),
     );
   }
 }
