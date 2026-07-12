@@ -177,7 +177,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 color: isDark ? const Color(0xFF1A1B21) : const Color(0xFFE2E8F0),
                 image: widget.group.avatarPath.isNotEmpty
                     ? DecorationImage(
-                        // Intelligently evaluates the newly populated ImgBB cloud network URL link string
                         image: widget.group.avatarPath.startsWith('http')
                             ? NetworkImage(widget.group.avatarPath)
                             : FileImage(File(widget.group.avatarPath)) as ImageProvider,
@@ -204,36 +203,62 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween, 
                     children: [
+                      /// Action Controls Header Navigation Bar Layer
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: isDark ? Colors.white : Colors.black87,
-                              size: 22,
+                          /// FIXED: Circular background for Back Icon matching the people badge
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: isDark ? Colors.white : Colors.black87,
+                                size: 20,
+                              ),
                             ),
                           ),
-                          Text(
-                            widget.group.groupName.toUpperCase(),
-                            style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black87,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                          
+                          /// FIXED: Translucent background pill wrapping the Group Name
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              widget.group.groupName.toUpperCase(),
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black87,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
-                          IconButton(
-                            tooltip: "Group Settings",
-                            icon: Icon(Icons.settings, color: isDark ? Colors.white : Colors.black87),
-                            onPressed: openGroupInfo,
+                          
+                          /// FIXED: Circular background for Settings Icon matching the people badge
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              tooltip: "Group Settings",
+                              icon: Icon(Icons.settings, color: isDark ? Colors.white : Colors.black87),
+                              onPressed: openGroupInfo,
+                            ),
                           ),
                         ],
                       ),
                       
                       const Spacer(), 
 
+                      /// People Oval Badge Layout Element
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
