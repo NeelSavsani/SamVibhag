@@ -1,4 +1,4 @@
-import 'dart:convert'; // REQUIRED: To parse the JSON response from ImgBB
+import 'dart:convert'; // REQUIRED: To parse the JSON response from Cloudinary
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -175,8 +175,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         final File file = File(avatarPath);
 
         if (await file.exists()) {
-          // Cloud name and unsigned upload preset are safe to keep in client code —
-          // an UNSIGNED preset has no secret attached to it by design.
+          // Cloud name and unsigned upload preset are safe to keep in client code
           const String cloudName = "kgtyxboo";
           const String uploadPreset = "samvibhag_preset";
 
@@ -196,8 +195,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             // Extract the direct permanent clean network URL string layout
             finalAvatarUrl = jsonResponse['secure_url'];
           } else {
-            // Surface Cloudinary's actual error message instead of just the status code,
-            // e.g. an invalid preset name or a disallowed format.
+            // Surface Cloudinary's actual error message instead of just the status code
             String reason = responseBody;
             try {
               final parsed = jsonDecode(responseBody);

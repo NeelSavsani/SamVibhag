@@ -71,7 +71,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     if (!mounted) return;
     
-    // Explicitly command the layout container to re-render using the freshly caught ImgBB cloud URL
+    // Explicitly command the layout container to re-render using the freshly caught cloud URL
     setState(() {
       if (updatedGroup != null) {
         widget.group.groupName = updatedGroup.groupName;
@@ -207,7 +207,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          /// FIXED: Circular background for Back Icon matching the people badge
+                          /// Circular background for Back Icon matching the people badge
                           Container(
                             decoration: BoxDecoration(
                               color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
@@ -223,17 +223,17 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             ),
                           ),
                           
-                          /// FIXED: Translucent background pill wrapping the Group Name
+                          /// FIXED: Translucent background pill wrapping the Group Name with 0.8 opacity
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                              color: isDark ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               widget.group.groupName.toUpperCase(),
                               style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black87,
+                                color: isDark ? Colors.black87 : Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
@@ -241,7 +241,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             ),
                           ),
                           
-                          /// FIXED: Circular background for Settings Icon matching the people badge
+                          /// Circular background for Settings Icon matching the people badge
                           Container(
                             decoration: BoxDecoration(
                               color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
