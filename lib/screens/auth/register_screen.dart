@@ -518,7 +518,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 14),
                         _CurrencyTile(
                           currency: _selectedCurrency,
                           onChange: _selectCurrency,
@@ -622,7 +622,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 : const Text(
                                     'Register',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
