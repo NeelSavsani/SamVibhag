@@ -26,10 +26,6 @@ class ActivityScreen extends StatelessWidget {
 
   final List<GroupModel>? groups;
 
-  // Change this variable to match your project's active test user identity key string!
-  static const String currentUser = "You"; 
-
-  // FIXED: A generic parsing function that handles both Firestore Timestamps and raw ISO Strings seamlessly
   DateTime _parseDateTime(dynamic value) {
     if (value == null) return DateTime.now();
     if (value is Timestamp) return value.toDate();
@@ -39,48 +35,24 @@ class ActivityScreen extends StatelessWidget {
     return DateTime.now();
   }
 
+  // FIXED: Generates clean statements for every single transaction across all your groups without filtering it out
   List<ActivityLogItem> getActivityLogs(List<GroupModel> activeGroups) {
     List<ActivityLogItem> logs = [];
 
     for (var group in activeGroups) {
       for (var expense in group.expenses) {
-        final isPayer = expense.paidBy == currentUser;
-        
-        bool isSplitMember = false;
-        double individualShare = 0.0;
-
-        if (expense.splitType == 'equal') {
-          isSplitMember = expense.splitBetween.contains(currentUser);
-          if (isSplitMember && expense.splitBetween.isNotEmpty) {
-            individualShare = expense.amount / expense.splitBetween.length;
-          }
-        } else if (expense.splitType == 'custom') {
-          isSplitMember = expense.customSplits.containsKey(currentUser);
-          if (isSplitMember) {
-            individualShare = expense.customSplits[currentUser] ?? 0.0;
-          }
-        }
-
-        if (isPayer) {
-          logs.add(ActivityLogItem(
-            message: 'You added "${expense.title}" of "₹${expense.amount.toStringAsFixed(0)}" in "${group.groupName}"',
-            date: expense.date,
-            category: expense.category,
-            displayAmount: expense.amount,
-            groupName: group.groupName,
-          ));
-        } else if (isSplitMember) {
-          logs.add(ActivityLogItem(
-            message: '${expense.paidBy} added "${expense.title}" in "${group.groupName}". Your share is ₹${individualShare.toStringAsFixed(0)}',
-            date: expense.date,
-            category: expense.category,
-            displayAmount: individualShare,
-            groupName: group.groupName,
-          ));
-        }
+        // Log entry for the person who paid/added the expense
+        logs.add(ActivityLogItem(
+          message: '${expense.paidBy} added "${expense.title}" of "₹${expense.amount.toStringAsFixed(0)}" in "${group.groupName}"',
+          date: expense.date,
+          category: expense.category,
+          displayAmount: expense.amount,
+          groupName: group.groupName,
+        ));
       }
     }
 
+    // Sort chronologically, newest activities at the top
     logs.sort((a, b) => b.date.compareTo(a.date));
     return logs;
   }
@@ -121,7 +93,6 @@ class ActivityScreen extends StatelessWidget {
                 amount: (expData['amount'] as num? ?? 0.0).toDouble(),
                 paidBy: expData['paidBy'] ?? '',
                 category: expData['category'] ?? 'General',
-                // FIXED: Uses the flexible parsing logic to intercept string inputs safely
                 date: _parseDateTime(expData['date']),
                 splitType: expData['splitType'] ?? 'equal',
                 splitBetween: List<String>.from(expData['splitBetween'] ?? []),
@@ -140,7 +111,6 @@ class ActivityScreen extends StatelessWidget {
               avatarPath: data['avatarPath'] ?? '',
               members: List<String>.from(data['members'] ?? []),
               expenses: parsedExpenses,
-              // FIXED: Safe parsing layout for group creation dates
               createdAt: _parseDateTime(data['createdAt']),
             );
           }).toList();
@@ -148,6 +118,7 @@ class ActivityScreen extends StatelessWidget {
 
         double totalExpensesCombined = currentGroups.fold<double>(0, (total, group) => total + group.totalExpense);
         int combinedExpensesCount = currentGroups.fold<int>(0, (total, group) => total + group.expenses.length);
+        
         final logs = getActivityLogs(currentGroups);
 
         return Scaffold(
