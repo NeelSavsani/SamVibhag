@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http; // REQUIRED: For the HTTP network request
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -264,9 +265,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
           "Group Information",
-          style: TextStyle(
+          style: GoogleFonts.poppins(
+            fontSize: 19,
             color: isDark ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -277,6 +279,29 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Manage your group',
+                        style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Update the profile and manage members.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 26),
                     GestureDetector(
                       onTap: pickImage,
                       child: Stack(
@@ -302,14 +327,21 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 24),
                     TextField(
                       controller: groupNameController,
-                      style: TextStyle(color: theme.colorScheme.onSurface),
+                      style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
                       decoration: InputDecoration(
                         labelText: "Group Name",
-                        prefixIcon: const Icon(Icons.groups),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                        labelStyle: GoogleFonts.poppins(fontSize: 13),
+                        prefixIcon: const Icon(Icons.groups, color: Color(0xFF0284C7)),
+                        filled: true,
+                        fillColor: theme.cardColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -317,20 +349,31 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       controller: descriptionController,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
-                      style: TextStyle(color: theme.colorScheme.onSurface),
+                      style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
                       decoration: InputDecoration(
                         labelText: "Description",
-                        prefixIcon: const Icon(Icons.info_outline),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                        labelStyle: GoogleFonts.poppins(fontSize: 13),
+                        prefixIcon: const Icon(Icons.info_outline, color: Color(0xFF0284C7)),
+                        filled: true,
+                        fillColor: theme.cardColor,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Card(
                       elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.16)),
+                      ),
                       child: ListTile(
                         leading: const Icon(Icons.calendar_today, color: AppTheme.primary),
-                        title: const Text("Created"),
-                        subtitle: Text(createdDate),
+                        title: Text("Created", style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: Text(createdDate, style: GoogleFonts.poppins(fontSize: 12)),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -352,7 +395,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Members", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        Text(
+                          "Members",
+                          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700),
+                        ),
                         FilledButton.icon(
                           onPressed: addMember,
                           icon: const Icon(Icons.person_add),
@@ -379,14 +425,20 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                             itemBuilder: (context, index) {
                               return Card(
                                 elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
+                                ),
                                 child: ListTile(
                                   leading: CircleAvatar(
                                     backgroundColor: AppTheme.primary.withOpacity(0.15),
                                     child: const Icon(Icons.person, color: AppTheme.primary),
                                   ),
-                                  title: Text(members[index]),
-                                  subtitle: Text("Member ${index + 1}"),
+                                  title: Text(
+                                    members[index],
+                                    style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                                  ),
+                                  subtitle: Text("Member ${index + 1}", style: GoogleFonts.poppins(fontSize: 12)),
                                   trailing: IconButton(
                                     tooltip: "Remove Member",
                                     onPressed: () => removeMember(index),
@@ -397,18 +449,37 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                             },
                           ),
                     const SizedBox(height: 30),
-                    SizedBox(
+                    Container(
                       width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0284C7).withOpacity(0.24),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
                       child: FilledButton.icon(
                         onPressed: saveGroup,
                         style: FilledButton.styleFrom(
                           foregroundColor: Colors.white,
-                          backgroundColor: AppTheme.primary,
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
                         ),
                         icon: const Icon(Icons.save),
-                        label: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 14),
-                          child: Text("Save Changes", style: TextStyle(fontSize: 15)),
+                        label: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Text(
+                            "Save Changes",
+                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
                     ),

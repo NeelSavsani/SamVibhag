@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/expense_model.dart';
 import '../../models/group_model.dart';
@@ -230,9 +231,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
           widget.expense == null ? 'Add Expense' : 'Edit Expense',
-          style: TextStyle(
+          style: GoogleFonts.poppins(
+            fontSize: 19,
             color: isDark ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         actions: const [NightModeButton()],
@@ -244,34 +246,71 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    widget.expense == null ? 'Add a new expense' : 'Update expense details',
+                    style: GoogleFonts.poppins(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Keep everyone in the group in sync.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   TextField(
                     controller: titleController,
-                    style: TextStyle(color: theme.colorScheme.onSurface),
+                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Expense Title',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      prefixIcon: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0284C7)),
+                      filled: true,
+                      fillColor: theme.cardColor,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 18),
                   TextField(
                     controller: amountController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: TextStyle(color: theme.colorScheme.onSurface),
+                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
                     onChanged: (_) => redistributeCustomAmounts(),
                     decoration: InputDecoration(
                       labelText: 'Amount',
                       prefixText: 'Rs. ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF0284C7)),
+                      filled: true,
+                      fillColor: theme.cardColor,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 18),
                   DropdownButtonFormField<String>(
                     value: selectedCategory,
                     dropdownColor: theme.cardColor,
-                    style: TextStyle(color: theme.colorScheme.onSurface),
+                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Category',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      prefixIcon: const Icon(Icons.category_outlined, color: Color(0xFF0284C7)),
+                      filled: true,
+                      fillColor: theme.cardColor,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                     ),
                     items: categories.map((category) {
                       return DropdownMenuItem<String>(
@@ -288,10 +327,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   DropdownButtonFormField<String>(
                     value: paidBy,
                     dropdownColor: theme.cardColor,
-                    style: TextStyle(color: theme.colorScheme.onSurface),
+                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Paid By',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF0284C7)),
+                      filled: true,
+                      fillColor: theme.cardColor,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                     ),
                     items: widget.group.members.map((member) {
                       return DropdownMenuItem<String>(
@@ -305,9 +348,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Split Type',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -343,9 +386,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Split Between',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 10),
                   Expanded(
@@ -358,13 +401,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         return Card(
                           elevation: 0,
                           color: theme.cardColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
+                          ),
                           child: CheckboxListTile(
                             activeColor: theme.colorScheme.primary,
                             value: isSelected,
                             title: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(member, style: TextStyle(color: theme.colorScheme.onSurface)),
+                                Text(
+                                  member,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
                                 if (splitType == 'custom')
                                   Padding(
                                     padding: const EdgeInsets.only(top: 10),
@@ -401,18 +455,38 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       },
                     ),
                   ),
-                  SizedBox(
+                  Container(
                     width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0284C7).withOpacity(0.26),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: saveExpense,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Text(
                         widget.expense == null ? 'Save Expense' : 'Update Expense',
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),

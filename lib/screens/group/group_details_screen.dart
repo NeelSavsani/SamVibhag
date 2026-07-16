@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/expense_model.dart';
@@ -159,10 +160,25 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: addExpense,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("Add Expense", style: TextStyle(color: Colors.white)),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+          ),
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: addExpense,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: Text(
+            "Add Expense",
+            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -232,10 +248,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             ),
                             child: Text(
                               widget.group.groupName.toUpperCase(),
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 color: isDark ? Colors.black87 : Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -272,7 +288,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             const SizedBox(width: 6),
                             Text(
                               "${widget.group.members.length} People",
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 color: isDark ? Colors.white : Colors.black87,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -294,26 +310,37 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB), 
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0284C7).withOpacity(0.22),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       "Total Group Expense",
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Text(
                       "₹ ${widget.group.totalExpense.toStringAsFixed(0)}",
-                      style: const TextStyle(
+                      style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -330,7 +357,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   if (expenses.isNotEmpty) ...[
                     Text(
                       "Settlements",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     ListView.builder(
@@ -346,6 +377,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           color: tileBackgroundColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
                           ),
                           child: ListTile(
                             leading: const CircleAvatar(
@@ -465,9 +497,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     children: [
                       Text(
                         "Expenses",
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
                       ),
-                      Text("${filteredExpenses.length} Total", style: TextStyle(color: textColor.withOpacity(0.7))),
+                      Text(
+                        "${filteredExpenses.length} Total",
+                        style: GoogleFonts.poppins(fontSize: 12, color: textColor.withOpacity(0.7)),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -491,6 +530,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           color: tileBackgroundColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
+                            side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -502,9 +542,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     Expanded(
                                       child: Text(
                                         expense.title,
-                                        style: TextStyle(
+                                        style: GoogleFonts.poppins(
                                           fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w600,
                                           color: textColor,
                                         ),
                                       ),
@@ -515,7 +555,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                         color: theme.colorScheme.primary.withOpacity(.12),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
-                                      child: Text(expense.category, style: TextStyle(color: theme.colorScheme.primary)),
+                                      child: Text(
+                                        expense.category,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -551,9 +598,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                   children: [
                                     Text(
                                       "₹ ${expense.amount.toStringAsFixed(0)}",
-                                      style: const TextStyle(
+                                      style: GoogleFonts.poppins(
                                         fontSize: 20,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w700,
                                         color: AppTheme.primary,
                                       ),
                                     ),

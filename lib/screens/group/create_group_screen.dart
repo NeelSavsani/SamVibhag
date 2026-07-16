@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -86,6 +87,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -99,8 +101,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ),
         title: Text(
           "Create Group",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+          style: GoogleFonts.poppins(
+            fontSize: 19,
+            fontWeight: FontWeight.w700,
             color: theme.colorScheme.onSurface,
           ),
         ),
@@ -115,11 +118,29 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Start a shared space',
+                        style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Name your group and choose what it is for.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: theme.colorScheme.onSurface.withValues(alpha: .62),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       /// Avatar + Name Card
                       Card(
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(color: const Color(0xFF83F4EB).withValues(alpha: .2)),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(20),
@@ -133,7 +154,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                   width: 74,
                                   height: 74,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primary.withValues(alpha: .12),
+                                    color: const Color(0xFF83F4EB).withValues(alpha: isDark ? .16 : .25),
                                     borderRadius: BorderRadius.circular(18),
                                   ),
                                   child: const Icon(
@@ -148,13 +169,25 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                 child: TextFormField(
                                   controller: _groupNameController,
                                   textCapitalization: TextCapitalization.words,
+                                  style: GoogleFonts.poppins(fontSize: 14),
                                   decoration: InputDecoration(
                                     labelText: "Group Name",
                                     hintText: "Eg. Goa Trip",
-                                    prefixIcon: const Icon(Icons.groups_rounded),
+                                    labelStyle: GoogleFonts.poppins(fontSize: 13),
+                                    hintStyle: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      color: theme.colorScheme.onSurface.withValues(alpha: .45),
+                                    ),
+                                    prefixIcon: const Icon(Icons.groups_rounded, color: Color(0xFF0284C7)),
                                     filled: true,
+                                    fillColor: theme.colorScheme.surface,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
                                     ),
                                   ),
                                   validator: (value) {
@@ -172,8 +205,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       const SizedBox(height: 28),
                       Text(
                         "Choose Group Type",
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -196,7 +231,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 200),
                                     decoration: BoxDecoration(
-                                      color: selected ? AppTheme.primary : theme.cardColor,
+                                      color: selected ? null : theme.cardColor,
+                                      gradient: selected
+                                          ? const LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                                            )
+                                          : null,
                                       borderRadius: BorderRadius.circular(18),
                                       border: Border.all(
                                         color: selected ? AppTheme.primary : theme.dividerColor,
@@ -216,9 +258,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           textAlign: TextAlign.center,
-                                          style: TextStyle(
+                                          style: GoogleFonts.poppins(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w600,
                                             color: selected ? Colors.white : theme.colorScheme.onSurface,
                                           ),
                                         ),
@@ -236,6 +278,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
+                          side: BorderSide(color: const Color(0xFF83F4EB).withValues(alpha: .18)),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(18),
@@ -251,7 +294,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                 child: Text(
                                   "You can add members after creating the group. "
                                   "Expenses, settlements and reports will be available once members are added.",
-                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: theme.colorScheme.onSurface.withValues(alpha: .7),
                                     height: 1.45,
                                   ),
                                 ),
@@ -261,24 +306,40 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         ),
                       ),
                       const SizedBox(height: 32),
-                      SizedBox(
+                      Container(
                         width: double.infinity,
                         height: 56,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0284C7).withValues(alpha: .26),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
                         child: FilledButton.icon(
                           onPressed: _submitGroup,
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
                           icon: const Icon(Icons.group_add_rounded),
-                          label: const Text(
+                          label: Text(
                             "Create Group",
-                            style: TextStyle(
+                            style: GoogleFonts.poppins(
                               fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
