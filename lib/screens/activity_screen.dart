@@ -1,171 +1,358 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../models/group_model.dart';
 import 'analytics/analytics_screen.dart';
+import '../../models/expense_model.dart'; 
+
+class ActivityLogItem {
+  final String message;
+  final DateTime date;
+  final String category;
+  final double displayAmount;
+  final String groupName;
+
+  ActivityLogItem({
+    required this.message,
+    required this.date,
+    required this.category,
+    required this.displayAmount,
+    required this.groupName,
+  });
+}
 
 class ActivityScreen extends StatelessWidget {
-  // FIXED: Made groups optional/nullable with a default safe empty list fallback
   const ActivityScreen({super.key, this.groups});
 
   final List<GroupModel>? groups;
 
-  // Safe getter to guarantee a non-null List everywhere in this class
-  List<GroupModel> get _safeGroups => groups ?? const [];
+  // Change this variable to match your project's active test user identity key string!
+  static const String currentUser = "You"; 
 
-  // Compute calculated values safely using the non-null helper
-  double get totalExpensesCombined {
-    return _safeGroups.fold<double>(0, (total, group) => total + group.totalExpense);
+  // FIXED: A generic parsing function that handles both Firestore Timestamps and raw ISO Strings seamlessly
+  DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 
-  int get combinedExpensesCount {
-    int total = 0;
-    for (final group in _safeGroups) {
-      total += group.expenses.length;
+  List<ActivityLogItem> getActivityLogs(List<GroupModel> activeGroups) {
+    List<ActivityLogItem> logs = [];
+
+    for (var group in activeGroups) {
+      for (var expense in group.expenses) {
+        final isPayer = expense.paidBy == currentUser;
+        
+        bool isSplitMember = false;
+        double individualShare = 0.0;
+
+        if (expense.splitType == 'equal') {
+          isSplitMember = expense.splitBetween.contains(currentUser);
+          if (isSplitMember && expense.splitBetween.isNotEmpty) {
+            individualShare = expense.amount / expense.splitBetween.length;
+          }
+        } else if (expense.splitType == 'custom') {
+          isSplitMember = expense.customSplits.containsKey(currentUser);
+          if (isSplitMember) {
+            individualShare = expense.customSplits[currentUser] ?? 0.0;
+          }
+        }
+
+        if (isPayer) {
+          logs.add(ActivityLogItem(
+            message: 'You added "${expense.title}" of "₹${expense.amount.toStringAsFixed(0)}" in "${group.groupName}"',
+            date: expense.date,
+            category: expense.category,
+            displayAmount: expense.amount,
+            groupName: group.groupName,
+          ));
+        } else if (isSplitMember) {
+          logs.add(ActivityLogItem(
+            message: '${expense.paidBy} added "${expense.title}" in "${group.groupName}". Your share is ₹${individualShare.toStringAsFixed(0)}',
+            date: expense.date,
+            category: expense.category,
+            displayAmount: individualShare,
+            groupName: group.groupName,
+          ));
+        }
+      }
     }
-    return total;
+
+    logs.sort((a, b) => b.date.compareTo(a.date));
+    return logs;
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'food': return Icons.restaurant;
+      case 'shopping': return Icons.shopping_bag;
+      case 'travel':
+      case 'transport': return Icons.directions_car;
+      case 'entertainment': return Icons.movie;
+      case 'bills': return Icons.receipt_long;
+      default: return Icons.monetization_on_outlined;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final textThemeColor = isDark ? Colors.white : Colors.black87;
+    final tileColor = isDark ? const Color(0xFF1E1F24) : const Color(0xFFF1F5F9);
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Activity & Analytics',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'View Full Analytics',
-            icon: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 26),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => AnalyticsScreen(groups: _safeGroups)),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// INTEGRATED ANALYTICS MINI CARD MODULE
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => AnalyticsScreen(groups: _safeGroups)),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0284C7), Color(0xFF0369A1)], 
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0284C7).withOpacity(0.25),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      )
-                    ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('groups').snapshots(),
+      builder: (context, snapshot) {
+        List<GroupModel> currentGroups = [];
+        
+        if (snapshot.hasData && snapshot.data != null) {
+          currentGroups = snapshot.data!.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            
+            final List<dynamic> rawExpenses = data['expenses'] as List<dynamic>? ?? [];
+            final List<ExpenseModel> parsedExpenses = rawExpenses.map((e) {
+              final expData = e as Map<String, dynamic>;
+              return ExpenseModel(
+                title: expData['title'] ?? '',
+                amount: (expData['amount'] as num? ?? 0.0).toDouble(),
+                paidBy: expData['paidBy'] ?? '',
+                category: expData['category'] ?? 'General',
+                // FIXED: Uses the flexible parsing logic to intercept string inputs safely
+                date: _parseDateTime(expData['date']),
+                splitType: expData['splitType'] ?? 'equal',
+                splitBetween: List<String>.from(expData['splitBetween'] ?? []),
+                customSplits: Map<String, double>.from(
+                  (expData['customSplits'] as Map? ?? {}).map(
+                    (k, v) => MapEntry(k.toString(), (v as num).toDouble()),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Analytics Summary',
-                            style: TextStyle(
-                              color: Colors.white70, 
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              children: [
-                                Text('Charts', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                SizedBox(width: 4),
-                                Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
-                              ],
-                            ),
+                ),
+              );
+            }).toList();
+
+            return GroupModel(
+              id: doc.id,
+              groupName: data['groupName'] ?? '',
+              description: data['description'] ?? '',
+              avatarPath: data['avatarPath'] ?? '',
+              members: List<String>.from(data['members'] ?? []),
+              expenses: parsedExpenses,
+              // FIXED: Safe parsing layout for group creation dates
+              createdAt: _parseDateTime(data['createdAt']),
+            );
+          }).toList();
+        }
+
+        double totalExpensesCombined = currentGroups.fold<double>(0, (total, group) => total + group.totalExpense);
+        int combinedExpensesCount = currentGroups.fold<int>(0, (total, group) => total + group.expenses.length);
+        final logs = getActivityLogs(currentGroups);
+
+        return Scaffold(
+          backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              'Activity & Analytics',
+              style: TextStyle(color: textThemeColor, fontWeight: FontWeight.bold),
+            ),
+            iconTheme: IconThemeData(color: textThemeColor),
+          ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// INTEGRATED ANALYTICS MINI CARD MODULE
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => AnalyticsScreen(groups: currentGroups)),
+                      );
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(22),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0284C7), Color(0xFF0369A1)], 
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0284C7).withOpacity(0.25),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
                           )
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Total Shared Spending',
-                        style: TextStyle(
-                          color: Colors.white70, 
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Rs. ${totalExpensesCombined.toStringAsFixed(2)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 16),
-                      const Divider(color: Colors.white24, height: 1),
-                      const SizedBox(height: 14),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildStatItem('Monitored Groups', '${_safeGroups.length}'),
-                          _buildStatItem('Total Receipts', '$combinedExpensesCount'),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Analytics Summary',
+                                style: TextStyle(
+                                  color: Colors.white70, 
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Text('Charts', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
+                                  ],
+                                ),
+                              )
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Total Shared Spending',
+                            style: TextStyle(color: Colors.white70, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Rs. ${totalExpensesCombined.toStringAsFixed(2)}',
+                            style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 16),
+                          const Divider(color: Colors.white24, height: 1),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildStatItem('Monitored Groups', '${currentGroups.length}'),
+                              _buildStatItem('Total Receipts', '$combinedExpensesCount'),
+                            ],
+                          )
                         ],
-                      )
-                    ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 30),
+                  const SizedBox(height: 30),
 
-              /// RECENT ACTIVITY FEED BLOCK
-              const Text(
-                'Recent Activities',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              
-              _safeGroups.isEmpty 
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Text('No active transaction actions logging yet.'),
-                    ),
-                  )
-                : const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Text('Activity logs are fully synchronized.'),
-                    ),
+                  /// RECENT ACTIVITY FEED BLOCK
+                  Text(
+                    'Recent Activities',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textThemeColor),
                   ),
-            ],
+                  const SizedBox(height: 16),
+                  
+                  if (snapshot.connectionState == ConnectionState.waiting && currentGroups.isEmpty)
+                    const Center(child: CircularProgressIndicator(color: Color(0xFF0284C7)))
+                  else if (logs.isEmpty) 
+                    Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          child: Text(
+                            'No active transaction actions logging yet.',
+                            style: TextStyle(color: textThemeColor.withOpacity(0.5)),
+                          ),
+                        ),
+                      )
+                  else 
+                    ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: logs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final item = logs[index];
+                          
+                          return Card(
+                            elevation: 0,
+                            margin: EdgeInsets.zero,
+                            color: tileColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: const Color(0xFF0284C7).withOpacity(0.12),
+                                    child: Icon(
+                                      _getCategoryIcon(item.category),
+                                      color: const Color(0xFF0284C7),
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.message,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                            color: textThemeColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              DateFormat("dd MMM, hh:mm a").format(item.date),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: textThemeColor.withOpacity(0.5),
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF0284C7).withOpacity(0.08),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                item.category,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF0284C7),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
