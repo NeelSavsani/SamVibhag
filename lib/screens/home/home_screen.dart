@@ -161,6 +161,14 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -179,7 +187,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(group.groupName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  Text(
+                    group.groupName,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Text('${group.members.length} Members • ${group.expenses.length} Expenses'),
                 ],
@@ -188,8 +202,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('Rs. ${group.totalExpense.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                Text(
+                  'Rs. ${group.totalExpense.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -262,20 +282,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    margin: const EdgeInsets.only(bottom: 12),
+                    margin: const EdgeInsets.only(bottom: 16),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Image.asset(
                           'assets/images/logo.png',
-                          width: 60,
-                          height: 60,
+                          width: 52,
+                          height: 52,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         RichText(
                           text: TextSpan(
                             style: GoogleFonts.poppins(
-                              fontSize: 36,
+                              fontSize: 28,
                               fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white : Colors.black,
                             ),
@@ -299,61 +319,95 @@ class _HomeScreenState extends State<HomeScreen> {
                       return FadeTransition(opacity: animation, child: child);
                     },
                     child: _isSearchExpanded
-                        ? TextField(
+                        ? Container(
                             key: const ValueKey('expanded_search'),
-                            controller: _searchController,
-                            autofocus: true,
-                            style: TextStyle(color: theme.colorScheme.onSurface),
-                            decoration: InputDecoration(
-                              hintText: 'Search groups...',
-                              prefixIcon: const Icon(Icons.search_rounded),
-                              suffixIcon: IconButton(
-                                icon: const Icon(Icons.close_rounded),
-                                onPressed: () {
-                                  FocusScope.of(context).unfocus();
-                                  setState(() {
-                                    _searchController.clear();
-                                    searchQuery = '';
-                                    _isSearchExpanded = false;
-                                  });
-                                },
-                              ),
-                              filled: true,
-                              fillColor: theme.cardColor,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(18),
-                                borderSide: BorderSide.none,
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: const Color(0xFF83F4EB).withOpacity(0.45),
                               ),
                             ),
-                            onChanged: (value) {
-                              setState(() => searchQuery = value);
-                            },
-                          )
-                        : Align(
-                            key: const ValueKey('circle_search_icon'),
-                            alignment: Alignment.centerLeft,
-                            child: GestureDetector(
-                              onTap: () => setState(() => _isSearchExpanded = true),
-                              child: CircleAvatar(
-                                radius: 26,
-                                backgroundColor: theme.cardColor,
-                                child: Icon(
-                                  Icons.search_rounded,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.85),
-                                  size: 24,
+                            child: TextField(
+                              controller: _searchController,
+                              autofocus: true,
+                              style: TextStyle(color: theme.colorScheme.onSurface),
+                              decoration: InputDecoration(
+                                hintText: 'Search groups...',
+                                hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.55)),
+                                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF0284C7)),
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.close_rounded),
+                                  onPressed: () {
+                                    FocusScope.of(context).unfocus();
+                                    setState(() {
+                                      _searchController.clear();
+                                      searchQuery = '';
+                                      _isSearchExpanded = false;
+                                    });
+                                  },
                                 ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              onChanged: (value) => setState(() => searchQuery = value),
+                            ),
+                          )
+                        : InkWell(
+                            key: const ValueKey('circle_search_icon'),
+                            onTap: () => setState(() => _isSearchExpanded = true),
+                            borderRadius: BorderRadius.circular(18),
+                            child: Ink(
+                              height: 54,
+                              decoration: BoxDecoration(
+                                color: theme.cardColor,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: const Color(0xFF83F4EB).withOpacity(0.28),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 16),
+                                  const Icon(Icons.search_rounded, color: Color(0xFF0284C7)),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Search groups',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.55),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 28),
 
                   /// TITLE
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Your Groups', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      Text('${filteredGroups.length} Total'),
+                      Text(
+                        'Your Groups',
+                        style: GoogleFonts.poppins(fontSize: 21, fontWeight: FontWeight.w700),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF83F4EB).withOpacity(isDark ? 0.16 : 0.24),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${filteredGroups.length} Total',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFF83F4EB) : const Color(0xFF0369A1),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
