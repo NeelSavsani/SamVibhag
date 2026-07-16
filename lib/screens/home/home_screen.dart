@@ -3,6 +3,7 @@ import 'dart:io'; // REQUIRED: For processing local File handles safely
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/group_model.dart';
@@ -219,10 +220,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: createGroup,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Create Group', style: TextStyle(color: Colors.white)),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+          ),
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: createGroup,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text('Create Group', style: TextStyle(color: Colors.white)),
+        ),
       ),
       body: SafeArea(
         child: StreamBuilder<List<GroupModel>>(
@@ -248,37 +261,38 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// SUMMARY CARD
                   Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: const LinearGradient(colors: [AppTheme.primary, Color(0xFF1D4ED8)]),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Total Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Rs. ${getCalculatedTotalBalance(activeCloudGroups).toStringAsFixed(0)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
+                        Image.asset(
+                          'assets/images/logo.png',
+                          width: 60,
+                          height: 60,
                         ),
-                        const SizedBox(height: 18),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            buildMiniStat(title: 'Groups', value: '${activeCloudGroups.length}'),
-                            buildMiniStat(title: 'Expenses', value: '${getCalculatedExpensesCount(activeCloudGroups)}'),
-                          ],
+                        const SizedBox(width: 8),
+                        RichText(
+                          text: TextSpan(
+                            style: GoogleFonts.poppins(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                            children: const [
+                              TextSpan(text: 'Sam'),
+                              TextSpan(
+                                text: 'Vibhag',
+                                style: TextStyle(color: Color(0xFF83F4EB)),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 25),
 
-                  /// EXPANDABLE LEFT SIDE SEARCH BAR
+                  /// EXPANDABLE SEARCH BAR
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     transitionBuilder: (Widget child, Animation<double> animation) {
