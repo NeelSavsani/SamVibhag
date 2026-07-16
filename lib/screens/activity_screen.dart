@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../models/group_model.dart';
 import 'analytics/analytics_screen.dart';
@@ -126,9 +127,14 @@ class ActivityScreen extends StatelessWidget {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
+            toolbarHeight: 72,
             title: Text(
               'Activity & Analytics',
-              style: TextStyle(color: textThemeColor, fontWeight: FontWeight.bold),
+              style: GoogleFonts.poppins(
+                color: textThemeColor,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             iconTheme: IconThemeData(color: textThemeColor),
           ),
@@ -170,12 +176,12 @@ class ActivityScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'Analytics Summary',
-                                style: TextStyle(
+                                style: GoogleFonts.poppins(
                                   color: Colors.white70, 
                                   fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Container(
@@ -195,14 +201,18 @@ class ActivityScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'Total Shared Spending',
-                            style: TextStyle(color: Colors.white70, fontSize: 11),
+                            style: GoogleFonts.poppins(color: Colors.white70, fontSize: 11),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Rs. ${totalExpensesCombined.toStringAsFixed(2)}',
-                            style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                            '₹${totalExpensesCombined.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           const Divider(color: Colors.white24, height: 1),
@@ -221,24 +231,63 @@ class ActivityScreen extends StatelessWidget {
                   const SizedBox(height: 30),
 
                   /// RECENT ACTIVITY FEED BLOCK
-                  Text(
-                    'Recent Activities',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textThemeColor),
+                  Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF83F4EB),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Recent Activities',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: textThemeColor,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   
                   if (snapshot.connectionState == ConnectionState.waiting && currentGroups.isEmpty)
                     const Center(child: CircularProgressIndicator(color: Color(0xFF0284C7)))
-                  else if (logs.isEmpty) 
-                    Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 40),
-                          child: Text(
-                            'No active transaction actions logging yet.',
-                            style: TextStyle(color: textThemeColor.withOpacity(0.5)),
+                  else if (logs.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+                      decoration: BoxDecoration(
+                        color: tileColor,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF83F4EB).withOpacity(0.2)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.receipt_long_outlined, color: Color(0xFF0284C7), size: 34),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No recent activity yet',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: textThemeColor,
+                            ),
                           ),
-                        ),
-                      )
+                          const SizedBox(height: 4),
+                          Text(
+                            'New expenses will appear here.',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: textThemeColor.withOpacity(0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   else 
                     ListView.separated(
                         shrinkWrap: true,
@@ -254,14 +303,16 @@ class ActivityScreen extends StatelessWidget {
                             color: tileColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
                             ),
+                            shadowColor: Colors.black.withOpacity(0.08),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   CircleAvatar(
-                                    backgroundColor: const Color(0xFF0284C7).withOpacity(0.12),
+                                    backgroundColor: const Color(0xFF83F4EB).withOpacity(isDark ? 0.16 : 0.24),
                                     child: Icon(
                                       _getCategoryIcon(item.category),
                                       color: const Color(0xFF0284C7),
@@ -275,7 +326,7 @@ class ActivityScreen extends StatelessWidget {
                                       children: [
                                         Text(
                                           item.message,
-                                          style: TextStyle(
+                                          style: GoogleFonts.poppins(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
                                             color: textThemeColor,
@@ -287,7 +338,7 @@ class ActivityScreen extends StatelessWidget {
                                           children: [
                                             Text(
                                               DateFormat("dd MMM, hh:mm a").format(item.date),
-                                              style: TextStyle(
+                                              style: GoogleFonts.poppins(
                                                 fontSize: 12,
                                                 color: textThemeColor.withOpacity(0.5),
                                               ),
@@ -300,7 +351,7 @@ class ActivityScreen extends StatelessWidget {
                                               ),
                                               child: Text(
                                                 item.category,
-                                                style: const TextStyle(
+                                                style: GoogleFonts.poppins(
                                                   fontSize: 11,
                                                   color: Color(0xFF0284C7),
                                                   fontWeight: FontWeight.w600,
@@ -331,9 +382,16 @@ class ActivityScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        Text(label, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 10)),
         const SizedBox(height: 4),
-        Text(val, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(
+          val,
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
