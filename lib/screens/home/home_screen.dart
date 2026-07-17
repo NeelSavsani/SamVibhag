@@ -303,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               TextSpan(text: 'Sam'),
                               TextSpan(
                                 text: 'Vibhag',
-                                style: TextStyle(color: Color(0xFF83F4EB)),
+                                style: TextStyle(color: Color.fromARGB(255, 52, 107, 225)),
                               ),
                             ],
                           ),
