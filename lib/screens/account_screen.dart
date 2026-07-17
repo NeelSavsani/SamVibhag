@@ -29,8 +29,6 @@ class AccountScreen extends StatelessWidget {
       await FirebaseAuth.instance.signOut();
       if (!context.mounted) return;
       
-      // FIXED: Added 'rootNavigator: true' to target the application's root navigator 
-      // and completely strip away the persistent bottom navigation shell layouts.
       Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
         '/welcome', 
         (route) => false,
@@ -44,7 +42,6 @@ class AccountScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Pull current Firebase User credentials dynamically
     final String displayName = user?.displayName ?? 'Neel Savsani';
     final String userEmail = user?.email ?? 'neelsavsani7@gmail.com';
     final String? photoUrl = user?.photoURL;
@@ -59,7 +56,6 @@ class AccountScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // FIRST: Section Title Profile Header
               const Text(
                 'Account',
                 style: TextStyle(
@@ -70,7 +66,6 @@ class AccountScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Profile Overview Card Section Container
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -84,7 +79,6 @@ class AccountScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    // Dynamic Profile Circle Avatar Frame Slot
                     CircleAvatar(
                       radius: 32,
                       backgroundColor: AppTheme.primary.withOpacity(0.15),
@@ -101,35 +95,17 @@ class AccountScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
 
-                    // User Metadata Details Stack Block
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                displayName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  // Edit Action Route Handler Slot Placeholder
-                                },
-                                child: const Text(
-                                  'Edit',
-                                  style: TextStyle(
-                                    color: Color(0xFF00B074),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          // Streamlined to a standalone text line component layer
+                          Text(
+                            displayName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -141,6 +117,25 @@ class AccountScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 8), // Padding gap separation
+                          
+                          // FIXED: Moved the Edit button out of the Row layout block to force vertical alignment stacking
+                          GestureDetector(
+                            onTap: () {
+                              // Edit Action Route Handler Slot Placeholder
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                'Edit Profile',
+                                style: TextStyle(
+                                  color: Color(0xFF00B074),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -149,7 +144,6 @@ class AccountScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
 
-              // Account Action Navigation Menu Items
               _AccountTile(
                 icon: Icons.palette_outlined,
                 title: 'Appearance',
@@ -165,30 +159,23 @@ class AccountScreen extends StatelessWidget {
               _AccountTile(
                 icon: Icons.security_rounded,
                 title: 'Security',
-                onTap: () {
-                  // Connects to password resets or auth changes
-                },
+                onTap: () {},
               ),
               _AccountTile(
                 icon: Icons.contact_support_outlined,
                 title: 'Contact SamVibhag Support',
-                onTap: () {
-                  // Support ticketing mechanism hook
-                },
+                onTap: () {},
               ),
               _AccountTile(
                 icon: Icons.star_outline_rounded,
                 title: 'Rate SamVibhag',
-                onTap: () {
-                  // In-App review trigger action mapping
-                },
+                onTap: () {},
               ),
 
               const SizedBox(height: 12),
               const Divider(height: 1, thickness: 0.5),
               const SizedBox(height: 12),
 
-              // SIXTH: Destructive Log out Action Button Frame
               _AccountTile(
                 icon: Icons.logout_rounded,
                 title: 'Log out',
