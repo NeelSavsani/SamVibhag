@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'account/appearance_screen.dart';
 import '../../core/theme/app_theme.dart';
+import 'account/edit_profile_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -15,7 +16,10 @@ class AccountScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -32,11 +36,11 @@ class AccountScreen extends StatelessWidget {
     if (shouldLogout == true) {
       await FirebaseAuth.instance.signOut();
       if (!context.mounted) return;
-      
-      Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
-        '/welcome', 
-        (route) => false,
-      );
+
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pushNamedAndRemoveUntil('/welcome', (route) => false);
     }
   }
 
@@ -122,11 +126,16 @@ class AccountScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8), // Padding gap separation
-                          
                           // FIXED: Moved the Edit button out of the Row layout block to force vertical alignment stacking
                           GestureDetector(
                             onTap: () {
-                              // Edit Action Route Handler Slot Placeholder
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const EditProfileScreen(),
+                                ),
+                              );
                             },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(vertical: 2),
