@@ -237,7 +237,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: const [NightModeButton()],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
