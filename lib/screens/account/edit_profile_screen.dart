@@ -30,6 +30,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  
+  // Password Change Controllers
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
@@ -39,9 +44,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String _existingAvatarPath = '';
   bool _isLoading = true;
   bool _isUpdating = false;
+  
+  // Password Form Visibility Flags
+  bool _showPasswordModule = false;
+  bool _obscureCurrent = true;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
 
   CountryCode _selectedCountry = const CountryCode(name: 'India', dialCode: '+91', flag: '🇮🇳');
   CurrencyOption _selectedCurrency = const CurrencyOption(name: 'Indian Rupee', code: 'INR', symbol: '₹');
+  
+  // Timezone and Language State Settings
+  String _selectedTimezone = 'Asia/Kolkata (GMT+5:30)';
+  String _selectedLanguage = 'English (EN)';
 
   static const _countries = [
     CountryCode(name: 'India', dialCode: '+91', flag: '🇮🇳'),
@@ -63,6 +78,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     CurrencyOption(name: 'Australian Dollar', code: 'AUD', symbol: r'$'),
   ];
 
+  static const _timezones = [
+    'Asia/Kolkata (GMT+5:30)',
+    'London/Europe (GMT+0:00)',
+    'New York/US (GMT-5:00)',
+    'Los Angeles/US (GMT-8:00)',
+    'Dubai/Asia (GMT+4:00)',
+    'Singapore/Asia (GMT+8:00)',
+    'Sydney/Australia (GMT+10:00)',
+  ];
+
+  static const _languages = [
+    'English (EN)',
+    'Hindi (HI)',
+    'Gujarati (GU)',
+    'Spanish (ES)',
+    'French (FR)',
+    'Arabic (AR)',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -73,10 +107,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _fullNameController.dispose();
     _phoneController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  // Fetch pre-values from database using current user UID
   Future<void> _fetchUserProfileData() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -87,23 +123,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final data = doc.data()!;
         _fullNameController.text = data['fullName'] ?? user.displayName ?? '';
         
-        // Extract plain phone number by removing country dial code prefix if present
         String rawPhone = data['phoneNumber'] ?? '';
         String cCode = data['countryCode'] ?? '+91';
         if (rawPhone.startsWith(cCode)) {
           rawPhone = rawPhone.substring(cCode.length);
         }
         _phoneController.text = rawPhone;
-
         _existingAvatarPath = data['avatarLocalPath'] ?? '';
+        _selectedTimezone = data['timezone'] ?? 'Asia/Kolkata (GMT+5:30)';
+        _selectedLanguage = data['language'] ?? 'English (EN)';
 
-        // Match stored country metadata structure
         final matchedCountry = _countries.firstWhere(
           (c) => c.dialCode == data['countryCode'],
           orElse: () => _countries.first,
         );
 
-        // Match stored currency metadata structure
         final matchedCurrency = _currencies.firstWhere(
           (c) => c.code == data['currencyCode'],
           orElse: () => _currencies.first,
@@ -139,14 +173,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         items: _countries,
         searchHint: 'Search country or code',
         searchText: (country) => '${country.name} ${country.dialCode}',
-        itemBuilder: (context, country) {
-          return ListTile(
-            leading: Text(country.flag, style: const TextStyle(fontSize: 22)),
-            title: Text(country.name),
-            trailing: Text(country.dialCode, style: const TextStyle(fontWeight: FontWeight.w800)),
-            onTap: () => Navigator.pop(context, country),
-          );
-        },
+        itemBuilder: (context, country) => ListTile(
+          leading: Text(country.flag, style: const TextStyle(fontSize: 22)),
+          title: Text(country.name),
+          trailing: Text(country.dialCode, style: const TextStyle(fontWeight: FontWeight.w800)),
+          onTap: () => Navigator.pop(context, country),
+        ),
       ),
     );
     if (selected != null) setState(() => _selectedCountry = selected);
@@ -162,20 +194,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         items: _currencies,
         searchHint: 'Search currency or code',
         searchText: (currency) => '${currency.name} ${currency.code} ${currency.symbol}',
-        itemBuilder: (context, currency) {
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AppTheme.primary.withValues(alpha: .12),
-              child: Text(currency.symbol, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900)),
-            ),
-            title: Text(currency.name),
-            subtitle: Text(currency.code),
-            onTap: () => Navigator.pop(context, currency),
-          );
-        },
+        itemBuilder: (context, currency) => ListTile(
+          leading: CircleAvatar(
+            backgroundColor: AppTheme.primary.withValues(alpha: .12),
+            child: Text(currency.symbol, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900)),
+          ),
+          title: Text(currency.name),
+          subtitle: Text(currency.code),
+          onTap: () => Navigator.pop(context, currency),
+        ),
       ),
     );
     if (selected != null) setState(() => _selectedCurrency = selected);
+  }
+
+  Future<void> _selectTimezone() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _SearchablePicker<String>(
+        title: 'Select Timezone',
+        items: _timezones,
+        searchHint: 'Search timezone...',
+        searchText: (tz) => tz,
+        itemBuilder: (context, tz) => ListTile(
+          leading: const Icon(Icons.public_rounded, color: AppTheme.primary),
+          title: Text(tz),
+          trailing: _selectedTimezone == tz ? const Icon(Icons.check_circle, color: Color(0xFF00B074)) : null,
+          onTap: () => Navigator.pop(context, tz),
+        ),
+      ),
+    );
+    if (selected != null) setState(() => _selectedTimezone = selected);
+  }
+
+  Future<void> _selectLanguage() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _SearchablePicker<String>(
+        title: 'Select Language',
+        items: _languages,
+        searchHint: 'Search language...',
+        searchText: (lang) => lang,
+        itemBuilder: (context, lang) => ListTile(
+          leading: const Icon(Icons.translate_rounded, color: AppTheme.primary),
+          title: Text(lang),
+          trailing: _selectedLanguage == lang ? const Icon(Icons.check_circle, color: Color(0xFF00B074)) : null,
+          onTap: () => Navigator.pop(context, lang),
+        ),
+      ),
+    );
+    if (selected != null) setState(() => _selectedLanguage = selected);
   }
 
   Future<void> _updateProfile() async {
@@ -188,13 +260,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final user = _auth.currentUser;
       if (user == null) return;
 
+      // OPTIONAL PASSWORD MODIFICATION PIPELINE ROUTINE
+      if (_showPasswordModule && _newPasswordController.text.isNotEmpty) {
+        final email = user.email;
+        if (email != null) {
+          AuthCredential credential = EmailAuthProvider.credential(
+            email: email,
+            password: _currentPasswordController.text,
+          );
+          // Re-authenticate user security wrapper guardrail before letting password commit
+          await user.reauthenticateWithCredential(credential);
+          await user.updatePassword(_newPasswordController.text.trim());
+        }
+      }
+
       final fullName = _fullNameController.text.trim();
       final phone = _phoneController.text.trim();
 
-      // 1. Update Auth Profile Display Name
       await user.updateDisplayName(fullName);
 
-      // 2. Update Document parameters in Cloud Firestore
       await _firestore.collection('users').doc(user.uid).update({
         'fullName': fullName,
         'phoneNumber': '${_selectedCountry.dialCode}$phone',
@@ -203,6 +287,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'currencyName': _selectedCurrency.name,
         'currencyCode': _selectedCurrency.code,
         'currencySymbol': _selectedCurrency.symbol,
+        'timezone': _selectedTimezone,
+        'language': _selectedLanguage,
         'avatarLocalPath': _avatar?.path ?? _existingAvatarPath,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -213,7 +299,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       Navigator.pop(context);
     } catch (error) {
       if (mounted) setState(() => _isUpdating = false);
-      _showSnackBar('Failed to update details: $error', isError: true);
+      _showSnackBar('Failed to save configurations: $error', isError: true);
     }
   }
 
@@ -365,7 +451,96 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ),
                               const SizedBox(height: 16),
                               _CurrencyTile(currency: _selectedCurrency, onChange: _selectCurrency),
-                              const SizedBox(height: 40),
+                              
+                              const SizedBox(height: 20),
+                              const Text('Preferences', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 10),
+
+                              // Timezone Selector Tile
+                              ListTile(
+                                leading: const Icon(Icons.access_time_filled_rounded, color: AppTheme.primary),
+                                title: const Text('Timezone', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                                subtitle: Text(_selectedTimezone, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                tileColor: theme.cardColor.withValues(alpha: .86),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                trailing: const Icon(Icons.chevron_right_rounded),
+                                onTap: _selectTimezone,
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Language Selector Tile
+                              ListTile(
+                                leading: const Icon(Icons.language_rounded, color: AppTheme.primary),
+                                title: const Text('App Language', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                                subtitle: Text(_selectedLanguage, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                tileColor: theme.cardColor.withValues(alpha: .86),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                trailing: const Icon(Icons.chevron_right_rounded),
+                                onTap: _selectLanguage,
+                              ),
+
+                              const SizedBox(height: 24),
+                              
+                              // PASSWORD RECOVERY EXPANDABLE ACTION BAR
+                              Theme(
+                                data: theme.copyWith(dividerColor: Colors.transparent),
+                                child: ExpansionTile(
+                                  title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                                  iconColor: AppTheme.primary,
+                                  initiallyExpanded: _showPasswordModule,
+                                  onExpansionChanged: (value) => setState(() => _showPasswordModule = value),
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    _InputField(
+                                      controller: _currentPasswordController,
+                                      label: 'Current Password',
+                                      icon: Icons.lock_open_rounded,
+                                      obscureText: _obscureCurrent,
+                                      suffixIcon: IconButton(
+                                        icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility),
+                                        onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                                      ),
+                                      validator: (val) {
+                                        if (_showPasswordModule && (val == null || val.isEmpty)) return 'Current password required.';
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _InputField(
+                                      controller: _newPasswordController,
+                                      label: 'New Password',
+                                      icon: Icons.lock_outline_rounded,
+                                      obscureText: _obscureNew,
+                                      suffixIcon: IconButton(
+                                        icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
+                                        onPressed: () => setState(() => _obscureNew = !_obscureNew),
+                                      ),
+                                      validator: (val) {
+                                        if (_showPasswordModule && (val == null || val.length < 6)) return 'Password must be >= 6 characters.';
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 14),
+                                    _InputField(
+                                      controller: _confirmPasswordController,
+                                      label: 'Confirm New Password',
+                                      icon: Icons.lock_reset_rounded,
+                                      obscureText: _obscureConfirm,
+                                      suffixIcon: IconButton(
+                                        icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                                        onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                                      ),
+                                      validator: (val) {
+                                        if (_showPasswordModule && val != _newPasswordController.text) return 'Passwords do not match.';
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 30),
                               SizedBox(
                                 width: double.infinity,
                                 height: 58,
@@ -441,13 +616,15 @@ class _CurrencyTile extends StatelessWidget {
 }
 
 class _InputField extends StatelessWidget {
-  const _InputField({required this.controller, required this.label, required this.icon, this.keyboardType, this.textInputAction, this.maxLength, this.validator});
+  const _InputField({required this.controller, required this.label, required this.icon, this.keyboardType, this.textInputAction, this.maxLength, this.validator, this.obscureText = false, this.suffixIcon});
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final int? maxLength;
+  final bool obscureText;
+  final Widget? suffixIcon;
   final String? Function(String?)? validator;
 
   @override
@@ -458,16 +635,18 @@ class _InputField extends StatelessWidget {
       textInputAction: textInputAction,
       maxLength: maxLength,
       validator: validator,
-      decoration: _fieldDecoration(context, label, icon: icon),
+      obscureText: obscureText,
+      decoration: _fieldDecoration(context, label, icon: icon, suffixIcon: suffixIcon),
     );
   }
 }
 
-InputDecoration _fieldDecoration(BuildContext context, String label, {IconData? icon}) {
+InputDecoration _fieldDecoration(BuildContext context, String label, {IconData? icon, Widget? suffixIcon}) {
   final theme = Theme.of(context);
   return InputDecoration(
     labelText: label,
     prefixIcon: icon == null ? null : Icon(icon),
+    suffixIcon: suffixIcon,
     counterText: '',
     filled: true,
     fillColor: theme.cardColor.withValues(alpha: .86),
