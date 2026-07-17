@@ -316,7 +316,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       return DropdownMenuItem<String>(
                         value: category,
                         child: Text(category),
-                      );
+                      ); 
                     }).toList(),
                     onChanged: (value) {
                       if (value == null) return;
