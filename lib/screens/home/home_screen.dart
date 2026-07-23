@@ -1,4 +1,4 @@
-import 'dart:io'; // REQUIRED: For processing local File handles safely
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,16 +36,24 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const Stream.empty();
 
-    final currentUserName = user.displayName ?? "Neel Savsani";
+    final currentUserName = (user.displayName ?? "Neel Savsani").trim().toLowerCase();
+    final currentUserEmail = (user.email ?? "").trim().toLowerCase();
 
+    // Stream all groups and perform client-side case-insensitive matching across members array
     return FirebaseFirestore.instance
         .collection('groups')
-        .where('members', arrayContains: currentUserName)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            return GroupModel.fromMap(doc.data());
-          }).toList();
+          return snapshot.docs
+              .map((doc) => GroupModel.fromMap(doc.data()))
+              .where((group) {
+                // Check if user's name or email exists anywhere in members array
+                return group.members.any((member) {
+                  final m = member.trim().toLowerCase();
+                  return m == currentUserName || (currentUserEmail.isNotEmpty && m == currentUserEmail);
+                });
+              })
+              .toList();
         });
   }
 
@@ -172,7 +180,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Row(
           children: [
-            // FIXED: Render WhatsApp-style profile image from cloud URL or path with strict logo asset fallback
             CircleAvatar(
               radius: 30,
               backgroundColor: color.withOpacity(0.15),

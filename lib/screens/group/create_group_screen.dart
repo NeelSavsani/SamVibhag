@@ -50,15 +50,23 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
     try {
       final generatedId = const Uuid().v4();
-      final currentUserName = user.displayName ?? "Neel Savsani";
+      final rawDisplayName = user.displayName?.trim() ?? "Neel Savsani";
+
+      // Build member variations (e.g., "Neel B Savsani" and "Neel Savsani") to avoid naming mismatches
+      final Set<String> initialMembers = {rawDisplayName};
+      final nameParts = rawDisplayName.split(' ');
+      if (nameParts.length > 2) {
+        // First and Last name combined without middle initial/name
+        initialMembers.add('${nameParts.first} ${nameParts.last}');
+      }
 
       final newGroup = GroupModel(
         id: generatedId,
         groupName: _groupNameController.text.trim(),
         description: "A $_selectedType group split.",
         avatarPath: "",
-        // Explicitly seed the creating user as the first default group member
-        members: [currentUserName],
+        // Seed initial members list with name variations
+        members: initialMembers.toList(),
         expenses: [],
         createdAt: DateTime.now(),
       );
@@ -69,7 +77,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           .doc(generatedId)
           .set({
             ...newGroup.toMap(),
-            'createdBy': user.uid, // Track creator explicitly for query sorting
+            'createdBy': user.uid, // Track creator UID explicitly for security & query matching
           });
 
       if (!mounted) return;
