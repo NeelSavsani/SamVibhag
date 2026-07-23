@@ -467,19 +467,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 onTap: _selectTimezone,
                               ),
                               const SizedBox(height: 12),
-
-                              // Language Selector Tile
-                              ListTile(
-                                leading: const Icon(Icons.language_rounded, color: AppTheme.primary),
-                                title: const Text('App Language', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                                subtitle: Text(_selectedLanguage, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                tileColor: theme.cardColor.withValues(alpha: .86),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                trailing: const Icon(Icons.chevron_right_rounded),
-                                onTap: _selectLanguage,
-                              ),
-
-                              const SizedBox(height: 24),
                               
                               // PASSWORD RECOVERY EXPANDABLE ACTION BAR
                               Theme(
