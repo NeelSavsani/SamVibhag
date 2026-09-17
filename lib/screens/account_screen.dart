@@ -1,3 +1,4 @@
+import '../../core/utils/support_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'account/appearance_screen.dart';
@@ -177,7 +178,7 @@ class AccountScreen extends StatelessWidget {
               _AccountTile(
                 icon: Icons.contact_support_outlined,
                 title: 'Contact SamVibhag Support',
-                onTap: () {},
+                onTap: () => SupportHelper.openSupportEmail(context),
               ),
               _AccountTile(
                 icon: Icons.star_outline_rounded,

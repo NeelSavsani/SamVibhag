@@ -1,32 +1,5 @@
 import 'expense_model.dart';
-
-class Settlement {
-  final String from;
-  final String to;
-  final double amount;
-
-  Settlement({
-    required this.from,
-    required this.to,
-    required this.amount,
-  });
-
-  factory Settlement.fromMap(Map<dynamic, dynamic> map) {
-    return Settlement(
-      from: map['from'],
-      to: map['to'],
-      amount: (map['amount'] as num).toDouble(),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'from': from,
-      'to': to,
-      'amount': amount,
-    };
-  }
-}
+import 'settlement_model.dart';
 
 class GroupModel {
   final String id;
@@ -45,12 +18,15 @@ class GroupModel {
   List<String> members;
 
   List<ExpenseModel> expenses;
+  
+  List<SettlementModel> recordedSettlements;
 
   GroupModel({
     required this.id,
     required this.groupName,
     required this.members,
     required this.expenses,
+    this.recordedSettlements = const [],
 
     this.description = '',
     this.avatarPath = '',
@@ -92,10 +68,21 @@ class GroupModel {
       }
     }
 
+    for (final settlement in recordedSettlements) {
+      if (settlement.isSettled) {
+        balances[settlement.fromUser] = (balances[settlement.fromUser] ?? 0) + settlement.amount;
+        balances[settlement.toUser] = (balances[settlement.toUser] ?? 0) - settlement.amount;
+      }
+    }
+
     return balances;
   }
 
-  List<Settlement> get settlements {
+  List<SettlementModel> get allSettlements {
+    return [...settlements, ...recordedSettlements];
+  }
+
+  List<SettlementModel> get settlements {
     final balances =
         Map<String, double>.from(memberBalances);
 
@@ -110,7 +97,7 @@ class GroupModel {
       }
     });
 
-    final result = <Settlement>[];
+    final result = <SettlementModel>[];
 
     int i = 0;
     int j = 0;
@@ -126,10 +113,11 @@ class GroupModel {
               : creditor.value;
 
       result.add(
-        Settlement(
-          from: debtor.key,
-          to: creditor.key,
+        SettlementModel(
+          fromUser: debtor.key,
+          toUser: creditor.key,
           amount: amount,
+          isSettled: false,
         ),
       );
 
@@ -174,12 +162,21 @@ class GroupModel {
         map['members'],
       ),
 
-      expenses: (map['expenses'] as List)
-          .map(
-            (expense) =>
-                ExpenseModel.fromMap(expense),
-          )
-          .toList(),
+      expenses: (map['expenses'] as List<dynamic>?)
+              ?.map(
+                (expense) =>
+                    ExpenseModel.fromMap(expense as Map<dynamic, dynamic>),
+              )
+              .toList() ??
+          <ExpenseModel>[],
+
+      recordedSettlements: (map['recordedSettlements'] as List<dynamic>?)
+              ?.map(
+                (settlement) =>
+                    SettlementModel.fromMap(settlement as Map<dynamic, dynamic>),
+              )
+              .toList() ??
+          <SettlementModel>[],
     );
   }
 
@@ -202,6 +199,13 @@ class GroupModel {
           .map(
             (expense) =>
                 expense.toMap(),
+          )
+          .toList(),
+
+      'recordedSettlements': recordedSettlements
+          .map(
+            (settlement) =>
+                settlement.toMap(),
           )
           .toList(),
     };

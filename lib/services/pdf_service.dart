@@ -126,7 +126,7 @@ class PdfService {
 
             pw.SizedBox(height: 10),
 
-            ...group.settlements.map(
+            ...group.allSettlements.map(
               (settlement) {
 
                 return pw.Padding(
@@ -136,7 +136,7 @@ class PdfService {
                   ),
 
                   child: pw.Text(
-                    '${settlement.from} pays ${settlement.to} → Rs. ${settlement.amount.toStringAsFixed(0)}',
+                    '${settlement.fromUser} pays ${settlement.toUser} → Rs. ${settlement.amount.toStringAsFixed(0)}${settlement.isSettled ? " (Settled)" : ""}',
                   ),
                 );
               },

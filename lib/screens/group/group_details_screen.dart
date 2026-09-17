@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/expense_model.dart';
 import '../../models/group_model.dart';
+import '../../models/settlement_model.dart';
 import '../../core/theme/app_theme.dart';
 
 import 'add_expense_screen.dart';
@@ -63,6 +65,63 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     super.dispose();
   }
 
+  Future<void> markAsSettled(SettlementModel settlement) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text("Mark as Settled"),
+        content: Text("Mark ₹${settlement.amount.toStringAsFixed(0)} from ${settlement.fromUser} to ${settlement.toUser} as settled?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Confirm"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final newSettlement = SettlementModel(
+      fromUser: settlement.fromUser,
+      toUser: settlement.toUser,
+      amount: settlement.amount,
+      isSettled: true,
+      settledAt: DateTime.now(),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      widget.group.recordedSettlements = List.from(widget.group.recordedSettlements)..add(newSettlement);
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(widget.group.id)
+          .update({
+            'recordedSettlements': FieldValue.arrayUnion([newSettlement.toMap()]),
+          });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settlement recorded successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update settlement: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> openGroupInfo() async {
     // FIXED: Catch the updated GroupModel structure returned from the pop execution context
     final GroupModel? updatedGroup = await Navigator.push<GroupModel>(
@@ -93,6 +152,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     if (result == null) return;
 
+    if (!mounted) return;
+
     setState(() {
       widget.group.expenses.add(result);
     });
@@ -113,6 +174,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     if (updatedExpense == null) return;
 
+    if (!mounted) return;
+
     setState(() {
       widget.group.expenses[originalIndex] = updatedExpense;
     });
@@ -125,16 +188,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text("Delete Expense"),
         content: Text("Delete ${expense.title} ?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text("Cancel"),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text("Delete"),
           ),
         ],
@@ -142,6 +205,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     );
 
     if (confirm != true) return;
+
+    if (!mounted) return;
 
     setState(() {
       widget.group.expenses.remove(expense);
@@ -364,43 +429,82 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: widget.group.settlements.length,
-                      itemBuilder: (context, index) {
-                        final settlement = widget.group.settlements[index];
-
-                        return Card(
-                          elevation: 0,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          color: tileBackgroundColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
+                    if (widget.group.allSettlements.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            "All settled up! 🎉",
+                            style: GoogleFonts.poppins(
+                              color: textColor.withOpacity(0.5),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: Color(0xFFE8EEFF),
-                              child: Icon(Icons.swap_horiz, color: AppTheme.primary),
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: widget.group.allSettlements.length,
+                        itemBuilder: (context, index) {
+                          final settlement = widget.group.allSettlements[index];
+
+                          return Card(
+                            elevation: 0,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            color: tileBackgroundColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
                             ),
-                            title: Text(
-                              "${settlement.from} pays ${settlement.to}",
-                              style: TextStyle(color: textColor),
-                            ),
-                            subtitle: Text("Settlement", style: TextStyle(color: textColor.withOpacity(0.7))),
-                            trailing: Text(
-                              "₹ ${settlement.amount.toStringAsFixed(0)}",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primary,
-                                fontSize: 14,
+                            child: ListTile(
+                              leading: const CircleAvatar(
+                                backgroundColor: Color(0xFFE8EEFF),
+                                child: Icon(Icons.swap_horiz, color: AppTheme.primary),
+                              ),
+                              title: Text(
+                                "${settlement.fromUser} pays ${settlement.toUser}",
+                                style: TextStyle(
+                                  color: settlement.isSettled ? textColor.withOpacity(0.5) : textColor,
+                                  decoration: settlement.isSettled ? TextDecoration.lineThrough : null,
+                                ),
+                              ),
+                              subtitle: Text(
+                                settlement.isSettled ? "Settled" : "Pending",
+                                style: TextStyle(
+                                  color: settlement.isSettled ? Colors.green : textColor.withOpacity(0.7),
+                                ),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    "₹ ${settlement.amount.toStringAsFixed(0)}",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: settlement.isSettled ? Colors.grey : AppTheme.primary,
+                                      fontSize: 14,
+                                      decoration: settlement.isSettled ? TextDecoration.lineThrough : null,
+                                    ),
+                                  ),
+                                  if (!settlement.isSettled) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                                      onPressed: () => markAsSettled(settlement),
+                                    ),
+                                  ] else ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.check_circle, color: Colors.green),
+                                  ],
+                                ],
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
                     const SizedBox(height: 28),
                   ],
 
