@@ -36,24 +36,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const Stream.empty();
 
-    final currentUserName = (user.displayName ?? "Neel Savsani").trim().toLowerCase();
-    final currentUserEmail = (user.email ?? "").trim().toLowerCase();
-
-    // Stream all groups and perform client-side case-insensitive matching across members array
     return FirebaseFirestore.instance
         .collection('groups')
+        .where(
+          Filter.or(
+            Filter('memberUids', arrayContains: user.uid),
+            Filter('createdBy', isEqualTo: user.uid),
+          ),
+        )
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => GroupModel.fromMap(doc.data()))
-              .where((group) {
-                // Check if user's name or email exists anywhere in members array
-                return group.members.any((member) {
-                  final m = member.trim().toLowerCase();
-                  return m == currentUserName || (currentUserEmail.isNotEmpty && m == currentUserEmail);
-                });
-              })
-              .toList();
+          final uniqueGroups = <String, GroupModel>{};
+          for (var doc in snapshot.docs) {
+            uniqueGroups[doc.id] = GroupModel.fromMap(doc.data());
+          }
+          return uniqueGroups.values.toList();
         });
   }
 

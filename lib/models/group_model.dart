@@ -16,6 +16,8 @@ class GroupModel {
   DateTime createdAt;
 
   List<String> members;
+  List<String> memberUids;
+  List<String> memberEmails;
 
   List<ExpenseModel> expenses;
   
@@ -25,6 +27,8 @@ class GroupModel {
     required this.id,
     required this.groupName,
     required this.members,
+    this.memberUids = const [],
+    this.memberEmails = const [],
     required this.expenses,
     this.recordedSettlements = const [],
 
@@ -162,6 +166,12 @@ class GroupModel {
         map['members'],
       ),
 
+      memberUids: (map['memberUids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          (map['createdBy'] != null ? [map['createdBy'].toString()] : <String>[]),
+
+      memberEmails: (map['memberEmails'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          <String>[],
+
       expenses: (map['expenses'] as List<dynamic>?)
               ?.map(
                 (expense) =>
@@ -194,6 +204,8 @@ class GroupModel {
           createdAt.toIso8601String(),
 
       'members': members,
+      'memberUids': memberUids,
+      'memberEmails': memberEmails,
 
       'expenses': expenses
           .map(

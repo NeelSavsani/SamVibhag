@@ -17,7 +17,13 @@ class CreateGroupScreen extends StatefulWidget {
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _groupNameController = TextEditingController();
+  final _emailSearchController = TextEditingController();
   bool _isLoading = false;
+  bool _isSearchingUser = false;
+
+  final List<String> _memberUids = [];
+  final List<String> _memberEmails = [];
+  final List<String> _members = [];
 
   String _selectedType = "Trip";
 
@@ -29,12 +35,79 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _memberUids.add(user.uid);
+      if (user.email != null) _memberEmails.add(user.email!.toLowerCase().trim());
+      _members.add(user.displayName ?? 'You');
+    }
+  }
+
+  @override
   void dispose() {
     _groupNameController.dispose();
+    _emailSearchController.dispose();
     super.dispose();
   }
 
-  // FIXED: Writes the newly populated model fields directly into Cloud Firestore 
+  Future<void> _addMemberByEmail() async {
+    final email = _emailSearchController.text.trim().toLowerCase();
+    if (email.isEmpty) return;
+
+    if (_memberEmails.contains(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Member already added.")));
+      return;
+    }
+
+    setState(() => _isSearchingUser = true);
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (snap.docs.isNotEmpty) {
+        final doc = snap.docs.first;
+        setState(() {
+          _memberUids.add(doc['uid']);
+          _memberEmails.add(doc['email']);
+          _members.add(doc['displayName'] ?? 'User');
+        });
+        _emailSearchController.clear();
+      } else {
+        if (!mounted) return;
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text("User Not Found"),
+            content: const Text("This user is not registered on SamVibhag yet. Add as an offline member?"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("Add Offline")),
+            ],
+          ),
+        );
+
+        if (confirm == true && mounted) {
+          setState(() {
+            _members.add(email); // Use what they typed as a display name for offline users
+          });
+          _emailSearchController.clear();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Search failed: $e")));
+      }
+    } finally {
+      if (mounted) setState(() => _isSearchingUser = false);
+    }
+  }
+
   Future<void> _submitGroup() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -50,23 +123,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
     try {
       final generatedId = const Uuid().v4();
-      final rawDisplayName = user.displayName?.trim() ?? "Neel Savsani";
-
-      // Build member variations (e.g., "Neel B Savsani" and "Neel Savsani") to avoid naming mismatches
-      final Set<String> initialMembers = {rawDisplayName};
-      final nameParts = rawDisplayName.split(' ');
-      if (nameParts.length > 2) {
-        // First and Last name combined without middle initial/name
-        initialMembers.add('${nameParts.first} ${nameParts.last}');
-      }
 
       final newGroup = GroupModel(
         id: generatedId,
         groupName: _groupNameController.text.trim(),
         description: "A $_selectedType group split.",
         avatarPath: "",
-        // Seed initial members list with name variations
-        members: initialMembers.toList(),
+        members: _members,
+        memberUids: _memberUids,
+        memberEmails: _memberEmails,
         expenses: [],
         createdAt: DateTime.now(),
       );
@@ -282,36 +347,72 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         ),
                       ),
                       const SizedBox(height: 30),
-                      Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          side: BorderSide(color: const Color(0xFF83F4EB).withValues(alpha: .18)),
+                      Text(
+                        "Add Members",
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.info_outline_rounded,
-                                color: AppTheme.primary,
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Text(
-                                  "You can add members after creating the group. "
-                                  "Expenses, settlements and reports will be available once members are added.",
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: theme.colorScheme.onSurface.withValues(alpha: .7),
-                                    height: 1.45,
-                                  ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _emailSearchController,
+                              keyboardType: TextInputType.emailAddress,
+                              style: GoogleFonts.poppins(fontSize: 14),
+                              decoration: InputDecoration(
+                                labelText: "Member Email",
+                                hintText: "Eg. friend@example.com",
+                                labelStyle: GoogleFonts.poppins(fontSize: 13),
+                                prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF0284C7)),
+                                filled: true,
+                                fillColor: theme.colorScheme.surface,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
                                 ),
                               ),
-                            ],
+                              onFieldSubmitted: (_) => _addMemberByEmail(),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Container(
+                            height: 56,
+                            width: 56,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                              ),
+                            ),
+                            child: IconButton(
+                              onPressed: _isSearchingUser ? null : _addMemberByEmail,
+                              icon: _isSearchingUser
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.add_rounded, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _members.map((member) {
+                          return Chip(
+                            label: Text(member, style: GoogleFonts.poppins(fontSize: 12)),
+                            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                            labelStyle: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                            side: BorderSide.none,
+                          );
+                        }).toList(),
                       ),
                       const SizedBox(height: 32),
                       Container(

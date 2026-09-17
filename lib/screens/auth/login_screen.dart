@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -38,10 +39,20 @@ class _LoginScreenState extends State<LoginScreen> {
       final password = _passwordController.text;
 
       // Authenticate user credentials against Google Firebase Auth
-      await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      final user = credential.user;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'email': (user.email ?? email).toLowerCase().trim(),
+          'displayName': user.displayName ?? 'User',
+          'lastActive': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
 
       if (!mounted) return;
 
