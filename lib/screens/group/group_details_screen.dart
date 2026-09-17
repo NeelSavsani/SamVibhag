@@ -122,6 +122,54 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     }
   }
 
+  Future<void> undoSettlement(SettlementModel settlement) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text("Undo Settlement"),
+        content: Text("Undo Settlement? This will restore the pending balance of ₹${settlement.amount.toStringAsFixed(0)} between ${settlement.fromUser} and ${settlement.toUser}."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Undo"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+    if (!mounted) return;
+
+    setState(() {
+      widget.group.recordedSettlements.removeWhere((s) => s.id == settlement.id);
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(widget.group.id)
+          .update({
+            'recordedSettlements': widget.group.recordedSettlements.map((e) => e.toMap()).toList(),
+          });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settlement undone successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to undo settlement: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> openGroupInfo() async {
     // FIXED: Catch the updated GroupModel structure returned from the pop execution context
     final GroupModel? updatedGroup = await Navigator.push<GroupModel>(
@@ -497,7 +545,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     ),
                                   ] else ...[
                                     const SizedBox(width: 8),
-                                    const Icon(Icons.check_circle, color: Colors.green),
+                                    IconButton(
+                                      icon: const Icon(Icons.undo_rounded, color: Colors.orangeAccent),
+                                      tooltip: "Undo Settlement",
+                                      onPressed: () => undoSettlement(settlement),
+                                    ),
                                   ],
                                 ],
                               ),
