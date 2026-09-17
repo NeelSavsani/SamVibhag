@@ -46,12 +46,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = credential.user;
       if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final existingDoc = await userDocRef.get();
+        final effectiveEmail = (user.email ?? email).toLowerCase().trim();
+        final defaultUsername = effectiveEmail.split('@').first.replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+
+        final Map<String, dynamic> updateData = {
           'uid': user.uid,
-          'email': (user.email ?? email).toLowerCase().trim(),
-          'displayName': user.displayName ?? 'User',
+          'email': effectiveEmail,
+          'displayName': user.displayName ?? (existingDoc.data()?['displayName'] ?? 'User'),
           'lastActive': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        };
+
+        final currentUname = existingDoc.data()?['username'] as String?;
+        if (!existingDoc.exists || currentUname == null || currentUname.trim().isEmpty) {
+          updateData['username'] = defaultUsername;
+          updateData['usernameSearch'] = defaultUsername;
+        }
+
+        await userDocRef.set(updateData, SetOptions(merge: true));
       }
 
       if (!mounted) return;

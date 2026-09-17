@@ -209,10 +209,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await user.updateDisplayName(fullName);
 
       // 3. Save User Document to Cloud Firestore
+      final defaultUsername = email.split('@').first.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'fullName': fullName,
+        'displayName': fullName,
         'email': email,
+        'username': defaultUsername,
+        'usernameSearch': defaultUsername,
         'phoneNumber': '${_selectedCountry.dialCode}$phone',
         'countryCode': _selectedCountry.dialCode,
         'countryName': _selectedCountry.name,

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/group_model.dart';
+import '../../models/user_model.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -14,16 +15,42 @@ class CreateGroupScreen extends StatefulWidget {
   State<CreateGroupScreen> createState() => _CreateGroupScreenState();
 }
 
+class _MemberEntry {
+  final String? uid;
+  final String? email;
+  final String displayName;
+  final String? username;
+  final bool isCurrentUser;
+  final bool isOffline;
+
+  const _MemberEntry({
+    this.uid,
+    this.email,
+    required this.displayName,
+    this.username,
+    this.isCurrentUser = false,
+    this.isOffline = false,
+  });
+
+  String get chipLabel {
+    if (username != null && username!.isNotEmpty) {
+      return '$displayName (@$username)';
+    }
+    return displayName;
+  }
+}
+
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _groupNameController = TextEditingController();
-  final _emailSearchController = TextEditingController();
+  final _memberSearchController = TextEditingController();
   bool _isLoading = false;
   bool _isSearchingUser = false;
 
   final List<String> _memberUids = [];
   final List<String> _memberEmails = [];
   final List<String> _members = [];
+  final List<_MemberEntry> _memberEntries = [];
 
   String _selectedType = "Trip";
 
@@ -40,72 +67,189 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _memberUids.add(user.uid);
-      if (user.email != null) _memberEmails.add(user.email!.toLowerCase().trim());
-      _members.add(user.displayName ?? 'You');
+      final email = user.email?.toLowerCase().trim();
+      if (email != null && email.isNotEmpty) _memberEmails.add(email);
+      final myName = user.displayName ?? 'You';
+      _members.add(myName);
+
+      _memberEntries.add(_MemberEntry(
+        uid: user.uid,
+        email: email,
+        displayName: myName,
+        isCurrentUser: true,
+      ));
+
+      _loadCurrentUserName(user.uid);
     }
+  }
+
+  Future<void> _loadCurrentUserName(String uid) async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists && mounted) {
+        final uname = (doc.data()?['username'] as String?)?.trim();
+        if (uname != null && uname.isNotEmpty) {
+          setState(() {
+            final idx = _memberEntries.indexWhere((e) => e.uid == uid);
+            if (idx != -1) {
+              final old = _memberEntries[idx];
+              _memberEntries[idx] = _MemberEntry(
+                uid: old.uid,
+                email: old.email,
+                displayName: old.displayName,
+                username: uname,
+                isCurrentUser: old.isCurrentUser,
+                isOffline: old.isOffline,
+              );
+            }
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _groupNameController.dispose();
-    _emailSearchController.dispose();
+    _memberSearchController.dispose();
     super.dispose();
   }
 
-  Future<void> _addMemberByEmail() async {
-    final email = _emailSearchController.text.trim().toLowerCase();
-    if (email.isEmpty) return;
+  Future<void> _addMember() async {
+    final rawInput = _memberSearchController.text.trim();
+    if (rawInput.isEmpty) return;
 
-    if (_memberEmails.contains(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Member already added.")));
+    // Normalize input: strip leading '@', lowercase, and trim
+    final normalized = UserModel.normalizeUsername(rawInput);
+    if (normalized.isEmpty) return;
+
+    final isAlreadyAdded = _memberEntries.any((entry) {
+      if (entry.email != null && entry.email!.toLowerCase() == rawInput.toLowerCase()) return true;
+      if (entry.email != null && entry.email!.toLowerCase() == normalized) return true;
+      if (entry.username != null && entry.username!.toLowerCase() == normalized) return true;
+      if (entry.displayName.toLowerCase() == rawInput.toLowerCase()) return true;
+      return false;
+    });
+
+    if (isAlreadyAdded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Member already added.")),
+      );
       return;
     }
 
     setState(() => _isSearchingUser = true);
 
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
+      QuerySnapshot<Map<String, dynamic>>? snap;
+      final bool looksLikeEmail = rawInput.contains('@') && rawInput.contains('.');
+
+      if (looksLikeEmail) {
+        // Query by email
+        snap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: rawInput.toLowerCase())
+            .limit(1)
+            .get();
+      } else {
+        // Query by usernameSearch
+        snap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('usernameSearch', isEqualTo: normalized)
+            .limit(1)
+            .get();
+
+        // Fallback: if username lookup returns empty and input could be an email, attempt email lookup
+        if (snap.docs.isEmpty && rawInput.contains('@')) {
+          snap = await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: rawInput.toLowerCase())
+              .limit(1)
+              .get();
+        }
+      }
+
+      if (!mounted) return;
 
       if (snap.docs.isNotEmpty) {
         final doc = snap.docs.first;
+        final data = doc.data();
+        final uid = (data['uid'] as String?) ?? doc.id;
+        final email = (data['email'] as String? ?? '').toLowerCase().trim();
+        final displayName = (data['displayName'] as String?) ?? (data['fullName'] as String?) ?? 'User';
+        final username = (data['username'] as String?)?.trim() ?? (data['usernameSearch'] as String?)?.trim();
+
+        if (_memberUids.contains(uid) || (email.isNotEmpty && _memberEmails.contains(email))) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Member already added.")),
+          );
+          return;
+        }
+
         setState(() {
-          _memberUids.add(doc['uid']);
-          _memberEmails.add(doc['email']);
-          _members.add(doc['displayName'] ?? 'User');
+          _memberUids.add(uid);
+          if (email.isNotEmpty) _memberEmails.add(email);
+          _members.add(displayName);
+          _memberEntries.add(_MemberEntry(
+            uid: uid,
+            email: email,
+            displayName: displayName,
+            username: username,
+            isCurrentUser: false,
+          ));
         });
-        _emailSearchController.clear();
+        _memberSearchController.clear();
       } else {
-        if (!mounted) return;
         final confirm = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text("User Not Found"),
-            content: const Text("This user is not registered on SamVibhag yet. Add as an offline member?"),
+            content: Text('No user found for "$rawInput". Would you like to add them as an offline member?'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
-              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text("Add Offline")),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text("Cancel"),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text("Add Offline"),
+              ),
             ],
           ),
         );
 
         if (confirm == true && mounted) {
+          final offlineName = rawInput.startsWith('@') ? rawInput.substring(1) : rawInput;
           setState(() {
-            _members.add(email); // Use what they typed as a display name for offline users
+            _members.add(offlineName);
+            _memberEntries.add(_MemberEntry(
+              displayName: offlineName,
+              isOffline: true,
+              isCurrentUser: false,
+            ));
           });
-          _emailSearchController.clear();
+          _memberSearchController.clear();
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Search failed: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Search failed: $e")),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSearchingUser = false);
     }
+  }
+
+  void _removeMember(_MemberEntry entry) {
+    if (entry.isCurrentUser) return;
+    setState(() {
+      _memberEntries.remove(entry);
+      _members.remove(entry.displayName);
+      if (entry.uid != null) _memberUids.remove(entry.uid);
+      if (entry.email != null) _memberEmails.remove(entry.email);
+    });
   }
 
   Future<void> _submitGroup() async {
@@ -132,6 +276,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         members: _members,
         memberUids: _memberUids,
         memberEmails: _memberEmails,
+        memberUsernames: _memberEntries.map((e) => e.username ?? '').where((u) => u.isNotEmpty).toList(),
         expenses: [],
         createdAt: DateTime.now(),
       );
@@ -360,14 +505,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         children: [
                           Expanded(
                             child: TextFormField(
-                              controller: _emailSearchController,
-                              keyboardType: TextInputType.emailAddress,
+                              controller: _memberSearchController,
+                              keyboardType: TextInputType.text,
                               style: GoogleFonts.poppins(fontSize: 14),
                               decoration: InputDecoration(
-                                labelText: "Member Email",
-                                hintText: "Eg. friend@example.com",
+                                labelText: "Member Email or @username",
+                                hintText: "Eg. @neel_07 or friend@example.com",
                                 labelStyle: GoogleFonts.poppins(fontSize: 13),
-                                prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF0284C7)),
+                                prefixIcon: const Icon(Icons.alternate_email_rounded, color: Color(0xFF0284C7)),
                                 filled: true,
                                 fillColor: theme.colorScheme.surface,
                                 border: OutlineInputBorder(
@@ -375,7 +520,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                                   borderSide: BorderSide.none,
                                 ),
                               ),
-                              onFieldSubmitted: (_) => _addMemberByEmail(),
+                              onFieldSubmitted: (_) => _addMember(),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -389,7 +534,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                               ),
                             ),
                             child: IconButton(
-                              onPressed: _isSearchingUser ? null : _addMemberByEmail,
+                              onPressed: _isSearchingUser ? null : _addMember,
                               icon: _isSearchingUser
                                   ? const SizedBox(
                                       width: 24,
@@ -405,12 +550,30 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: _members.map((member) {
+                        children: _memberEntries.map((entry) {
                           return Chip(
-                            label: Text(member, style: GoogleFonts.poppins(fontSize: 12)),
+                            avatar: CircleAvatar(
+                              radius: 10,
+                              backgroundColor: entry.isCurrentUser
+                                  ? AppTheme.primary
+                                  : (entry.isOffline ? Colors.grey : const Color(0xFF0284C7)),
+                              child: Icon(
+                                entry.isCurrentUser
+                                    ? Icons.person_rounded
+                                    : (entry.isOffline ? Icons.person_outline_rounded : Icons.alternate_email_rounded),
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                            label: Text(
+                              entry.chipLabel + (entry.isCurrentUser ? ' (You)' : ''),
+                              style: GoogleFonts.poppins(fontSize: 12),
+                            ),
                             backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                             labelStyle: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
                             side: BorderSide.none,
+                            onDeleted: entry.isCurrentUser ? null : () => _removeMember(entry),
+                            deleteIconColor: AppTheme.primary,
                           );
                         }).toList(),
                       ),

@@ -18,6 +18,7 @@ class GroupModel {
   List<String> members;
   List<String> memberUids;
   List<String> memberEmails;
+  List<String> memberUsernames;
 
   List<ExpenseModel> expenses;
   
@@ -29,6 +30,7 @@ class GroupModel {
     required this.members,
     this.memberUids = const [],
     this.memberEmails = const [],
+    this.memberUsernames = const [],
     required this.expenses,
     this.recordedSettlements = const [],
 
@@ -172,6 +174,9 @@ class GroupModel {
       memberEmails: (map['memberEmails'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           <String>[],
 
+      memberUsernames: (map['memberUsernames'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          <String>[],
+
       expenses: (map['expenses'] as List<dynamic>?)
               ?.map(
                 (expense) =>
@@ -206,6 +211,7 @@ class GroupModel {
       'members': members,
       'memberUids': memberUids,
       'memberEmails': memberEmails,
+      'memberUsernames': memberUsernames,
 
       'expenses': expenses
           .map(

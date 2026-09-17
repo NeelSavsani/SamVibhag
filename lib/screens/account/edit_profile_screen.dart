@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/user_model.dart';
 
 class CountryCode {
   const CountryCode({required this.name, required this.dialCode, required this.flag});
@@ -29,7 +31,11 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
+  
+  String _initialUsername = '';
+  String? _usernameError;
   
   // Password Change Controllers
   final _currentPasswordController = TextEditingController();
@@ -88,15 +94,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Sydney/Australia (GMT+10:00)',
   ];
 
-  static const _languages = [
-    'English (EN)',
-    'Hindi (HI)',
-    'Gujarati (GU)',
-    'Spanish (ES)',
-    'French (FR)',
-    'Arabic (AR)',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -106,6 +103,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _usernameController.dispose();
     _phoneController.dispose();
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
@@ -123,6 +121,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final data = doc.data()!;
         _fullNameController.text = data['fullName'] ?? user.displayName ?? '';
         
+        final rawUsername = (data['username'] as String?)?.trim().toLowerCase() ?? '';
+        final fallbackUsername = UserModel.generateFallbackUsername(user.email, user.displayName ?? data['fullName']);
+        final effectiveUsername = rawUsername.isNotEmpty ? rawUsername : fallbackUsername;
+        _usernameController.text = effectiveUsername;
+        _initialUsername = rawUsername;
+
         String rawPhone = data['phoneNumber'] ?? '';
         String cCode = data['countryCode'] ?? '+91';
         if (rawPhone.startsWith(cCode)) {
@@ -229,27 +233,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (selected != null) setState(() => _selectedTimezone = selected);
   }
 
-  Future<void> _selectLanguage() async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _SearchablePicker<String>(
-        title: 'Select Language',
-        items: _languages,
-        searchHint: 'Search language...',
-        searchText: (lang) => lang,
-        itemBuilder: (context, lang) => ListTile(
-          leading: const Icon(Icons.translate_rounded, color: AppTheme.primary),
-          title: Text(lang),
-          trailing: _selectedLanguage == lang ? const Icon(Icons.check_circle, color: Color(0xFF00B074)) : null,
-          onTap: () => Navigator.pop(context, lang),
-        ),
-      ),
-    );
-    if (selected != null) setState(() => _selectedLanguage = selected);
-  }
-
   Future<void> _updateProfile() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
@@ -276,11 +259,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final fullName = _fullNameController.text.trim();
       final phone = _phoneController.text.trim();
+      final normalizedUsername = UserModel.normalizeUsername(_usernameController.text);
+
+      // Check username uniqueness if changed
+      if (normalizedUsername != _initialUsername) {
+        final existingWithUsername = await _firestore
+            .collection('users')
+            .where('usernameSearch', isEqualTo: normalizedUsername)
+            .get();
+
+        final isTaken = existingWithUsername.docs.any((doc) => doc.id != user.uid);
+        if (isTaken) {
+          if (!mounted) return;
+          setState(() {
+            _usernameError = 'Username is already taken. Please choose another.';
+            _isUpdating = false;
+          });
+          _formKey.currentState?.validate();
+          return;
+        }
+      }
 
       await user.updateDisplayName(fullName);
 
-      await _firestore.collection('users').doc(user.uid).update({
+      await _firestore.collection('users').doc(user.uid).set({
         'fullName': fullName,
+        'displayName': fullName,
+        'username': normalizedUsername,
+        'usernameSearch': normalizedUsername,
         'phoneNumber': '${_selectedCountry.dialCode}$phone',
         'countryCode': _selectedCountry.dialCode,
         'countryName': _selectedCountry.name,
@@ -291,7 +297,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'language': _selectedLanguage,
         'avatarLocalPath': _avatar?.path ?? _existingAvatarPath,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
+
+      _initialUsername = normalizedUsername;
 
       if (!mounted) return;
       _showSnackBar('Profile configuration updated successfully.');
@@ -400,6 +408,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 textInputAction: TextInputAction.next,
                                 validator: (value) {
                                   if (value == null || value.trim().length < 2) return 'Enter your full name.';
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              _InputField(
+                                controller: _usernameController,
+                                label: 'Username',
+                                icon: Icons.alternate_email_rounded,
+                                prefixText: '@',
+                                textInputAction: TextInputAction.next,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.]')),
+                                ],
+                                onChanged: (value) {
+                                  if (_usernameError != null) {
+                                    setState(() => _usernameError = null);
+                                  }
+                                },
+                                validator: (value) {
+                                  if (_usernameError != null) {
+                                    return _usernameError;
+                                  }
+                                  final raw = value?.trim().toLowerCase() ?? '';
+                                  final uname = raw.startsWith('@') ? raw.substring(1) : raw;
+                                  if (uname.isEmpty) {
+                                    return 'Please enter a username.';
+                                  }
+                                  if (uname.length < 3) {
+                                    return 'Username must be at least 3 characters.';
+                                  }
+                                  if (uname.length > 30) {
+                                    return 'Username must be 30 characters or less.';
+                                  }
+                                  if (uname.contains(' ')) {
+                                    return 'Username cannot contain spaces.';
+                                  }
+                                  if (!RegExp(r'^[a-z0-9_.]+$').hasMatch(uname)) {
+                                    return 'Only lowercase letters, numbers, _, and . allowed.';
+                                  }
                                   return null;
                                 },
                               ),
@@ -603,7 +650,21 @@ class _CurrencyTile extends StatelessWidget {
 }
 
 class _InputField extends StatelessWidget {
-  const _InputField({required this.controller, required this.label, required this.icon, this.keyboardType, this.textInputAction, this.maxLength, this.validator, this.obscureText = false, this.suffixIcon});
+  const _InputField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.keyboardType,
+    this.textInputAction,
+    this.maxLength,
+    this.validator,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.prefixText,
+    this.inputFormatters,
+    this.onChanged,
+  });
+
   final TextEditingController controller;
   final String label;
   final IconData icon;
@@ -612,6 +673,9 @@ class _InputField extends StatelessWidget {
   final int? maxLength;
   final bool obscureText;
   final Widget? suffixIcon;
+  final String? prefixText;
+  final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
   final String? Function(String?)? validator;
 
   @override
@@ -623,16 +687,36 @@ class _InputField extends StatelessWidget {
       maxLength: maxLength,
       validator: validator,
       obscureText: obscureText,
-      decoration: _fieldDecoration(context, label, icon: icon, suffixIcon: suffixIcon),
+      inputFormatters: inputFormatters,
+      onChanged: onChanged,
+      decoration: _fieldDecoration(
+        context,
+        label,
+        icon: icon,
+        suffixIcon: suffixIcon,
+        prefixText: prefixText,
+      ),
     );
   }
 }
 
-InputDecoration _fieldDecoration(BuildContext context, String label, {IconData? icon, Widget? suffixIcon}) {
+InputDecoration _fieldDecoration(
+  BuildContext context,
+  String label, {
+  IconData? icon,
+  Widget? suffixIcon,
+  String? prefixText,
+}) {
   final theme = Theme.of(context);
   return InputDecoration(
     labelText: label,
     prefixIcon: icon == null ? null : Icon(icon),
+    prefixText: prefixText,
+    prefixStyle: TextStyle(
+      color: theme.colorScheme.onSurface,
+      fontWeight: FontWeight.bold,
+      fontSize: 15,
+    ),
     suffixIcon: suffixIcon,
     counterText: '',
     filled: true,

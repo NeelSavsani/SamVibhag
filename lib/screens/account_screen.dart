@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/utils/support_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -81,8 +82,8 @@ class AccountScreen extends StatelessWidget {
                   color: theme.cardColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(
-                      isDark ? 0.08 : 0.05,
+                    color: theme.colorScheme.outline.withValues(
+                      alpha: isDark ? 0.08 : 0.05,
                     ),
                   ),
                 ),
@@ -90,7 +91,7 @@ class AccountScreen extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 32,
-                      backgroundColor: AppTheme.primary.withOpacity(0.15),
+                      backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
                       backgroundImage: photoUrl != null
                           ? NetworkImage(photoUrl)
                           : null,
@@ -105,52 +106,73 @@ class AccountScreen extends StatelessWidget {
                     const SizedBox(width: 16),
 
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Streamlined to a standalone text line component layer
-                          Text(
-                            displayName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            userEmail,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: theme.colorScheme.onSurface.withOpacity(
-                                0.6,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8), // Padding gap separation
-                          // FIXED: Moved the Edit button out of the Row layout block to force vertical alignment stacking
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const EditProfileScreen(),
+                      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: user != null
+                            ? FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots()
+                            : null,
+                        builder: (context, snapshot) {
+                          final data = snapshot.data?.data();
+                          final effectiveName = data?['fullName'] ?? data?['displayName'] ?? displayName;
+                          final effectiveEmail = data?['email'] ?? userEmail;
+                          final username = (data?['username'] as String?)?.trim() ?? '';
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                effectiveName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              );
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 2),
-                              child: Text(
-                                'Edit Profile',
+                              ),
+                              if (username.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '@$username',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 3),
+                              Text(
+                                effectiveEmail,
                                 style: TextStyle(
-                                  color: Color(0xFF00B074),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const EditProfileScreen(),
+                                    ),
+                                  );
+                                },
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 2),
+                                  child: Text(
+                                    'Edit Profile',
+                                    style: TextStyle(
+                                      color: Color(0xFF00B074),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -234,7 +256,7 @@ class _AccountTile extends StatelessWidget {
           icon,
           color: isDestructive
               ? Colors.red
-              : theme.colorScheme.onSurface.withOpacity(0.7),
+              : theme.colorScheme.onSurface.withValues(alpha: 0.7),
           size: 24,
         ),
         title: Text(
@@ -249,7 +271,7 @@ class _AccountTile extends StatelessWidget {
             ? null
             : Icon(
                 Icons.chevron_right_rounded,
-                color: theme.colorScheme.onSurface.withOpacity(0.3),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
               ),
       ),
     );
