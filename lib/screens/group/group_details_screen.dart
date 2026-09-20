@@ -30,12 +30,18 @@ class GroupDetailsScreen extends StatefulWidget {
 class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   List<ExpenseModel> get expenses => widget.group.expenses;
 
-  int _selectedTab = 0; // 0: Expenses, 1: Activity
+  int _selectedTab = 0; // 0: Expenses, 1: History
   String searchQuery = '';
   String selectedCategory = 'All';
 
   bool _isSearchExpanded = false;
   final _searchController = TextEditingController();
+
+  // History Tab Search & Filter State
+  String _historySearchQuery = '';
+  String _selectedHistoryCategory = 'All'; // 'All', 'Add', 'Edit', 'Remove', 'Create Group'
+  bool _isHistorySearchExpanded = false;
+  final _historySearchController = TextEditingController();
 
   List<String> get categories {
     final uniqueCategories = expenses.map((e) => e.category).toSet().toList();
@@ -59,6 +65,42 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     }).toList();
   }
 
+  bool _matchesHistoryCategory(GroupActivity activity, String category) {
+    switch (category) {
+      case 'All':
+        return true;
+      case 'Add':
+        return activity.type == GroupActivity.typeExpenseCreated ||
+            activity.type == GroupActivity.typeSettlementRecorded ||
+            activity.type == GroupActivity.typeMemberAdded;
+      case 'Edit':
+        return activity.type == GroupActivity.typeExpenseUpdated;
+      case 'Remove':
+        return activity.type == GroupActivity.typeExpenseDeleted ||
+            activity.type == GroupActivity.typeSettlementUndone;
+      case 'Create Group':
+        return activity.type == GroupActivity.typeGroupCreated;
+      default:
+        return true;
+    }
+  }
+
+  bool _matchesHistorySearch(GroupActivity activity, String query) {
+    if (query.isEmpty) return true;
+    final q = query.toLowerCase();
+    if (activity.message.toLowerCase().contains(q)) return true;
+    if (activity.performedByName.toLowerCase().contains(q)) return true;
+    if (activity.typeLabel.toLowerCase().contains(q)) return true;
+    if (activity.metadata != null) {
+      for (final val in activity.metadata!.values) {
+        if (val != null && val.toString().toLowerCase().contains(q)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +114,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _historySearchController.dispose();
     super.dispose();
   }
 
@@ -616,7 +659,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                "Activity",
+                                "History",
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -636,7 +679,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             if (_selectedTab == 0)
               _buildExpensesTab(context, theme, isDark, textColor, tileBackgroundColor)
             else
-              _buildActivityTab(context, isDark, textColor, tileBackgroundColor),
+              _buildHistoryTab(context, theme, isDark, textColor, tileBackgroundColor),
           ],
         ),
       ),
@@ -1046,183 +1089,375 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     return list;
   }
 
-  Widget _buildActivityTab(
+  Widget _buildHistoryTab(
     BuildContext context,
+    ThemeData theme,
     bool isDark,
     Color textColor,
     Color tileBackgroundColor,
   ) {
-    return StreamBuilder<List<GroupActivity>>(
-      stream: ActivityService.instance.getGroupActivitiesStream(widget.group.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 60),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
+    const historyCategories = ['All', 'Add', 'Edit', 'Remove', 'Create Group'];
 
-        List<GroupActivity> activities = [];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Collapsible/Expandable Search Bar
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _isHistorySearchExpanded
+                ? TextField(
+                    key: const ValueKey('history_search_active'),
+                    controller: _historySearchController,
+                    autofocus: true,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(
+                      hintText: "Search history (e.g. member, expense, amount)...",
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.5), fontSize: 13),
+                      prefixIcon: Icon(Icons.search_rounded, color: textColor.withOpacity(0.7)),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _historySearchQuery.isNotEmpty ? Icons.clear_rounded : Icons.close_rounded,
+                          color: textColor.withOpacity(0.7),
+                        ),
+                        onPressed: () {
+                          if (_historySearchQuery.isNotEmpty) {
+                            setState(() {
+                              _historySearchController.clear();
+                              _historySearchQuery = '';
+                            });
+                          } else {
+                            FocusScope.of(context).unfocus();
+                            setState(() {
+                              _isHistorySearchExpanded = false;
+                            });
+                          }
+                        },
+                      ),
+                      filled: true,
+                      fillColor: tileBackgroundColor,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _historySearchQuery = value.trim();
+                      });
+                    },
+                  )
+                : Row(
+                    key: const ValueKey('history_search_idle'),
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "History Timeline",
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isHistorySearchExpanded = true;
+                          });
+                        },
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: tileBackgroundColor,
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: textColor.withOpacity(0.8),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 14),
 
-        if (snapshot.hasError) {
-          debugPrint('Activities stream error (handled gracefully): ${snapshot.error}');
-          activities = _generateFallbackActivities();
-        } else {
-          activities = snapshot.data ?? [];
-          if (activities.isEmpty) {
-            activities = _generateFallbackActivities();
-          }
-        }
-
-        if (activities.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: tileBackgroundColor,
-                      shape: BoxShape.circle,
+          // Category Filter Chips
+          SizedBox(
+            height: 38,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: historyCategories.map((category) {
+                final selected = _selectedHistoryCategory == category;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(category),
+                    labelStyle: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? Colors.white : textColor.withOpacity(0.8),
                     ),
-                    child: Icon(
-                      Icons.history_toggle_off_rounded,
-                      size: 36,
-                      color: textColor.withOpacity(0.4),
+                    selected: selected,
+                    selectedColor: AppTheme.primary,
+                    backgroundColor: tileBackgroundColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: BorderSide(
+                        color: selected
+                            ? AppTheme.primary
+                            : (isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08)),
+                      ),
                     ),
+                    showCheckmark: false,
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedHistoryCategory = category;
+                      });
+                    },
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "No Activity Yet",
-                    style: GoogleFonts.poppins(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "Expenses added, edited, or settled in this group will appear here in real time.",
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: textColor.withOpacity(0.6),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+                );
+              }).toList(),
             ),
-          );
-        }
+          ),
+          const SizedBox(height: 14),
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-          itemCount: activities.length,
-          itemBuilder: (context, index) {
-            final activity = activities[index];
-            final activityColor = activity.color;
+          // StreamBuilder for Activities
+          StreamBuilder<List<GroupActivity>>(
+            stream: ActivityService.instance.getGroupActivitiesStream(widget.group.id),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 60),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
 
-            return Card(
-              elevation: 0,
-              margin: const EdgeInsets.only(bottom: 12),
-              color: tileBackgroundColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: isDark
-                      ? Colors.white.withOpacity(0.06)
-                      : Colors.black.withOpacity(0.05),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: activityColor.withOpacity(0.14),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        activity.iconData,
-                        color: activityColor,
-                        size: 22,
+              List<GroupActivity> allActivities = [];
+
+              if (snapshot.hasError) {
+                debugPrint('Activities stream error (handled gracefully): ${snapshot.error}');
+                allActivities = _generateFallbackActivities();
+              } else {
+                allActivities = snapshot.data ?? [];
+                if (allActivities.isEmpty) {
+                  allActivities = _generateFallbackActivities();
+                }
+              }
+
+              if (allActivities.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 24),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            color: tileBackgroundColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.history_toggle_off_rounded,
+                            size: 32,
+                            color: textColor.withOpacity(0.4),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No History Yet",
+                          style: GoogleFonts.poppins(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Events and expenses created in this group will appear here in chronological order.",
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: textColor.withOpacity(0.6),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              // Apply filtering
+              final filteredActivities = allActivities.where((act) {
+                return _matchesHistoryCategory(act, _selectedHistoryCategory) &&
+                    _matchesHistorySearch(act, _historySearchQuery);
+              }).toList();
+
+              if (filteredActivities.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 24),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: tileBackgroundColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.search_off_rounded,
+                            size: 30,
+                            color: textColor.withOpacity(0.4),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No matching history",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Try adjusting your search query or selecting a different category filter.",
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: textColor.withOpacity(0.6),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _historySearchController.clear();
+                              _historySearchQuery = '';
+                              _selectedHistoryCategory = 'All';
+                            });
+                          },
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text("Reset Filters"),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredActivities.length,
+                itemBuilder: (context, index) {
+                  final activity = filteredActivities[index];
+                  final activityColor = activity.color;
+
+                  return Card(
+                    elevation: 0,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    color: tileBackgroundColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.06)
+                            : Colors.black.withOpacity(0.05),
                       ),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: activityColor.withOpacity(0.14),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              activity.iconData,
+                              color: activityColor,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: activityColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        activity.typeLabel,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: activityColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      activity.formattedTime,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        color: textColor.withOpacity(0.5),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                decoration: BoxDecoration(
-                                  color: activityColor.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  activity.typeLabel,
+                                const SizedBox(height: 6),
+                                Text(
+                                  activity.message,
                                   style: GoogleFonts.poppins(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: activityColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: textColor,
+                                    height: 1.35,
                                   ),
                                 ),
-                              ),
-                              Text(
-                                activity.formattedTime,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: textColor.withOpacity(0.5),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            activity.message,
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: textColor,
-                              height: 1.35,
+                                if (activity.performedByName.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "By ${activity.performedByName}",
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: textColor.withOpacity(0.6),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                          if (activity.performedByName.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              "By ${activity.performedByName}",
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: textColor.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
