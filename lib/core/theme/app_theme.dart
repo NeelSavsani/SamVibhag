@@ -4,11 +4,11 @@ import 'package:hive_flutter/hive_flutter.dart'; // FIXED: Add this line to impo
 import 'package:provider/provider.dart';
 
 class AppThemeController extends ChangeNotifier {
-  AppThemeController()
-      : _isDarkMode = Hive.box('samvibhag_storage').get(
-          'isDarkMode',
-          defaultValue: true,
-        ) as bool;
+  AppThemeController([bool? defaultDark])
+      : _isDarkMode = defaultDark ??
+            (Hive.isBoxOpen('samvibhag_storage')
+                ? (Hive.box('samvibhag_storage').get('isDarkMode', defaultValue: true) as bool)
+                : true);
 
   // New installations use dark mode until the user explicitly chooses otherwise.
   bool _isDarkMode;
@@ -17,7 +17,9 @@ class AppThemeController extends ChangeNotifier {
 
   void toggleTheme() {
     _isDarkMode = !_isDarkMode;
-    Hive.box('samvibhag_storage').put('isDarkMode', _isDarkMode);
+    if (Hive.isBoxOpen('samvibhag_storage')) {
+      Hive.box('samvibhag_storage').put('isDarkMode', _isDarkMode);
+    }
     notifyListeners();
   }
 }

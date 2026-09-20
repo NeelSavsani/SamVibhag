@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/expense_model.dart';
 import '../../models/group_model.dart';
+import '../../models/group_activity_model.dart';
+import '../../services/activity_service.dart';
 import '../../core/theme/app_theme.dart';
 
 class AddExpenseScreen extends StatefulWidget {
@@ -205,6 +207,49 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           .update({
             'expenses': currentExpenses.map((e) => e.toMap()).toList(),
           });
+
+      // Log Activity: expense_created or expense_updated
+      if (widget.expense == null) {
+        final membersStr = selectedMembers.join(', ');
+        await ActivityService.instance.logGroupActivity(
+          groupId: widget.group.id,
+          type: GroupActivity.typeExpenseCreated,
+          message: '$paidBy added ₹${amount.toStringAsFixed(0)} for "$title" split among $membersStr',
+          metadata: {
+            'title': title,
+            'amount': amount,
+            'paidBy': paidBy,
+            'category': selectedCategory,
+            'splitBetween': selectedMembers,
+            'splitType': splitType,
+          },
+        );
+      } else {
+        final oldExpense = widget.expense!;
+        String updateMsg;
+        if ((oldExpense.amount - amount).abs() > 0.01) {
+          updateMsg = '$paidBy changed "$title" from ₹${oldExpense.amount.toStringAsFixed(0)} to ₹${amount.toStringAsFixed(0)}';
+        } else if (oldExpense.title != title) {
+          updateMsg = '$paidBy renamed expense from "${oldExpense.title}" to "$title"';
+        } else {
+          updateMsg = '$paidBy updated details for "$title"';
+        }
+
+        await ActivityService.instance.logGroupActivity(
+          groupId: widget.group.id,
+          type: GroupActivity.typeExpenseUpdated,
+          message: updateMsg,
+          metadata: {
+            'title': title,
+            'previousTitle': oldExpense.title,
+            'newAmount': amount,
+            'previousAmount': oldExpense.amount,
+            'paidBy': paidBy,
+            'category': selectedCategory,
+            'splitBetween': selectedMembers,
+          },
+        );
+      }
 
       if (!mounted) return;
       Navigator.pop(context, updatedExpense);

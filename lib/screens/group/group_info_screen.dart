@@ -9,6 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/group_model.dart';
+import '../../models/group_activity_model.dart';
+import '../../services/activity_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme/app_theme.dart';
 import '../report_screen.dart';
 
@@ -221,6 +224,28 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             'avatarPath': finalAvatarUrl,
             'members': members,
           });
+
+      // Log event for newly added members
+      final addedMembers = members.where((m) => !widget.group.members.contains(m)).toList();
+      if (addedMembers.isNotEmpty) {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final performerName = (currentUser?.displayName != null && currentUser!.displayName!.trim().isNotEmpty)
+            ? currentUser.displayName!.trim()
+            : (currentUser?.email != null && currentUser!.email!.isNotEmpty ? currentUser.email!.split('@').first : 'Admin');
+
+        for (final newMember in addedMembers) {
+          await ActivityService.instance.logGroupActivity(
+            groupId: widget.group.id,
+            type: GroupActivity.typeMemberAdded,
+            message: '$performerName added $newMember to the group',
+            performedByUid: currentUser?.uid,
+            performedByName: performerName,
+            metadata: {
+              'newMember': newMember,
+            },
+          );
+        }
+      }
 
       // Synchronize changes back to the active tracking instance model
       widget.group.groupName = trimmedName;

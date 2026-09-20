@@ -7,6 +7,8 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/group_model.dart';
 import '../../models/user_model.dart';
+import '../../models/group_activity_model.dart';
+import '../../services/activity_service.dart';
 import '../../services/user_service.dart';
 
 class CreateGroupScreen extends StatefulWidget {
@@ -293,6 +295,24 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             ...newGroup.toMap(),
             'createdBy': user.uid, // Track creator UID explicitly for security & query matching
           });
+
+      // Log inaugural lifecycle event: group_created
+      final creatorName = user.displayName?.trim().isNotEmpty == true
+          ? user.displayName!.trim()
+          : (user.email?.isNotEmpty == true ? user.email!.split('@').first : 'User');
+
+      await ActivityService.instance.logGroupActivity(
+        groupId: generatedId,
+        type: GroupActivity.typeGroupCreated,
+        message: '$creatorName created group "${newGroup.groupName}"',
+        performedByUid: user.uid,
+        performedByName: creatorName,
+        timestamp: newGroup.createdAt,
+        metadata: {
+          'initialMembers': _members,
+          'groupType': _selectedType,
+        },
+      );
 
       if (!mounted) return;
       Navigator.pop(context, newGroup);

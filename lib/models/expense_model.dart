@@ -1,4 +1,5 @@
 class ExpenseModel {
+  final String id;
   final String title;
   final double amount;
   final String paidBy;
@@ -17,6 +18,7 @@ class ExpenseModel {
   final Map<String, double> customSplits;
 
   ExpenseModel({
+    String? id,
     required this.title,
     required this.amount,
     required this.paidBy,
@@ -25,12 +27,13 @@ class ExpenseModel {
     required this.category,
     required this.splitType,
     required this.customSplits,
-  });
+  }) : id = id ?? '${title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_${date.millisecondsSinceEpoch}';
 
   factory ExpenseModel.fromMap(
     Map<dynamic, dynamic> map,
   ) {
     return ExpenseModel(
+      id: map['id'] as String? ?? '${map['title']}_${map['date']}',
       title: map['title'] as String,
 
       amount:
@@ -68,6 +71,7 @@ class ExpenseModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'title': title,
       'amount': amount,
       'paidBy': paidBy,

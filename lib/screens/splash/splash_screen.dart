@@ -11,12 +11,14 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
 
     // Wait a brief moment for the splash branding before analyzing authentication state
-    Timer(const Duration(seconds: 3), () async {
+    _timer = Timer(const Duration(seconds: 3), () async {
       if (!mounted) return;
 
       // FIXED: Read active login session status directly from Google Firebase
@@ -40,6 +42,12 @@ class _SplashScreenState extends State<SplashScreen> {
         Navigator.pushReplacementNamed(context, '/welcome');
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
