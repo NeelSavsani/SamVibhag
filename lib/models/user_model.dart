@@ -41,23 +41,44 @@ class UserModel {
     this.lastActive,
   });
 
-  /// Helper to sanitize and normalize a username string
+  /// Strict validation regex: 3-20 alphanumeric characters and underscores only.
+  static final RegExp usernameRegExp = RegExp(r'^[a-z0-9_]{3,20}$');
+
+  /// Helper to sanitize and normalize a username string.
+  /// Trims, lowercases, and strips all leading '@', internal '@', and spaces.
   static String normalizeUsername(String raw) {
-    return raw.trim().toLowerCase().replaceFirst(RegExp(r'^@+'), '').trim();
+    return raw.trim().toLowerCase().replaceAll('@', '').replaceAll(' ', '');
+  }
+
+  /// Strict validator matching system constraints
+  static bool isValidUsername(String? username) {
+    if (username == null || username.isEmpty) return false;
+    if (username.contains(' ') || username.contains('@')) return false;
+    return usernameRegExp.hasMatch(username);
   }
 
   /// Helper to create a fallback username from an email or name
+  /// guaranteeing compliance with RegExp(r'^[a-z0-9_]{3,20}$')
   static String generateFallbackUsername(String? email, String? name) {
+    String base = '';
     if (email != null && email.isNotEmpty && email.contains('@')) {
-      final prefix = email.split('@').first.toLowerCase();
-      final sanitized = prefix.replaceAll(RegExp(r'[^a-z0-9_]'), '_');
-      if (sanitized.isNotEmpty) return sanitized;
+      base = email.split('@').first.toLowerCase();
+    } else if (name != null && name.isNotEmpty) {
+      base = name.toLowerCase().trim();
     }
-    if (name != null && name.isNotEmpty) {
-      final sanitized = name.toLowerCase().trim().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
-      if (sanitized.isNotEmpty) return sanitized;
+
+    String sanitized = base.replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+
+    if (sanitized.length < 3) {
+      sanitized = '${sanitized}_${DateTime.now().millisecondsSinceEpoch % 1000}';
     }
-    return 'user_${DateTime.now().millisecondsSinceEpoch % 10000}';
+    if (sanitized.length > 20) {
+      sanitized = sanitized.substring(0, 20);
+    }
+    if (!usernameRegExp.hasMatch(sanitized)) {
+      sanitized = 'user_${DateTime.now().millisecondsSinceEpoch % 10000}';
+    }
+    return sanitized;
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map, {String? docId}) {

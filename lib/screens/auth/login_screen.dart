@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,25 +47,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = credential.user;
       if (user != null) {
-        final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-        final existingDoc = await userDocRef.get();
+        final firestore = FirebaseFirestore.instance;
+        final userDocRef = firestore.collection('users').doc(user.uid);
         final effectiveEmail = (user.email ?? email).toLowerCase().trim();
-        final defaultUsername = effectiveEmail.split('@').first.replaceAll(RegExp(r'[^a-z0-9_]'), '_');
 
-        final Map<String, dynamic> updateData = {
+        await userDocRef.set({
           'uid': user.uid,
           'email': effectiveEmail,
-          'displayName': user.displayName ?? (existingDoc.data()?['displayName'] ?? 'User'),
+          'displayName': user.displayName ?? 'User',
           'lastActive': FieldValue.serverTimestamp(),
-        };
+        }, SetOptions(merge: true));
 
-        final currentUname = existingDoc.data()?['username'] as String?;
-        if (!existingDoc.exists || currentUname == null || currentUname.trim().isEmpty) {
-          updateData['username'] = defaultUsername;
-          updateData['usernameSearch'] = defaultUsername;
-        }
-
-        await userDocRef.set(updateData, SetOptions(merge: true));
+        // Self-healing username synchronization for session init and legacy users
+        final authService = AuthService();
+        await authService.syncUserUsername(user);
+        await authService.syncExistingUsersToUsernames();
       }
 
       if (!mounted) return;

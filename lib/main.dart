@@ -7,11 +7,11 @@ import 'screens/account/appearance_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
-import 'screens/home/home_screen.dart';
 import 'screens/bottom_nav_screen.dart';
 
 import 'firebase_options.dart';
 import 'screens/splash/splash_screen.dart';
+import 'services/auth_service.dart';
 import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
@@ -19,6 +19,9 @@ Future<void> main() async {
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Autonomous self-healing listener for usernames & sessions
+  AuthService().initializeAuthListener();
 
   // Initialize Hive
   await Hive.initFlutter();

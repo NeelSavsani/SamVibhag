@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../models/user_model.dart';
+import '../../services/user_service.dart';
 
 class CountryCode {
   const CountryCode({
@@ -208,41 +210,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // 2. Update Display Name
       await user.updateDisplayName(fullName);
 
-      // 3. Save User Document to Cloud Firestore
-      final defaultUsername = email.split('@').first.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+      // 3. Save User Document directly in users/{uid}
+      final defaultUsername = UserModel.generateFallbackUsername(email, fullName);
+      String chosenUsername = defaultUsername;
 
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'fullName': fullName,
         'displayName': fullName,
-        'email': email,
-        'username': defaultUsername,
-        'usernameSearch': defaultUsername,
+        'email': email.toLowerCase(),
+        'phone': phone,
         'phoneNumber': '${_selectedCountry.dialCode}$phone',
+        'currency': _selectedCurrency.code,
+        'currencyCode': _selectedCurrency.code,
+        'currencyName': _selectedCurrency.name,
+        'currencySymbol': _selectedCurrency.symbol,
         'countryCode': _selectedCountry.dialCode,
         'countryName': _selectedCountry.name,
-        'currencyName': _selectedCurrency.name,
-        'currencyCode': _selectedCurrency.code,
-        'currencySymbol': _selectedCurrency.symbol,
+        'username': chosenUsername,
+        'usernameSearch': chosenUsername.toLowerCase(),
         'avatarLocalPath': _avatar?.path ?? '',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
-      // 4. Success Routine
+      // 4. Secondary Index: Reserve username in usernames collection (non-fatal)
+      try {
+        final userService = UserService(firestore: _firestore);
+        bool claimed = await userService.claimUsername(
+          newUsername: chosenUsername,
+          uid: user.uid,
+        );
+        if (!claimed) {
+          final randomSuffix = (DateTime.now().millisecondsSinceEpoch % 1000).toString();
+          final trimmedBase = chosenUsername.length > 16 
+              ? chosenUsername.substring(0, 16) 
+              : chosenUsername;
+          chosenUsername = '${trimmedBase}_$randomSuffix';
+          await userService.claimUsername(
+            newUsername: chosenUsername,
+            uid: user.uid,
+          );
+          await _firestore.collection('users').doc(user.uid).set({
+            'username': chosenUsername,
+            'usernameSearch': chosenUsername.toLowerCase(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      } catch (usernameError, usernameStack) {
+        debugPrint('Username reservation note (non-fatal): $usernameError\n$usernameStack');
+        print('Username reservation note (non-fatal): $usernameError');
+      }
+
+      // 5. Success Routine
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account created successfully.')),
       );
 
-      // Stop loading completely before popping to avoid any memory pipeline stalls
+      // Navigate cleanly to HomeScreen
       setState(() => _isLoading = false);
-      Navigator.pop(context);
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } on FirebaseAuthException catch (error) {
       if (mounted) setState(() => _isLoading = false);
       _showError(_authErrorMessage(error));
-    } catch (error) {
+    } catch (error, stackTrace) {
+      print('Profile setup error: $error\n$stackTrace');
+      debugPrint('Profile setup error: $error\n$stackTrace');
       if (mounted) setState(() => _isLoading = false);
       _showError(
         'Auth success, but profile setup failed. Check Database rules.',

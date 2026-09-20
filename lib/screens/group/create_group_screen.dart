@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/group_model.dart';
 import '../../models/user_model.dart';
+import '../../services/user_service.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -44,6 +45,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _groupNameController = TextEditingController();
   final _memberSearchController = TextEditingController();
+  final _userService = UserService();
   bool _isLoading = false;
   bool _isSearchingUser = false;
 
@@ -141,43 +143,45 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     setState(() => _isSearchingUser = true);
 
     try {
-      QuerySnapshot<Map<String, dynamic>>? snap;
+      Map<String, dynamic>? userData;
       final bool looksLikeEmail = rawInput.contains('@') && rawInput.contains('.');
 
       if (looksLikeEmail) {
         // Query by email
-        snap = await FirebaseFirestore.instance
+        final snap = await FirebaseFirestore.instance
             .collection('users')
             .where('email', isEqualTo: rawInput.toLowerCase())
             .limit(1)
             .get();
+        if (snap.docs.isNotEmpty) {
+          userData = Map<String, dynamic>.from(snap.docs.first.data());
+          userData['uid'] = (userData['uid'] as String?) ?? snap.docs.first.id;
+        }
       } else {
-        // Query by usernameSearch
-        snap = await FirebaseFirestore.instance
-            .collection('users')
-            .where('usernameSearch', isEqualTo: normalized)
-            .limit(1)
-            .get();
+        // Point lookup via UserService on `usernames/{normalized}` with fallback to `users`
+        userData = await _userService.getUserByUsername(normalized);
 
         // Fallback: if username lookup returns empty and input could be an email, attempt email lookup
-        if (snap.docs.isEmpty && rawInput.contains('@')) {
-          snap = await FirebaseFirestore.instance
+        if (userData == null && rawInput.contains('@')) {
+          final snap = await FirebaseFirestore.instance
               .collection('users')
               .where('email', isEqualTo: rawInput.toLowerCase())
               .limit(1)
               .get();
+          if (snap.docs.isNotEmpty) {
+            userData = Map<String, dynamic>.from(snap.docs.first.data());
+            userData['uid'] = (userData['uid'] as String?) ?? snap.docs.first.id;
+          }
         }
       }
 
       if (!mounted) return;
 
-      if (snap.docs.isNotEmpty) {
-        final doc = snap.docs.first;
-        final data = doc.data();
-        final uid = (data['uid'] as String?) ?? doc.id;
-        final email = (data['email'] as String? ?? '').toLowerCase().trim();
-        final displayName = (data['displayName'] as String?) ?? (data['fullName'] as String?) ?? 'User';
-        final username = (data['username'] as String?)?.trim() ?? (data['usernameSearch'] as String?)?.trim();
+      if (userData != null) {
+        final uid = (userData['uid'] as String?) ?? '';
+        final email = (userData['email'] as String? ?? '').toLowerCase().trim();
+        final displayName = (userData['displayName'] as String?) ?? (userData['fullName'] as String?) ?? 'User';
+        final username = (userData['username'] as String?)?.trim() ?? (userData['usernameSearch'] as String?)?.trim();
 
         if (_memberUids.contains(uid) || (email.isNotEmpty && _memberEmails.contains(email))) {
           ScaffoldMessenger.of(context).showSnackBar(

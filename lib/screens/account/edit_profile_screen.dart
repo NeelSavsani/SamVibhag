@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/user_model.dart';
+import '../../services/user_service.dart';
 
 class CountryCode {
   const CountryCode({required this.name, required this.dialCode, required this.flag});
@@ -44,6 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
+  late final UserService _userService = UserService(firestore: _firestore);
   final _imagePicker = ImagePicker();
 
   XFile? _avatar;
@@ -261,15 +263,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final phone = _phoneController.text.trim();
       final normalizedUsername = UserModel.normalizeUsername(_usernameController.text);
 
-      // Check username uniqueness if changed
+      // Claim username atomically via transaction on the `usernames` collection
       if (normalizedUsername != _initialUsername) {
-        final existingWithUsername = await _firestore
-            .collection('users')
-            .where('usernameSearch', isEqualTo: normalizedUsername)
-            .get();
+        final claimed = await _userService.claimUsername(
+          newUsername: normalizedUsername,
+          uid: user.uid,
+          oldUsername: _initialUsername.isNotEmpty ? _initialUsername : null,
+        );
 
-        final isTaken = existingWithUsername.docs.any((doc) => doc.id != user.uid);
-        if (isTaken) {
+        if (!claimed) {
           if (!mounted) return;
           setState(() {
             _usernameError = 'Username is already taken. Please choose another.';
@@ -419,8 +421,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 prefixText: '@',
                                 textInputAction: TextInputAction.next,
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.]')),
+                                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
                                 ],
+                                maxLength: 20,
                                 onChanged: (value) {
                                   if (_usernameError != null) {
                                     setState(() => _usernameError = null);
@@ -430,22 +433,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   if (_usernameError != null) {
                                     return _usernameError;
                                   }
-                                  final raw = value?.trim().toLowerCase() ?? '';
-                                  final uname = raw.startsWith('@') ? raw.substring(1) : raw;
-                                  if (uname.isEmpty) {
-                                    return 'Please enter a username.';
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Username is required.';
                                   }
+                                  if (value.contains('@')) {
+                                    return "Username cannot contain '@' symbol.";
+                                  }
+                                  if (value.contains(' ')) {
+                                    return 'Username cannot contain spaces.';
+                                  }
+                                  final uname = UserModel.normalizeUsername(value);
                                   if (uname.length < 3) {
                                     return 'Username must be at least 3 characters.';
                                   }
-                                  if (uname.length > 30) {
-                                    return 'Username must be 30 characters or less.';
+                                  if (uname.length > 20) {
+                                    return 'Username must be at most 20 characters.';
                                   }
-                                  if (uname.contains(' ')) {
-                                    return 'Username cannot contain spaces.';
-                                  }
-                                  if (!RegExp(r'^[a-z0-9_.]+$').hasMatch(uname)) {
-                                    return 'Only lowercase letters, numbers, _, and . allowed.';
+                                  if (!UserModel.isValidUsername(uname)) {
+                                    return 'Only lowercase alphanumeric and underscores allowed.';
                                   }
                                   return null;
                                 },
