@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import 'user_service.dart';
 
@@ -285,7 +286,135 @@ class AuthService {
     return credential;
   }
 
+  /// Seamless cross-platform Google Sign-In (Web & Android).
+  ///
+  /// Returns [UserCredential] if successful, or `null` if user cancelled.
+  Future<UserCredential?> signInWithGoogle() async {
+    UserCredential credential;
+
+    if (kIsWeb) {
+      final googleProvider = GoogleAuthProvider();
+      googleProvider.setCustomParameters({'prompt': 'select_account'});
+      try {
+        credential = await _auth.signInWithPopup(googleProvider);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request') {
+          return null;
+        }
+        rethrow;
+      }
+    } else {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        // User cancelled the Google sign-in flow
+        return null;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential authCred = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      credential = await _auth.signInWithCredential(authCred);
+    }
+
+    final user = credential.user;
+    if (user != null) {
+      await initializeGoogleUserProfile(user);
+      await syncUserUsername(user);
+      await syncExistingUsersToUsernames();
+    }
+
+    return credential;
+  }
+
+  /// Initializes the Firestore profile and reserves a username for Google Sign-In users.
+  Future<void> initializeGoogleUserProfile(User user) async {
+    try {
+      final userDocRef = _firestore.collection('users').doc(user.uid);
+      final userSnapshot = await userDocRef.get();
+
+      final effectiveEmail = (user.email ?? '').toLowerCase().trim();
+      final displayName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+          ? user.displayName!.trim()
+          : (effectiveEmail.isNotEmpty ? effectiveEmail.split('@').first : 'User');
+
+      if (!userSnapshot.exists) {
+        // Brand new user registering via Google Sign-In
+        String chosenUsername = UserModel.generateFallbackUsername(effectiveEmail, displayName);
+
+        await userDocRef.set({
+          'uid': user.uid,
+          'fullName': displayName,
+          'displayName': displayName,
+          'email': effectiveEmail,
+          'phone': user.phoneNumber ?? '',
+          'phoneNumber': user.phoneNumber ?? '',
+          'currency': 'INR',
+          'currencyCode': 'INR',
+          'currencyName': 'Indian Rupee',
+          'currencySymbol': '₹',
+          'countryCode': '+91',
+          'countryName': 'India',
+          'username': chosenUsername,
+          'usernameSearch': chosenUsername.toLowerCase(),
+          'photoUrl': user.photoURL ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastActive': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        // Best effort atomic username reservation
+        try {
+          bool claimed = await _userService.claimUsername(
+            newUsername: chosenUsername,
+            uid: user.uid,
+          );
+          if (!claimed) {
+            final randomSuffix = (DateTime.now().millisecondsSinceEpoch % 1000).toString();
+            final trimmedBase = chosenUsername.length > 16 
+                ? chosenUsername.substring(0, 16) 
+                : chosenUsername;
+            chosenUsername = '${trimmedBase}_$randomSuffix';
+            await _userService.claimUsername(
+              newUsername: chosenUsername,
+              uid: user.uid,
+            );
+            await userDocRef.set({
+              'username': chosenUsername,
+              'usernameSearch': chosenUsername.toLowerCase(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
+        } catch (usernameError) {
+          debugPrint('Google Sign-In username reservation note (non-fatal): $usernameError');
+        }
+      } else {
+        // Existing user logging in: record active timestamp and photoUrl if missing
+        final existingData = userSnapshot.data();
+        final updates = <String, dynamic>{
+          'lastActive': FieldValue.serverTimestamp(),
+        };
+        if (user.photoURL != null && (existingData?['photoUrl'] == null || existingData?['photoUrl'] == '')) {
+          updates['photoUrl'] = user.photoURL;
+        }
+        await userDocRef.set(updates, SetOptions(merge: true));
+      }
+    } catch (e, st) {
+      debugPrint('initializeGoogleUserProfile error (non-fatal): $e\n$st');
+    }
+  }
+
   Future<void> signOut() async {
+    try {
+      if (!kIsWeb) {
+        await GoogleSignIn().signOut();
+      }
+    } catch (_) {
+      // Ignore if google sign in wasn't active
+    }
     await _auth.signOut();
   }
 }

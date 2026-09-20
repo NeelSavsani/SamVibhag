@@ -1,9 +1,10 @@
 import 'dart:ui';
 
-import 'package:firebase_auth/firebase_auth.dart'; // REQUIRED FOR GOOGLE AUTH
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../services/auth_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -19,7 +20,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late Animation<double> _logoAnimation;
   late Animation<double> _fadeAnimation;
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AuthService _authService = AuthService();
   bool _isGoogleLoading = false;
 
   @override
@@ -47,29 +48,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     super.dispose();
   }
 
-  // Method to handle authenticating with Google account on Web
+  // Cross-platform Google Sign-In (Web & Android)
   Future<void> _signInWithGoogle() async {
     if (_isGoogleLoading) return;
 
     setState(() => _isGoogleLoading = true);
 
     try {
-      // 1. Configure the Google Auth Provider instance
-      GoogleAuthProvider googleProvider = GoogleAuthProvider();
-      
-      // Set parameters optimal for web popup mechanics
-      googleProvider.setCustomParameters({'prompt': 'select_account'});
-
-      // 2. Trigger the Firebase Sign-in Popup window
-      final UserCredential userCredential = await _auth.signInWithPopup(googleProvider);
+      final userCredential = await _authService.signInWithGoogle();
 
       if (!mounted) return;
 
-      if (userCredential.user != null) {
+      if (userCredential != null && userCredential.user != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Welcome ${userCredential.user!.displayName ?? "User"}!')),
         );
-        // Redirect completely to dashboard matching main routing parameters
         Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (error) {

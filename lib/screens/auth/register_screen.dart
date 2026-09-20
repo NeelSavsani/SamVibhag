@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/user_model.dart';
+import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 
 class CountryCode {
@@ -50,13 +51,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
 
   final _auth = FirebaseAuth.instance;
+  final _authService = AuthService();
   final _firestore = FirebaseFirestore.instance;
   final _imagePicker = ImagePicker();
 
   XFile? _avatar;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  Future<void> _signInWithGoogle() async {
+    if (_isGoogleLoading || _isLoading) return;
+
+    setState(() => _isGoogleLoading = true);
+
+    try {
+      final credential = await _authService.signInWithGoogle();
+
+      if (!mounted) return;
+
+      if (credential != null && credential.user != null) {
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      }
+    } on FirebaseAuthException catch (error) {
+      _showError(_authErrorMessage(error));
+    } catch (error) {
+      debugPrint("Google Sign-In Error: $error");
+      _showError('Google Sign-In failed. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+      }
+    }
+  }
 
   CountryCode _selectedCountry = const CountryCode(
     name: 'India',
@@ -666,6 +694,83 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                "OR",
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface.withValues(alpha: .55),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 58,
+                          child: OutlinedButton.icon(
+                            onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
+                            icon: _isGoogleLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                                  )
+                                : Image.asset(
+                                    "assets/images/google.png",
+                                    height: 24,
+                                    width: 24,
+                                  ),
+                            label: Text(
+                              _isGoogleLoading ? "Connecting..." : "Continue with Google",
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: theme.colorScheme.onSurface,
+                              side: BorderSide(
+                                color: theme.colorScheme.outline.withValues(alpha: .18),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/login');
+                            },
+                            child: Text.rich(
+                              TextSpan(
+                                text: "Already have an account? ",
+                                children: [
+                                  TextSpan(
+                                    text: 'Log In',
+                                    style: TextStyle(
+                                      color: AppTheme.primary,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface.withValues(alpha: .65),
+                              ),
+                            ),
                           ),
                         ),
                       ],

@@ -16,6 +16,7 @@ dependencies:
   firebase_core: ^4.9.0
   firebase_auth: ^6.5.1
   cloud_firestore: ^6.4.1
+  google_sign_in: ^6.2.2
 
   # State Management
   provider: ^6.1.5+1
