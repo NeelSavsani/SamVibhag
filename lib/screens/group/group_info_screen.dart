@@ -13,6 +13,7 @@ import '../../models/group_activity_model.dart';
 import '../../services/activity_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/add_member_dialog.dart';
 import '../report_screen.dart';
 
 class GroupInfoScreen extends StatefulWidget {
@@ -28,6 +29,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   late TextEditingController groupNameController;
   late TextEditingController descriptionController;
   late List<String> members;
+  late List<String> memberUids;
+  late List<String> memberEmails;
+  late List<String> memberUsernames;
   String avatarPath = "";
   bool _isLoading = false;
 
@@ -39,6 +43,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     groupNameController = TextEditingController(text: widget.group.groupName);
     descriptionController = TextEditingController(text: widget.group.description);
     members = List<String>.from(widget.group.members);
+    memberUids = List<String>.from(widget.group.memberUids);
+    memberEmails = List<String>.from(widget.group.memberEmails);
+    memberUsernames = List<String>.from(widget.group.memberUsernames);
     avatarPath = widget.group.avatarPath.trim();
   }
 
@@ -62,47 +69,39 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     });
   }
 
-  void addMember() {
-    final controller = TextEditingController();
-
-    showDialog(
+  Future<void> addMember() async {
+    final result = await showDialog<AddedMemberResult>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Add Member"),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: "Member Name"),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            FilledButton(
-              onPressed: () {
-                final name = controller.text.trim();
-                if (name.isEmpty) return;
-
-                if (members.contains(name)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Member already exists")),
-                  );
-                  return;
-                }
-
-                setState(() {
-                  members.add(name);
-                });
-                Navigator.pop(context);
-              },
-              child: const Text("Add"),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AddMemberDialog(group: widget.group),
     );
+
+    if (result != null && mounted) {
+      setState(() {
+        members.add(result.displayName);
+        if (result.uid != null && result.uid!.isNotEmpty) {
+          memberUids.add(result.uid!);
+        }
+        if (result.email != null && result.email!.isNotEmpty) {
+          memberEmails.add(result.email!);
+        }
+        if (result.username != null && result.username!.isNotEmpty) {
+          memberUsernames.add(result.username!);
+        }
+
+        // Synchronize in-memory model immediately
+        widget.group.members = List<String>.from(members);
+        widget.group.memberUids = List<String>.from(memberUids);
+        widget.group.memberEmails = List<String>.from(memberEmails);
+        widget.group.memberUsernames = List<String>.from(memberUsernames);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Added ${result.displayName} to group"),
+          backgroundColor: const Color(0xFF0284C7),
+        ),
+      );
+    }
   }
 
   void removeMember(int index) {
@@ -139,7 +138,15 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               style: FilledButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () {
                 setState(() {
-                  members.remove(member);
+                  members.removeAt(index);
+                  if (index < memberUids.length) memberUids.removeAt(index);
+                  if (index < memberEmails.length) memberEmails.removeAt(index);
+                  if (index < memberUsernames.length) memberUsernames.removeAt(index);
+
+                  widget.group.members = List<String>.from(members);
+                  widget.group.memberUids = List<String>.from(memberUids);
+                  widget.group.memberEmails = List<String>.from(memberEmails);
+                  widget.group.memberUsernames = List<String>.from(memberUsernames);
                 });
                 Navigator.pop(context);
               },
@@ -223,35 +230,19 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             'description': trimmedDesc,
             'avatarPath': finalAvatarUrl,
             'members': members,
+            'memberUids': memberUids,
+            'memberEmails': memberEmails,
+            'memberUsernames': memberUsernames,
           });
-
-      // Log event for newly added members
-      final addedMembers = members.where((m) => !widget.group.members.contains(m)).toList();
-      if (addedMembers.isNotEmpty) {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        final performerName = (currentUser?.displayName != null && currentUser!.displayName!.trim().isNotEmpty)
-            ? currentUser.displayName!.trim()
-            : (currentUser?.email != null && currentUser!.email!.isNotEmpty ? currentUser.email!.split('@').first : 'Admin');
-
-        for (final newMember in addedMembers) {
-          await ActivityService.instance.logGroupActivity(
-            groupId: widget.group.id,
-            type: GroupActivity.typeMemberAdded,
-            message: '$performerName added $newMember to the group',
-            performedByUid: currentUser?.uid,
-            performedByName: performerName,
-            metadata: {
-              'newMember': newMember,
-            },
-          );
-        }
-      }
 
       // Synchronize changes back to the active tracking instance model
       widget.group.groupName = trimmedName;
       widget.group.description = trimmedDesc;
       widget.group.avatarPath = finalAvatarUrl;
       widget.group.members = List<String>.from(members);
+      widget.group.memberUids = List<String>.from(memberUids);
+      widget.group.memberEmails = List<String>.from(memberEmails);
+      widget.group.memberUsernames = List<String>.from(memberUsernames);
 
       if (!mounted) return;
       // Pass the updated model back to GroupDetailsScreen so the cover updates dynamically
@@ -267,8 +258,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   }
 
   Future<void> openReport() async {
-    await Navigator.push(
-      context,
+    await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(builder: (_) => ReportScreen(group: widget.group)),
     );
   }
@@ -463,7 +453,14 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                                     members[index],
                                     style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
                                   ),
-                                  subtitle: Text("Member ${index + 1}", style: GoogleFonts.poppins(fontSize: 12)),
+                                  subtitle: Text(
+                                    (index < memberUsernames.length && memberUsernames[index].isNotEmpty)
+                                        ? "@${memberUsernames[index]}"
+                                        : (index < memberEmails.length && memberEmails[index].isNotEmpty)
+                                            ? memberEmails[index]
+                                            : "Member ${index + 1}",
+                                    style: GoogleFonts.poppins(fontSize: 12),
+                                  ),
                                   trailing: IconButton(
                                     tooltip: "Remove Member",
                                     onPressed: () => removeMember(index),

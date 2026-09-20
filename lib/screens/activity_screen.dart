@@ -147,8 +147,7 @@ class ActivityScreen extends StatelessWidget {
                   /// INTEGRATED ANALYTICS MINI CARD MODULE
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
+                      Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(builder: (_) => AnalyticsScreen(groups: currentGroups)),
                       );
                     },

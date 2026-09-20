@@ -150,8 +150,7 @@ class AccountScreen extends StatelessWidget {
                               const SizedBox(height: 8),
                               GestureDetector(
                                 onTap: () {
-                                  Navigator.push(
-                                    context,
+                                  Navigator.of(context, rootNavigator: true).push(
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           const EditProfileScreen(),
@@ -184,8 +183,7 @@ class AccountScreen extends StatelessWidget {
                 icon: Icons.palette_outlined,
                 title: 'Appearance',
                 onTap: () {
-                  Navigator.push(
-                    context,
+                  Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute(
                       builder: (context) => const AppearanceScreen(),
                     ),

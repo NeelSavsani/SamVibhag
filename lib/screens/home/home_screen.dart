@@ -55,8 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> createGroup() async {
-    await Navigator.push<GroupModel>(
-      context,
+    await Navigator.of(context, rootNavigator: true).push<GroupModel>(
       MaterialPageRoute(
         builder: (context) => const CreateGroupScreen(),
       ),
@@ -64,8 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> openGroupDetails(GroupModel group) async {
-    await Navigator.push(
-      context,
+    await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (context) => GroupDetailsScreen(
           group: group,
@@ -76,15 +74,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> openAnalytics() async {
-    await Navigator.push(
-      context,
+    await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(builder: (_) => AnalyticsScreen(groups: groups)),
     );
   }
 
   Future<void> openReport(GroupModel group) async {
-    await Navigator.push(
-      context,
+    await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(builder: (_) => ReportScreen(group: group)),
     );
   }

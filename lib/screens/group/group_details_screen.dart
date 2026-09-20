@@ -249,8 +249,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   Future<void> openGroupInfo() async {
     // FIXED: Catch the updated GroupModel structure returned from the pop execution context
-    final GroupModel? updatedGroup = await Navigator.push<GroupModel>(
-      context,
+    final GroupModel? updatedGroup = await Navigator.of(context, rootNavigator: true).push<GroupModel>(
       MaterialPageRoute(builder: (_) => GroupInfoScreen(group: widget.group)),
     );
 
@@ -263,6 +262,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         widget.group.description = updatedGroup.description;
         widget.group.avatarPath = updatedGroup.avatarPath;
         widget.group.members = updatedGroup.members;
+        widget.group.memberUids = updatedGroup.memberUids;
+        widget.group.memberEmails = updatedGroup.memberEmails;
+        widget.group.memberUsernames = updatedGroup.memberUsernames;
       }
     });
     
@@ -270,8 +272,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Future<void> addExpense() async {
-    final ExpenseModel? result = await Navigator.push<ExpenseModel>(
-      context,
+    final ExpenseModel? result = await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
       MaterialPageRoute(builder: (_) => AddExpenseScreen(group: widget.group)),
     );
 
@@ -290,8 +291,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     final expense = filteredExpenses[index];
     final originalIndex = expenses.indexOf(expense);
 
-    final ExpenseModel? updatedExpense = await Navigator.push<ExpenseModel>(
-      context,
+    final ExpenseModel? updatedExpense = await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
       MaterialPageRoute(
         builder: (_) => AddExpenseScreen(group: widget.group, expense: expense),
       ),
@@ -500,26 +500,29 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       const Spacer(), 
 
                       /// People Oval Badge Layout Element
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.people_alt_outlined, color: isDark ? Colors.white70 : Colors.black54, size: 16),
-                            const SizedBox(width: 6),
-                            Text(
-                              "${widget.group.members.length} People",
-                              style: GoogleFonts.poppins(
-                                color: isDark ? Colors.white : Colors.black87,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                      GestureDetector(
+                        onTap: openGroupInfo,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.people_alt_outlined, color: isDark ? Colors.white70 : Colors.black54, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                "${widget.group.members.length} People",
+                                style: GoogleFonts.poppins(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
