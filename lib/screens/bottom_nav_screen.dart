@@ -21,14 +21,58 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   ];
 
   Future<void> _handleBackNavigation() async {
-    // The initial tab is the app's root. Back from another tab returns to it
-    // before the app is allowed to close.
     if (_selectedIndex != 0) {
       setState(() => _selectedIndex = 0);
       return;
     }
-
     await SystemNavigator.pop();
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+  }) {
+    final isSelected = _selectedIndex == index;
+    final primaryColor = const Color(0xFF00B386);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        // Confines the ripple & click highlight strictly to a rounded button shape
+        borderRadius: BorderRadius.circular(50),
+        splashColor: Colors.grey.withValues(alpha: 0.25),
+        highlightColor: Colors.grey.withValues(alpha: 0.15),
+        hoverColor: Colors.grey.withValues(alpha: 0.08),
+        onTap: () {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected ? activeIcon : icon,
+                color: isSelected ? primaryColor : Colors.grey,
+                size: 24,
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? primaryColor : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -45,35 +89,45 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           index: _selectedIndex,
           children: _screens,
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: const Color(0xFF00B386),
-          unselectedItemColor: Colors.grey,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.groups_outlined),
-              activeIcon: Icon(Icons.groups),
-              label: "Groups",
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            border: Border(
+              top: BorderSide(
+                color: Colors.grey.withValues(alpha: 0.2),
+                width: 0.5,
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined),
-              activeIcon: Icon(Icons.receipt_long),
-              label: "Activity",
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(
+                    index: 0,
+                    icon: Icons.groups_outlined,
+                    activeIcon: Icons.groups,
+                    label: "Groups",
+                  ),
+                  _buildNavItem(
+                    index: 1,
+                    icon: Icons.receipt_long_outlined,
+                    activeIcon: Icons.receipt_long,
+                    label: "Activity",
+                  ),
+                  _buildNavItem(
+                    index: 2,
+                    icon: Icons.person_outline,
+                    activeIcon: Icons.person,
+                    label: "Account",
+                  ),
+                ],
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: "Account",
-            ),
-          ],
+          ),
         ),
       ),
     );

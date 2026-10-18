@@ -32,7 +32,6 @@ class AuthService {
       if (user != null) {
         try {
           await syncUserUsername(user);
-          await syncExistingUsersToUsernames();
         } catch (e, st) {
           debugPrint('AuthService authStateChanges listener note: $e\n$st');
         }
@@ -281,7 +280,6 @@ class AuthService {
     );
     if (credential.user != null) {
       await syncUserUsername(credential.user!);
-      await syncExistingUsersToUsernames();
     }
     return credential;
   }
@@ -324,7 +322,6 @@ class AuthService {
     if (user != null) {
       await initializeGoogleUserProfile(user);
       await syncUserUsername(user);
-      await syncExistingUsersToUsernames();
     }
 
     return credential;

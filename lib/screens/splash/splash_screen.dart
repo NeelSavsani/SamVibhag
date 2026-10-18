@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,15 +24,6 @@ class _SplashScreenState extends State<SplashScreen> {
       final currentFirebaseUser = FirebaseAuth.instance.currentUser;
 
       if (currentFirebaseUser != null) {
-        // Self-healing auto-backfill of usernames
-        try {
-          final authService = AuthService();
-          await authService.syncUserUsername(currentFirebaseUser);
-          await authService.syncExistingUsersToUsernames();
-        } catch (e) {
-          debugPrint('Splash screen sync error: $e');
-        }
-
         if (!mounted) return;
         // Logged In -> Forward straight to the bottom navigation shell
         Navigator.pushReplacementNamed(context, '/home');

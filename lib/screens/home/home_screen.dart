@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Stream<List<GroupModel>> _getGroupsStream() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Stream.empty();
+    if (user == null) return Stream.value(<GroupModel>[]);
 
     return FirebaseFirestore.instance
         .collection('groups')

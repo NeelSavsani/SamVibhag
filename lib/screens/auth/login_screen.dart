@@ -85,10 +85,9 @@ class _LoginScreenState extends State<LoginScreen> {
           'lastActive': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-        // Self-healing username synchronization for session init and legacy users
+        // Synchronize this user's username without scanning every user profile.
         final authService = AuthService();
         await authService.syncUserUsername(user);
-        await authService.syncExistingUsersToUsernames();
       }
 
       if (!mounted) return;

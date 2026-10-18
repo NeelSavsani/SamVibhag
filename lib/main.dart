@@ -14,27 +14,108 @@ import 'screens/splash/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'core/theme/app_theme.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(const SamVibhagBootstrap());
+}
 
-  // Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+class SamVibhagBootstrap extends StatefulWidget {
+  const SamVibhagBootstrap({super.key});
 
-  // Autonomous self-healing listener for usernames & sessions
-  AuthService().initializeAuthListener();
+  @override
+  State<SamVibhagBootstrap> createState() => _SamVibhagBootstrapState();
+}
 
-  // Initialize Hive
-  await Hive.initFlutter();
+class _SamVibhagBootstrapState extends State<SamVibhagBootstrap> {
+  late Future<void> _initialization;
 
-  // Explicitly opening 'samvibhag_storage' box before the UI attempts to read it
-  await Hive.openBox('samvibhag_storage');
+  @override
+  void initState() {
+    super.initState();
+    _initialization = _initialize();
+  }
 
-  runApp(
-    MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AppThemeController())],
-      child: const SamVibhagApp(),
-    ),
-  );
+  Future<void> _initialize() async {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+
+    await Hive.initFlutter();
+    await Hive.openBox('samvibhag_storage');
+
+    // Start background account maintenance only after the first UI can render.
+    AuthService().initializeAuthListener();
+  }
+
+  void _retry() {
+    setState(() => _initialization = _initialize());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _initialization,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _StartupMessage(
+            message: 'App startup failed:\n${snapshot.error}',
+            onRetry: _retry,
+          );
+        }
+
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _StartupMessage();
+        }
+
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => AppThemeController()),
+          ],
+          child: const SamVibhagApp(),
+        );
+      },
+    );
+  }
+}
+
+class _StartupMessage extends StatelessWidget {
+  const _StartupMessage({this.message, this.onRetry});
+
+  final String? message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF0F172A),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: Colors.white),
+                const SizedBox(height: 20),
+                Text(
+                  message ?? 'Starting SamVibhag…',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 16),
+                  TextButton(onPressed: onRetry, child: const Text('Retry')),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class SamVibhagApp extends StatelessWidget {
