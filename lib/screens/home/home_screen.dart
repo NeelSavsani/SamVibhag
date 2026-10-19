@@ -251,6 +251,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: const Align(
+        alignment: Alignment.center,
+        heightFactor: 1,
+        child: AdMobBanner(),
+      ),
       body: SafeArea(
         child: StreamBuilder<List<GroupModel>>(
           stream: _getGroupsStream(),
