@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:samvibhag/services/notification_service.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'screens/account/appearance_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -31,6 +32,8 @@ Future<void> main() async {
 
   // Initialize Push Notifications (FCM & Local Notifications)
   await NotificationService().initialize();
+
+  await MobileAds.instance.initialize();
 
   runApp(const SamVibhagBootstrap());
 }
