@@ -1,15 +1,14 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:uuid/uuid.dart';
-
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/group_model.dart';
-import '../../models/user_model.dart';
 import '../../models/group_activity_model.dart';
 import '../../services/activity_service.dart';
-import '../../services/user_service.dart';
+import '../../services/fcm_sender_service.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -18,229 +17,142 @@ class CreateGroupScreen extends StatefulWidget {
   State<CreateGroupScreen> createState() => _CreateGroupScreenState();
 }
 
-class _MemberEntry {
-  final String? uid;
-  final String? email;
-  final String displayName;
-  final String? username;
-  final bool isCurrentUser;
-  final bool isOffline;
-
-  const _MemberEntry({
-    this.uid,
-    this.email,
-    required this.displayName,
-    this.username,
-    this.isCurrentUser = false,
-    this.isOffline = false,
-  });
-
-  String get chipLabel {
-    if (username != null && username!.isNotEmpty) {
-      return '$displayName (@$username)';
-    }
-    return displayName;
-  }
-}
-
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _groupNameController = TextEditingController();
-  final _memberSearchController = TextEditingController();
-  final _userService = UserService();
+  final _nameController = TextEditingController();
+  final _descController = TextEditingController();
+  final _memberInputController = TextEditingController();
+
+  File? _selectedImage;
   bool _isLoading = false;
   bool _isSearchingUser = false;
 
+  // Track members: display names, uids, emails, usernames
+  final List<String> _members = [];
   final List<String> _memberUids = [];
   final List<String> _memberEmails = [];
-  final List<String> _members = [];
-  final List<_MemberEntry> _memberEntries = [];
+  final List<String> _memberUsernames = [];
 
-  String _selectedType = "Trip";
-
-  final List<Map<String, dynamic>> _categories = [
-    {"name": "Trip", "icon": Icons.flight_takeoff_rounded},
-    {"name": "Home", "icon": Icons.home_rounded},
-    {"name": "Couple", "icon": Icons.favorite_rounded},
-    {"name": "Other", "icon": Icons.category_rounded},
-  ];
+  User? get _currentUser => FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _memberUids.add(user.uid);
-      final email = user.email?.toLowerCase().trim();
-      if (email != null && email.isNotEmpty) _memberEmails.add(email);
-      final myName = user.displayName ?? 'You';
-      _members.add(myName);
-
-      _memberEntries.add(_MemberEntry(
-        uid: user.uid,
-        email: email,
-        displayName: myName,
-        isCurrentUser: true,
-      ));
-
-      _loadCurrentUserName(user.uid);
+    // Seed creator as initial member
+    if (_currentUser != null) {
+      final name = _currentUser!.displayName?.trim().isNotEmpty == true
+          ? _currentUser!.displayName!
+          : (_currentUser!.email?.split('@').first ?? 'You');
+      _members.add(name);
+      _memberUids.add(_currentUser!.uid);
+      if (_currentUser!.email != null) _memberEmails.add(_currentUser!.email!.toLowerCase());
     }
-  }
-
-  Future<void> _loadCurrentUserName(String uid) async {
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists && mounted) {
-        final uname = (doc.data()?['username'] as String?)?.trim();
-        if (uname != null && uname.isNotEmpty) {
-          setState(() {
-            final idx = _memberEntries.indexWhere((e) => e.uid == uid);
-            if (idx != -1) {
-              final old = _memberEntries[idx];
-              _memberEntries[idx] = _MemberEntry(
-                uid: old.uid,
-                email: old.email,
-                displayName: old.displayName,
-                username: uname,
-                isCurrentUser: old.isCurrentUser,
-                isOffline: old.isOffline,
-              );
-            }
-          });
-        }
-      }
-    } catch (_) {}
   }
 
   @override
   void dispose() {
-    _groupNameController.dispose();
-    _memberSearchController.dispose();
+    _nameController.dispose();
+    _descController.dispose();
+    _memberInputController.dispose();
     super.dispose();
   }
 
-  Future<void> _addMember() async {
-    final rawInput = _memberSearchController.text.trim();
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _searchAndAddMember() async {
+    final rawInput = _memberInputController.text.trim();
     if (rawInput.isEmpty) return;
 
-    // Normalize input: strip leading '@', lowercase, and trim
-    final normalized = UserModel.normalizeUsername(rawInput);
-    if (normalized.isEmpty) return;
-
-    final isAlreadyAdded = _memberEntries.any((entry) {
-      if (entry.email != null && entry.email!.toLowerCase() == rawInput.toLowerCase()) return true;
-      if (entry.email != null && entry.email!.toLowerCase() == normalized) return true;
-      if (entry.username != null && entry.username!.toLowerCase() == normalized) return true;
-      if (entry.displayName.toLowerCase() == rawInput.toLowerCase()) return true;
-      return false;
-    });
-
-    if (isAlreadyAdded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Member already added.")),
-      );
-      return;
-    }
-
+    final cleanInput = rawInput.replaceAll('@', '').toLowerCase();
     setState(() => _isSearchingUser = true);
 
     try {
-      Map<String, dynamic>? userData;
-      final bool looksLikeEmail = rawInput.contains('@') && rawInput.contains('.');
-
-      if (looksLikeEmail) {
-        // Query by email
-        final snap = await FirebaseFirestore.instance
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+      if (cleanInput.contains('.')) {
+        // Search by email
+        snapshot = await FirebaseFirestore.instance
             .collection('users')
-            .where('email', isEqualTo: rawInput.toLowerCase())
+            .where('email', isEqualTo: cleanInput)
             .limit(1)
             .get();
-        if (snap.docs.isNotEmpty) {
-          userData = Map<String, dynamic>.from(snap.docs.first.data());
-          userData['uid'] = (userData['uid'] as String?) ?? snap.docs.first.id;
-        }
       } else {
-        // Point lookup via UserService on `usernames/{normalized}` with fallback to `users`
-        userData = await _userService.getUserByUsername(normalized);
-
-        // Fallback: if username lookup returns empty and input could be an email, attempt email lookup
-        if (userData == null && rawInput.contains('@')) {
-          final snap = await FirebaseFirestore.instance
-              .collection('users')
-              .where('email', isEqualTo: rawInput.toLowerCase())
-              .limit(1)
-              .get();
-          if (snap.docs.isNotEmpty) {
-            userData = Map<String, dynamic>.from(snap.docs.first.data());
-            userData['uid'] = (userData['uid'] as String?) ?? snap.docs.first.id;
-          }
-        }
+        // Search by username
+        snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('usernameSearch', isEqualTo: cleanInput)
+            .limit(1)
+            .get();
       }
 
       if (!mounted) return;
 
-      if (userData != null) {
-        final uid = (userData['uid'] as String?) ?? '';
-        final email = (userData['email'] as String? ?? '').toLowerCase().trim();
-        final displayName = (userData['displayName'] as String?) ?? (userData['fullName'] as String?) ?? 'User';
-        final username = (userData['username'] as String?)?.trim() ?? (userData['usernameSearch'] as String?)?.trim();
+      if (snapshot.docs.isNotEmpty) {
+        final userData = snapshot.docs.first.data();
+        final uid = snapshot.docs.first.id;
+        final name = (userData['displayName'] as String?)?.trim().isNotEmpty == true
+            ? userData['displayName'] as String
+            : (userData['username'] ?? cleanInput);
+        final email = (userData['email'] as String?)?.toLowerCase() ?? '';
+        final username = userData['username'] as String? ?? cleanInput;
 
-        if (_memberUids.contains(uid) || (email.isNotEmpty && _memberEmails.contains(email))) {
+        if (_memberUids.contains(uid)) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Member already added.")),
+            SnackBar(content: Text('@$username is already added.')),
           );
           return;
         }
 
         setState(() {
+          _members.add(name);
           _memberUids.add(uid);
           if (email.isNotEmpty) _memberEmails.add(email);
-          _members.add(displayName);
-          _memberEntries.add(_MemberEntry(
-            uid: uid,
-            email: email,
-            displayName: displayName,
-            username: username,
-            isCurrentUser: false,
-          ));
+          _memberUsernames.add(username);
+          _memberInputController.clear();
         });
-        _memberSearchController.clear();
       } else {
-        final confirm = await showDialog<bool>(
+        // Fallback option to add as offline member
+        final addOffline = await showDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
+          builder: (ctx) => AlertDialog(
             title: const Text("User Not Found"),
-            content: Text('No user found for "$rawInput". Would you like to add them as an offline member?'),
+            content: Text(
+              "No registered user found for '$rawInput'. Would you like to add them as an offline member?",
+            ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
+                onPressed: () => Navigator.pop(ctx, false),
                 child: const Text("Cancel"),
               ),
               FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
+                onPressed: () => Navigator.pop(ctx, true),
                 child: const Text("Add Offline"),
               ),
             ],
           ),
         );
 
-        if (confirm == true && mounted) {
-          final offlineName = rawInput.startsWith('@') ? rawInput.substring(1) : rawInput;
+        if (addOffline == true && mounted) {
           setState(() {
-            _members.add(offlineName);
-            _memberEntries.add(_MemberEntry(
-              displayName: offlineName,
-              isOffline: true,
-              isCurrentUser: false,
-            ));
+            _members.add(rawInput);
+            _memberInputController.clear();
           });
-          _memberSearchController.clear();
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Search failed: $e")),
+          SnackBar(content: Text('Search failed: $e')),
         );
       }
     } finally {
@@ -248,23 +160,26 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     }
   }
 
-  void _removeMember(_MemberEntry entry) {
-    if (entry.isCurrentUser) return;
+  void _removeMember(int index) {
+    if (index == 0 && _memberUids.contains(_currentUser?.uid)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You cannot remove yourself from the group.")),
+      );
+      return;
+    }
     setState(() {
-      _memberEntries.remove(entry);
-      _members.remove(entry.displayName);
-      if (entry.uid != null) _memberUids.remove(entry.uid);
-      if (entry.email != null) _memberEmails.remove(entry.email);
+      final name = _members.removeAt(index);
+      if (index < _memberUids.length) _memberUids.removeAt(index);
+      if (index < _memberEmails.length) _memberEmails.removeAt(index);
+      if (index < _memberUsernames.length) _memberUsernames.removeAt(index);
     });
   }
 
-  Future<void> _submitGroup() async {
+  Future<void> _createGroup() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    if (_members.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Authentication required to create cloud groups.")),
+        const SnackBar(content: Text('Please add at least one other member.')),
       );
       return;
     }
@@ -272,55 +187,95 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final generatedId = const Uuid().v4();
+      final groupDoc = FirebaseFirestore.instance.collection('groups').doc();
+      final currentUserName = _currentUser?.displayName?.trim().isNotEmpty == true
+          ? _currentUser!.displayName!
+          : (_currentUser?.email?.split('@').first ?? 'Admin');
 
-      final newGroup = GroupModel(
-        id: generatedId,
-        groupName: _groupNameController.text.trim(),
-        description: "A $_selectedType group split.",
-        avatarPath: "",
-        members: _members,
-        memberUids: _memberUids,
-        memberEmails: _memberEmails,
-        memberUsernames: _memberEntries.map((e) => e.username ?? '').where((u) => u.isNotEmpty).toList(),
-        expenses: [],
-        createdAt: DateTime.now(),
-      );
+      final groupName = _nameController.text.trim();
 
-      // Save directly into your central cloud firebase reference collection
-      await FirebaseFirestore.instance
-          .collection('groups')
-          .doc(generatedId)
-          .set({
-            ...newGroup.toMap(),
-            'createdBy': user.uid, // Track creator UID explicitly for security & query matching
-          });
+      final groupData = {
+        'id': groupDoc.id,
+        'name': groupName,
+        'description': _descController.text.trim(),
+        'avatarPath': _selectedImage?.path ?? '',
+        'members': _members,
+        'memberUids': _memberUids,
+        'memberEmails': _memberEmails,
+        'memberUsernames': _memberUsernames,
+        'createdBy': _currentUser?.uid ?? '',
+        'lastUpdatedBy': _currentUser?.uid ?? '',
+        'lastUpdatedByName': currentUserName,
+        'expenses': [],
+        'recordedSettlements': [],
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
-      // Log inaugural lifecycle event: group_created
-      final creatorName = user.displayName?.trim().isNotEmpty == true
-          ? user.displayName!.trim()
-          : (user.email?.isNotEmpty == true ? user.email!.split('@').first : 'User');
+      await groupDoc.set(groupData);
 
+      // Log Group Created Activity
       await ActivityService.instance.logGroupActivity(
-        groupId: generatedId,
+        groupId: groupDoc.id,
         type: GroupActivity.typeGroupCreated,
-        message: '$creatorName created group "${newGroup.groupName}"',
-        performedByUid: user.uid,
-        performedByName: creatorName,
-        timestamp: newGroup.createdAt,
+        message: '$currentUserName created group "$groupName"',
         metadata: {
           'initialMembers': _members,
-          'groupType': _selectedType,
+          'groupType': _descController.text.trim().isNotEmpty ? _descController.text.trim() : 'General',
         },
       );
 
-      if (!mounted) return;
-      Navigator.pop(context, newGroup);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Firebase Database Error: $e")),
+      // Free Spark Tier: Dispatch FCM notifications directly to other members via FCM HTTP v1
+      final recipientUids = _memberUids.where((id) => id != _currentUser?.uid).toList();
+
+      if (recipientUids.isNotEmpty) {
+        try {
+          final usersSnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .where(FieldPath.documentId, whereIn: recipientUids)
+              .get();
+
+          final List<String> fcmTokens = [];
+          for (final doc in usersSnapshot.docs) {
+            final tokens = List<String>.from(doc.data()['fcmTokens'] ?? []);
+            fcmTokens.addAll(tokens);
+          }
+
+          if (fcmTokens.isNotEmpty) {
+            await FcmSenderService.instance.sendGroupInviteNotification(
+              targetTokens: fcmTokens,
+              groupName: groupName,
+              groupId: groupDoc.id,
+              inviterName: currentUserName,
+            );
+          }
+        } catch (fcmError) {
+          debugPrint('FCM direct dispatch warning: $fcmError');
+        }
+      }
+
+      final newGroup = GroupModel(
+        id: groupDoc.id,
+        groupName: groupName,
+        description: _descController.text.trim(),
+        avatarPath: _selectedImage?.path ?? '',
+        members: List<String>.from(_members),
+        memberUids: List<String>.from(_memberUids),
+        memberEmails: List<String>.from(_memberEmails),
+        memberUsernames: List<String>.from(_memberUsernames),
+        createdAt: DateTime.now(),
+        expenses: [],
+        recordedSettlements: [],
       );
+
+      if (mounted) {
+        Navigator.pop(context, newGroup);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create group: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -330,321 +285,196 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.colorScheme.onSurface;
+    final tileBg = isDark ? theme.cardColor : const Color(0xFFF4F3F9);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.close_rounded, color: theme.colorScheme.onSurface),
-        ),
         title: Text(
           "Create Group",
-          style: GoogleFonts.poppins(
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-            color: theme.colorScheme.onSurface,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
+        ),
+        leading: const BackButton(),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            height: 52,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: _isLoading ? null : _createGroup,
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Text(
+                "Create Group",
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
+              ),
+            ),
           ),
         ),
       ),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar selector
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
                     children: [
-                      Text(
-                        'Start a shared space',
-                        style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
+                      CircleAvatar(
+                        radius: 46,
+                        backgroundColor: tileBg,
+                        backgroundImage:
+                        _selectedImage != null ? FileImage(_selectedImage!) : null,
+                        child: _selectedImage == null
+                            ? Icon(Icons.group_add_rounded, size: 40, color: AppTheme.primary)
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: AppTheme.primary,
+                          child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Name your group and choose what it is for.',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurface.withValues(alpha: .62),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      /// Avatar + Name Card
-                      Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: const Color(0xFF83F4EB).withValues(alpha: .2)),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              InkWell(
-                                borderRadius: BorderRadius.circular(18),
-                                onTap: () {},
-                                child: Container(
-                                  width: 74,
-                                  height: 74,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF83F4EB).withValues(alpha: isDark ? .16 : .25),
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: const Icon(
-                                    Icons.camera_alt_rounded,
-                                    color: AppTheme.primary,
-                                    size: 32,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 18),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _groupNameController,
-                                  textCapitalization: TextCapitalization.words,
-                                  style: GoogleFonts.poppins(fontSize: 14),
-                                  decoration: InputDecoration(
-                                    labelText: "Group Name",
-                                    hintText: "Eg. Goa Trip",
-                                    labelStyle: GoogleFonts.poppins(fontSize: 13),
-                                    hintStyle: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      color: theme.colorScheme.onSurface.withValues(alpha: .45),
-                                    ),
-                                    prefixIcon: const Icon(Icons.groups_rounded, color: Color(0xFF0284C7)),
-                                    filled: true,
-                                    fillColor: theme.colorScheme.surface,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return "Please enter a group name";
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      Text(
-                        "Choose Group Type",
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        height: 88,
-                        child: Row(
-                          children: _categories.map((category) {
-                            final selected = _selectedType == category["name"];
-
-                            return Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(18),
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedType = category["name"];
-                                    });
-                                  },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    decoration: BoxDecoration(
-                                      color: selected ? null : theme.cardColor,
-                                      gradient: selected
-                                          ? const LinearGradient(
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                              colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                                            )
-                                          : null,
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: selected ? AppTheme.primary : theme.dividerColor,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          category["icon"],
-                                          size: 30,
-                                          color: selected ? Colors.white : AppTheme.primary,
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          category["name"],
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.center,
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: selected ? Colors.white : theme.colorScheme.onSurface,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      Text(
-                        "Add Members",
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _memberSearchController,
-                              keyboardType: TextInputType.text,
-                              style: GoogleFonts.poppins(fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: "Member Email or @username",
-                                hintText: "Eg. @neel_07 or friend@example.com",
-                                labelStyle: GoogleFonts.poppins(fontSize: 13),
-                                prefixIcon: const Icon(Icons.alternate_email_rounded, color: Color(0xFF0284C7)),
-                                filled: true,
-                                fillColor: theme.colorScheme.surface,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              onFieldSubmitted: (_) => _addMember(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            height: 56,
-                            width: 56,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                              ),
-                            ),
-                            child: IconButton(
-                              onPressed: _isSearchingUser ? null : _addMember,
-                              icon: _isSearchingUser
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.add_rounded, color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _memberEntries.map((entry) {
-                          return Chip(
-                            avatar: CircleAvatar(
-                              radius: 10,
-                              backgroundColor: entry.isCurrentUser
-                                  ? AppTheme.primary
-                                  : (entry.isOffline ? Colors.grey : const Color(0xFF0284C7)),
-                              child: Icon(
-                                entry.isCurrentUser
-                                    ? Icons.person_rounded
-                                    : (entry.isOffline ? Icons.person_outline_rounded : Icons.alternate_email_rounded),
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                            label: Text(
-                              entry.chipLabel + (entry.isCurrentUser ? ' (You)' : ''),
-                              style: GoogleFonts.poppins(fontSize: 12),
-                            ),
-                            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                            labelStyle: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
-                            side: BorderSide.none,
-                            onDeleted: entry.isCurrentUser ? null : () => _removeMember(entry),
-                            deleteIconColor: AppTheme.primary,
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 32),
-                      Container(
-                        width: double.infinity,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0284C7).withValues(alpha: .26),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: FilledButton.icon(
-                          onPressed: _submitGroup,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          icon: const Icon(Icons.group_add_rounded),
-                          label: Text(
-                            "Create Group",
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // Group Name Field
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: "Group Name",
+                  hintText: "e.g., Goa Trip, Flat 402",
+                  filled: true,
+                  fillColor: tileBg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                validator: (val) => val == null || val.trim().isEmpty ? "Group name required" : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Description Field
+              TextFormField(
+                controller: _descController,
+                decoration: InputDecoration(
+                  labelText: "Category / Description (Optional)",
+                  hintText: "e.g., Trip, Home, Office",
+                  filled: true,
+                  fillColor: tileBg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Members Section Header
+              Text(
+                "Add Members by @Username or Email",
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Member Lookup Input
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _memberInputController,
+                      decoration: InputDecoration(
+                        hintText: "Search username or email...",
+                        prefixText: "@ ",
+                        prefixStyle: TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        filled: true,
+                        fillColor: tileBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onSubmitted: (_) => _searchAndAddMember(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: _isSearchingUser ? null : _searchAndAddMember,
+                      child: _isSearchingUser
+                          ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                          : const Icon(Icons.add),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Member List Chips
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(_members.length, (index) {
+                  final isMe = index == 0 && _memberUids.contains(_currentUser?.uid);
+                  return Chip(
+                    backgroundColor: tileBg,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: AppTheme.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    label: Text(
+                      isMe ? "${_members[index]} (You)" : _members[index],
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: isMe ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    deleteIcon: isMe ? null : const Icon(Icons.close, size: 16),
+                    onDeleted: isMe ? null : () => _removeMember(index),
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local service credentials and Node package installations
+assets/service_account.json
+functions/node_modules/

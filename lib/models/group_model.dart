@@ -1,18 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'expense_model.dart';
 import 'settlement_model.dart';
 
 class GroupModel {
   final String id;
-
   String groupName;
-
-  /// NEW
   String description;
-
-  /// Local image path
   String avatarPath;
-
-  /// Group creation date
   DateTime createdAt;
 
   List<String> members;
@@ -21,7 +15,6 @@ class GroupModel {
   List<String> memberUsernames;
 
   List<ExpenseModel> expenses;
-  
   List<SettlementModel> recordedSettlements;
 
   GroupModel({
@@ -33,17 +26,15 @@ class GroupModel {
     this.memberUsernames = const [],
     required this.expenses,
     this.recordedSettlements = const [],
-
     this.description = '',
     this.avatarPath = '',
-
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   double get totalExpense {
     return expenses.fold(
-      0,
-      (sum, expense) => sum + expense.amount,
+      0.0,
+          (sum, expense) => sum + expense.amount,
     );
   }
 
@@ -51,33 +42,34 @@ class GroupModel {
     final balances = <String, double>{};
 
     for (final member in members) {
-      balances[member] = 0;
+      balances[member] = 0.0;
     }
 
     for (final expense in expenses) {
       balances[expense.paidBy] =
-          (balances[expense.paidBy] ?? 0) + expense.amount;
+          (balances[expense.paidBy] ?? 0.0) + expense.amount;
 
       if (expense.splitType == 'custom') {
         expense.customSplits.forEach((member, amount) {
-          balances[member] =
-              (balances[member] ?? 0) - amount;
+          balances[member] = (balances[member] ?? 0.0) - amount;
         });
       } else {
-        final share =
-            expense.amount / expense.splitBetween.length;
+        final share = expense.splitBetween.isNotEmpty
+            ? expense.amount / expense.splitBetween.length
+            : 0.0;
 
         for (final member in expense.splitBetween) {
-          balances[member] =
-              (balances[member] ?? 0) - share;
+          balances[member] = (balances[member] ?? 0.0) - share;
         }
       }
     }
 
     for (final settlement in recordedSettlements) {
       if (settlement.isSettled) {
-        balances[settlement.fromUser] = (balances[settlement.fromUser] ?? 0) + settlement.amount;
-        balances[settlement.toUser] = (balances[settlement.toUser] ?? 0) - settlement.amount;
+        balances[settlement.fromUser] =
+            (balances[settlement.fromUser] ?? 0.0) + settlement.amount;
+        balances[settlement.toUser] =
+            (balances[settlement.toUser] ?? 0.0) - settlement.amount;
       }
     }
 
@@ -89,8 +81,7 @@ class GroupModel {
   }
 
   List<SettlementModel> get settlements {
-    final balances =
-        Map<String, double>.from(memberBalances);
+    final balances = Map<String, double>.from(memberBalances);
 
     final creditors = <MapEntry<String, double>>[];
     final debtors = <MapEntry<String, double>>[];
@@ -108,15 +99,11 @@ class GroupModel {
     int i = 0;
     int j = 0;
 
-    while (i < debtors.length &&
-        j < creditors.length) {
+    while (i < debtors.length && j < creditors.length) {
       final debtor = debtors[i];
       final creditor = creditors[j];
 
-      final amount =
-          debtor.value < creditor.value
-              ? debtor.value
-              : creditor.value;
+      final amount = debtor.value < creditor.value ? debtor.value : creditor.value;
 
       result.add(
         SettlementModel(
@@ -127,12 +114,8 @@ class GroupModel {
         ),
       );
 
-      debtors[i] =
-          MapEntry(debtor.key, debtor.value - amount);
-
-      creditors[j] = MapEntry(
-          creditor.key,
-          creditor.value - amount);
+      debtors[i] = MapEntry(debtor.key, debtor.value - amount);
+      creditors[j] = MapEntry(creditor.key, creditor.value - amount);
 
       if (debtors[i].value <= 0.01) {
         i++;
@@ -146,51 +129,51 @@ class GroupModel {
     return result;
   }
 
-  factory GroupModel.fromMap(
-      Map<dynamic, dynamic> map) {
+  factory GroupModel.fromMap(Map<dynamic, dynamic> map, [String? docId]) {
+    // Parse createdAt whether stored as Firestore Timestamp, ISO String, or null
+    DateTime parsedDate = DateTime.now();
+    final rawCreatedAt = map['createdAt'];
+    if (rawCreatedAt is Timestamp) {
+      parsedDate = rawCreatedAt.toDate();
+    } else if (rawCreatedAt is String && rawCreatedAt.isNotEmpty) {
+      parsedDate = DateTime.tryParse(rawCreatedAt) ?? DateTime.now();
+    }
+
     return GroupModel(
-      id: map['id'] as String,
-
-      groupName: map['groupName'] as String,
-
-      description:
-          map['description'] as String? ?? '',
-
-      avatarPath:
-          map['avatarPath'] as String? ?? '',
-
-      createdAt: map['createdAt'] == null
-          ? DateTime.now()
-          : DateTime.parse(
-              map['createdAt']),
-
-      members: List<String>.from(
-        map['members'],
-      ),
-
-      memberUids: (map['memberUids'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+      id: docId ?? (map['id']?.toString() ?? ''),
+      // Supports both 'groupName' and 'name' keys across old/new records
+      groupName: (map['groupName'] ?? map['name'] ?? 'Untitled Group').toString(),
+      description: map['description']?.toString() ?? '',
+      avatarPath: map['avatarPath']?.toString() ?? '',
+      createdAt: parsedDate,
+      members: (map['members'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ??
+          <String>[],
+      memberUids: (map['memberUids'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ??
           (map['createdBy'] != null ? [map['createdBy'].toString()] : <String>[]),
-
-      memberEmails: (map['memberEmails'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+      memberEmails: (map['memberEmails'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ??
           <String>[],
-
-      memberUsernames: (map['memberUsernames'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+      memberUsernames: (map['memberUsernames'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ??
           <String>[],
-
       expenses: (map['expenses'] as List<dynamic>?)
-              ?.map(
-                (expense) =>
-                    ExpenseModel.fromMap(expense as Map<dynamic, dynamic>),
-              )
-              .toList() ??
+          ?.map(
+            (expense) => ExpenseModel.fromMap(expense as Map<dynamic, dynamic>),
+      )
+          .toList() ??
           <ExpenseModel>[],
-
       recordedSettlements: (map['recordedSettlements'] as List<dynamic>?)
-              ?.map(
-                (settlement) =>
-                    SettlementModel.fromMap(settlement as Map<dynamic, dynamic>),
-              )
-              .toList() ??
+          ?.map(
+            (settlement) =>
+            SettlementModel.fromMap(settlement as Map<dynamic, dynamic>),
+      )
+          .toList() ??
           <SettlementModel>[],
     );
   }
@@ -198,33 +181,18 @@ class GroupModel {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-
+      'name': groupName,
       'groupName': groupName,
-
       'description': description,
-
       'avatarPath': avatarPath,
-
-      'createdAt':
-          createdAt.toIso8601String(),
-
+      'createdAt': createdAt.toIso8601String(),
       'members': members,
       'memberUids': memberUids,
       'memberEmails': memberEmails,
       'memberUsernames': memberUsernames,
-
-      'expenses': expenses
-          .map(
-            (expense) =>
-                expense.toMap(),
-          )
-          .toList(),
-
+      'expenses': expenses.map((expense) => expense.toMap()).toList(),
       'recordedSettlements': recordedSettlements
-          .map(
-            (settlement) =>
-                settlement.toMap(),
-          )
+          .map((settlement) => settlement.toMap())
           .toList(),
     };
   }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/expense_model.dart';
@@ -16,11 +17,13 @@ import 'group_info_screen.dart';
 class GroupDetailsScreen extends StatefulWidget {
   const GroupDetailsScreen({
     super.key,
-    required this.group,
+    this.group,
+    this.groupId,
     this.onGroupUpdated,
-  });
+  }) : assert(group != null || groupId != null, 'Either group or groupId must be provided');
 
-  final GroupModel group;
+  final GroupModel? group;
+  final String? groupId;
   final Future<void> Function()? onGroupUpdated;
 
   @override
@@ -28,8 +31,7 @@ class GroupDetailsScreen extends StatefulWidget {
 }
 
 class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
-  List<ExpenseModel> get expenses => widget.group.expenses;
-
+  GroupModel? _activeGroup;
   int _selectedTab = 0; // 0: Expenses, 1: History
   String searchQuery = '';
   String selectedCategory = 'All';
@@ -39,9 +41,13 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   // History Tab Search & Filter State
   String _historySearchQuery = '';
-  String _selectedHistoryCategory = 'All'; // 'All', 'Add', 'Edit', 'Remove', 'Create Group'
+  String _selectedHistoryCategory = 'All';
   bool _isHistorySearchExpanded = false;
   final _historySearchController = TextEditingController();
+
+  String get targetGroupId => widget.group?.id ?? widget.groupId!;
+
+  List<ExpenseModel> get expenses => _activeGroup?.expenses ?? [];
 
   List<String> get categories {
     final uniqueCategories = expenses.map((e) => e.category).toSet().toList();
@@ -55,8 +61,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
       final matchesSearch =
           expense.title.toLowerCase().contains(search) ||
-          expense.category.toLowerCase().contains(search) ||
-          expense.paidBy.toLowerCase().contains(search);
+              expense.category.toLowerCase().contains(search) ||
+              expense.paidBy.toLowerCase().contains(search);
 
       final matchesCategory =
           selectedCategory == "All" || expense.category == selectedCategory;
@@ -104,11 +110,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _triggerHistoricalBackfill();
+    if (widget.group != null) {
+      _activeGroup = widget.group;
+      _triggerHistoricalBackfill();
+    }
   }
 
   void _triggerHistoricalBackfill() {
-    ActivityService.instance.ensureHistoricalActivitiesLogged(widget.group);
+    if (_activeGroup != null) {
+      ActivityService.instance.ensureHistoricalActivitiesLogged(_activeGroup!);
+    }
   }
 
   @override
@@ -119,6 +130,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Future<void> markAsSettled(SettlementModel settlement) async {
+    if (_activeGroup == null) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
@@ -150,20 +163,24 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     if (!mounted) return;
 
     setState(() {
-      widget.group.recordedSettlements = List.from(widget.group.recordedSettlements)..add(newSettlement);
+      _activeGroup!.recordedSettlements = List.from(_activeGroup!.recordedSettlements)..add(newSettlement);
     });
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final userName = user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
+
       await FirebaseFirestore.instance
           .collection('groups')
-          .doc(widget.group.id)
+          .doc(_activeGroup!.id)
           .update({
-            'recordedSettlements': FieldValue.arrayUnion([newSettlement.toMap()]),
-          });
-      
-      // Log Activity: settlement_recorded
+        'recordedSettlements': FieldValue.arrayUnion([newSettlement.toMap()]),
+        'lastUpdatedBy': user?.uid,
+        'lastUpdatedByName': userName,
+      });
+
       await ActivityService.instance.logGroupActivity(
-        groupId: widget.group.id,
+        groupId: _activeGroup!.id,
         type: GroupActivity.typeSettlementRecorded,
         message: 'Settlement: ${settlement.fromUser} paid ₹${settlement.amount.toStringAsFixed(0)} to ${settlement.toUser}',
         metadata: {
@@ -188,6 +205,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Future<void> undoSettlement(SettlementModel settlement) async {
+    if (_activeGroup == null) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
@@ -210,20 +229,24 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     if (!mounted) return;
 
     setState(() {
-      widget.group.recordedSettlements.removeWhere((s) => s.id == settlement.id);
+      _activeGroup!.recordedSettlements.removeWhere((s) => s.id == settlement.id);
     });
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final userName = user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
+
       await FirebaseFirestore.instance
           .collection('groups')
-          .doc(widget.group.id)
+          .doc(_activeGroup!.id)
           .update({
-            'recordedSettlements': widget.group.recordedSettlements.map((e) => e.toMap()).toList(),
-          });
-      
-      // Log Activity: settlement_undone
+        'recordedSettlements': _activeGroup!.recordedSettlements.map((e) => e.toMap()).toList(),
+        'lastUpdatedBy': user?.uid,
+        'lastUpdatedByName': userName,
+      });
+
       await ActivityService.instance.logGroupActivity(
-        groupId: widget.group.id,
+        groupId: _activeGroup!.id,
         type: GroupActivity.typeSettlementUndone,
         message: 'Undid settlement: restored balance of ₹${settlement.amount.toStringAsFixed(0)} between ${settlement.fromUser} and ${settlement.toUser}',
         metadata: {
@@ -248,67 +271,71 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Future<void> openGroupInfo() async {
-    // FIXED: Catch the updated GroupModel structure returned from the pop execution context
+    if (_activeGroup == null) return;
+
     final GroupModel? updatedGroup = await Navigator.of(context, rootNavigator: true).push<GroupModel>(
-      MaterialPageRoute(builder: (_) => GroupInfoScreen(group: widget.group)),
+      MaterialPageRoute(builder: (_) => GroupInfoScreen(group: _activeGroup!)),
     );
 
     if (!mounted) return;
-    
-    // Explicitly command the layout container to re-render using the freshly caught cloud URL
+
     setState(() {
       if (updatedGroup != null) {
-        widget.group.groupName = updatedGroup.groupName;
-        widget.group.description = updatedGroup.description;
-        widget.group.avatarPath = updatedGroup.avatarPath;
-        widget.group.members = updatedGroup.members;
-        widget.group.memberUids = updatedGroup.memberUids;
-        widget.group.memberEmails = updatedGroup.memberEmails;
-        widget.group.memberUsernames = updatedGroup.memberUsernames;
+        _activeGroup!.groupName = updatedGroup.groupName;
+        _activeGroup!.description = updatedGroup.description;
+        _activeGroup!.avatarPath = updatedGroup.avatarPath;
+        _activeGroup!.members = updatedGroup.members;
+        _activeGroup!.memberUids = updatedGroup.memberUids;
+        _activeGroup!.memberEmails = updatedGroup.memberEmails;
+        _activeGroup!.memberUsernames = updatedGroup.memberUsernames;
       }
     });
-    
+
     await widget.onGroupUpdated?.call();
   }
 
   Future<void> addExpense() async {
+    if (_activeGroup == null) return;
+
     final ExpenseModel? result = await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
-      MaterialPageRoute(builder: (_) => AddExpenseScreen(group: widget.group)),
+      MaterialPageRoute(builder: (_) => AddExpenseScreen(group: _activeGroup!)),
     );
 
     if (result == null) return;
-
     if (!mounted) return;
 
     setState(() {
-      widget.group.expenses.add(result);
+      _activeGroup!.expenses.add(result);
     });
 
     await widget.onGroupUpdated?.call();
   }
 
   Future<void> editExpense(int index) async {
+    if (_activeGroup == null) return;
+
     final expense = filteredExpenses[index];
     final originalIndex = expenses.indexOf(expense);
 
     final ExpenseModel? updatedExpense = await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
       MaterialPageRoute(
-        builder: (_) => AddExpenseScreen(group: widget.group, expense: expense),
+        builder: (_) => AddExpenseScreen(group: _activeGroup!, expense: expense),
       ),
     );
 
     if (updatedExpense == null) return;
-
     if (!mounted) return;
 
     setState(() {
-      widget.group.expenses[originalIndex] = updatedExpense;
+      _activeGroup!.expenses[originalIndex] = updatedExpense;
     });
 
     await widget.onGroupUpdated?.call();
   }
 
   Future<void> deleteExpense(int index) async {
+    if (_activeGroup == null) return;
+
     final expense = filteredExpenses[index];
 
     final confirm = await showDialog<bool>(
@@ -330,24 +357,27 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     );
 
     if (confirm != true) return;
-
     if (!mounted) return;
 
     setState(() {
-      widget.group.expenses.remove(expense);
+      _activeGroup!.expenses.remove(expense);
     });
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final userName = user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
+
       await FirebaseFirestore.instance
           .collection('groups')
-          .doc(widget.group.id)
+          .doc(_activeGroup!.id)
           .update({
-            'expenses': widget.group.expenses.map((e) => e.toMap()).toList(),
-          });
+        'expenses': _activeGroup!.expenses.map((e) => e.toMap()).toList(),
+        'lastUpdatedBy': user?.uid,
+        'lastUpdatedByName': userName,
+      });
 
-      // Log Activity: expense_deleted
       await ActivityService.instance.logGroupActivity(
-        groupId: widget.group.id,
+        groupId: _activeGroup!.id,
         type: GroupActivity.typeExpenseDeleted,
         message: 'Deleted expense "${expense.title}" (₹${expense.amount.toStringAsFixed(0)}) paid by ${expense.paidBy}',
         metadata: {
@@ -377,10 +407,38 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_activeGroup == null) {
+      return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('groups').doc(targetGroupId).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return Scaffold(
+              appBar: AppBar(leading: const BackButton()),
+              body: const Center(child: Text("Group not found")),
+            );
+          }
+
+          final data = snapshot.data!.data()!;
+          data['id'] = snapshot.data!.id;
+          _activeGroup = GroupModel.fromMap(data);
+          _triggerHistoricalBackfill();
+          return _buildMainScaffold(context);
+        },
+      );
+    }
+
+    return _buildMainScaffold(context);
+  }
+
+  Widget _buildMainScaffold(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.colorScheme.onSurface;
-    
     final tileBackgroundColor = isDark ? theme.cardColor : const Color(0xFFF4F3F9);
 
     return Scaffold(
@@ -412,29 +470,29 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             /// COVER PHOTO CONTAINER
             Container(
               width: double.infinity,
-              height: 220, 
+              height: 220,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1A1B21) : const Color(0xFFE2E8F0),
-                image: widget.group.avatarPath.isNotEmpty
+                image: _activeGroup!.avatarPath.isNotEmpty
                     ? DecorationImage(
-                        image: widget.group.avatarPath.startsWith('http')
-                            ? NetworkImage(widget.group.avatarPath)
-                            : FileImage(File(widget.group.avatarPath)) as ImageProvider,
-                        fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          Colors.black.withOpacity(isDark ? 0.45 : 0.25),
-                          BlendMode.srcOver,
-                        ),
-                      )
+                  image: _activeGroup!.avatarPath.startsWith('http')
+                      ? NetworkImage(_activeGroup!.avatarPath)
+                      : FileImage(File(_activeGroup!.avatarPath)) as ImageProvider,
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withOpacity(isDark ? 0.45 : 0.25),
+                    BlendMode.srcOver,
+                  ),
+                )
                     : DecorationImage(
-                        image: AssetImage(isDark ? 'assets/images/SamDark.png' : 'assets/images/SamLight.png'),
-                        fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          isDark ? Colors.black38 : Colors.black.withOpacity(0.05),
-                          BlendMode.srcOver,
-                        ),
-                      ),
+                  image: AssetImage(isDark ? 'assets/images/SamDark.png' : 'assets/images/SamLight.png'),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    isDark ? Colors.black38 : Colors.black.withOpacity(0.05),
+                    BlendMode.srcOver,
+                  ),
+                ),
               ),
               child: SafeArea(
                 bottom: false,
@@ -442,13 +500,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      /// Action Controls Header Navigation Bar Layer
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          /// Circular background for Back Icon matching the people badge
                           Container(
                             decoration: BoxDecoration(
                               color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
@@ -463,8 +519,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               ),
                             ),
                           ),
-                          
-                          /// FIXED: Translucent background pill wrapping the Group Name with 0.8 opacity
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
@@ -472,7 +526,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              widget.group.groupName.toUpperCase(),
+                              _activeGroup!.groupName.toUpperCase(),
                               style: GoogleFonts.poppins(
                                 color: isDark ? Colors.black87 : Colors.white,
                                 fontSize: 14,
@@ -481,8 +535,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               ),
                             ),
                           ),
-                          
-                          /// Circular background for Settings Icon matching the people badge
                           Container(
                             decoration: BoxDecoration(
                               color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
@@ -496,10 +548,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           ),
                         ],
                       ),
-                      
-                      const Spacer(), 
-
-                      /// People Oval Badge Layout Element
+                      const Spacer(),
                       GestureDetector(
                         onTap: openGroupInfo,
                         child: Container(
@@ -514,7 +563,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               Icon(Icons.people_alt_outlined, color: isDark ? Colors.white70 : Colors.black54, size: 16),
                               const SizedBox(width: 6),
                               Text(
-                                "${widget.group.members.length} People",
+                                "${_activeGroup!.members.length} People",
                                 style: GoogleFonts.poppins(
                                   color: isDark ? Colors.white : Colors.black87,
                                   fontSize: 11,
@@ -531,7 +580,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ),
             ),
 
-            /// TOTAL EXPENSE BOX POSITIONED OUTSIDE AFTER THE COVER PHOTO
+            /// TOTAL EXPENSE CONTAINER
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
               child: Container(
@@ -564,7 +613,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       ),
                     ),
                     Text(
-                      "₹ ${widget.group.totalExpense.toStringAsFixed(0)}",
+                      "₹ ${_activeGroup!.totalExpense.toStringAsFixed(0)}",
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 22,
@@ -601,12 +650,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: _selectedTab == 0
                                 ? [
-                                    BoxShadow(
-                                      color: AppTheme.primary.withOpacity(0.28),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ]
+                              BoxShadow(
+                                color: AppTheme.primary.withOpacity(0.28),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
                                 : null,
                           ),
                           alignment: Alignment.center,
@@ -643,12 +692,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: _selectedTab == 1
                                 ? [
-                                    BoxShadow(
-                                      color: AppTheme.primary.withOpacity(0.28),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ]
+                              BoxShadow(
+                                color: AppTheme.primary.withOpacity(0.28),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
                                 : null,
                           ),
                           alignment: Alignment.center,
@@ -690,12 +739,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Widget _buildExpensesTab(
-    BuildContext context,
-    ThemeData theme,
-    bool isDark,
-    Color textColor,
-    Color tileBackgroundColor,
-  ) {
+      BuildContext context,
+      ThemeData theme,
+      bool isDark,
+      Color textColor,
+      Color tileBackgroundColor,
+      ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -711,7 +760,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            if (widget.group.allSettlements.isEmpty)
+            if (_activeGroup!.allSettlements.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Center(
@@ -729,9 +778,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: widget.group.allSettlements.length,
+                itemCount: _activeGroup!.allSettlements.length,
                 itemBuilder: (context, index) {
-                  final settlement = widget.group.allSettlements[index];
+                  final settlement = _activeGroup!.allSettlements[index];
 
                   return Card(
                     elevation: 0,
@@ -802,58 +851,58 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             },
             child: _isSearchExpanded
                 ? TextField(
-                    key: const ValueKey('expanded_expense_search'),
-                    controller: _searchController,
-                    autofocus: true,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      hintText: "Search expenses...",
-                      hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-                      prefixIcon: Icon(Icons.search, color: textColor.withOpacity(0.7)),
-                      suffixIcon: IconButton(
-                        icon: Icon(Icons.close_rounded, color: textColor.withOpacity(0.7)),
-                        onPressed: () {
-                          FocusScope.of(context).unfocus();
-                          setState(() {
-                            _searchController.clear();
-                            searchQuery = '';
-                            _isSearchExpanded = false;
-                          });
-                        },
-                      ),
-                      filled: true,
-                      fillColor: tileBackgroundColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value;
-                      });
-                    },
-                  )
+              key: const ValueKey('expanded_expense_search'),
+              controller: _searchController,
+              autofocus: true,
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
+                hintText: "Search expenses...",
+                hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+                prefixIcon: Icon(Icons.search, color: textColor.withOpacity(0.7)),
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.close_rounded, color: textColor.withOpacity(0.7)),
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() {
+                      _searchController.clear();
+                      searchQuery = '';
+                      _isSearchExpanded = false;
+                    });
+                  },
+                ),
+                filled: true,
+                fillColor: tileBackgroundColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                });
+              },
+            )
                 : Align(
-                    key: const ValueKey('circle_expense_search_icon'),
-                    alignment: Alignment.centerLeft,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isSearchExpanded = true;
-                        });
-                      },
-                      child: CircleAvatar(
-                        radius: 26,
-                        backgroundColor: tileBackgroundColor,
-                        child: Icon(
-                          Icons.search_rounded,
-                          color: textColor.withOpacity(0.7),
-                          size: 24,
-                        ),
-                      ),
-                    ),
+              key: const ValueKey('circle_expense_search_icon'),
+              alignment: Alignment.centerLeft,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isSearchExpanded = true;
+                  });
+                },
+                child: CircleAvatar(
+                  radius: 26,
+                  backgroundColor: tileBackgroundColor,
+                  child: Icon(
+                    Icons.search_rounded,
+                    color: textColor.withOpacity(0.7),
+                    size: 24,
                   ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 18),
 
@@ -1023,34 +1072,33 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   List<GroupActivity> _generateFallbackActivities() {
+    if (_activeGroup == null) return [];
     final List<GroupActivity> list = [];
 
-    // 1. Group created inaugural event
-    final creatorUid = widget.group.memberUids.isNotEmpty ? widget.group.memberUids.first : '';
-    final creatorName = widget.group.members.isNotEmpty ? widget.group.members.first : 'Admin';
+    final creatorUid = _activeGroup!.memberUids.isNotEmpty ? _activeGroup!.memberUids.first : '';
+    final creatorName = _activeGroup!.members.isNotEmpty ? _activeGroup!.members.first : 'Admin';
     list.add(
       GroupActivity(
-        id: 'hist_created_${widget.group.id}',
-        groupId: widget.group.id,
+        id: 'hist_created_${_activeGroup!.id}',
+        groupId: _activeGroup!.id,
         type: GroupActivity.typeGroupCreated,
         performedByUid: creatorUid,
         performedByName: creatorName,
-        message: '$creatorName created group "${widget.group.groupName}"',
-        timestamp: widget.group.createdAt,
+        message: '$creatorName created group "${_activeGroup!.groupName}"',
+        timestamp: _activeGroup!.createdAt,
         metadata: {
-          'initialMembers': widget.group.members,
-          'groupType': widget.group.description.isNotEmpty ? widget.group.description : 'General',
+          'initialMembers': _activeGroup!.members,
+          'groupType': _activeGroup!.description.isNotEmpty ? _activeGroup!.description : 'General',
           'isBackfilled': true,
         },
       ),
     );
 
-    // 2. Existing expenses
-    for (final exp in widget.group.expenses) {
+    for (final exp in _activeGroup!.expenses) {
       list.add(
         GroupActivity(
           id: 'exp_${exp.id}',
-          groupId: widget.group.id,
+          groupId: _activeGroup!.id,
           type: GroupActivity.typeExpenseCreated,
           performedByUid: '',
           performedByName: exp.paidBy,
@@ -1067,17 +1115,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       );
     }
 
-    // 3. Existing settlements
-    for (final s in widget.group.recordedSettlements) {
+    for (final s in _activeGroup!.recordedSettlements) {
       list.add(
         GroupActivity(
           id: 'stl_${s.id}',
-          groupId: widget.group.id,
+          groupId: _activeGroup!.id,
           type: GroupActivity.typeSettlementRecorded,
           performedByUid: '',
           performedByName: s.fromUser,
           message: '${s.fromUser} settled ₹${s.amount.toStringAsFixed(0)} with ${s.toUser}',
-          timestamp: s.settledAt ?? widget.group.createdAt,
+          timestamp: s.settledAt ?? _activeGroup!.createdAt,
           metadata: {
             'settlementId': s.id,
             'fromUser': s.fromUser,
@@ -1093,12 +1140,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Widget _buildHistoryTab(
-    BuildContext context,
-    ThemeData theme,
-    bool isDark,
-    Color textColor,
-    Color tileBackgroundColor,
-  ) {
+      BuildContext context,
+      ThemeData theme,
+      bool isDark,
+      Color textColor,
+      Color tileBackgroundColor,
+      ) {
     const historyCategories = ['All', 'Add', 'Edit', 'Remove', 'Create Group'];
 
     return Padding(
@@ -1106,86 +1153,84 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Collapsible/Expandable Search Bar
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             child: _isHistorySearchExpanded
                 ? TextField(
-                    key: const ValueKey('history_search_active'),
-                    controller: _historySearchController,
-                    autofocus: true,
-                    style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      hintText: "Search history (e.g. member, expense, amount)...",
-                      hintStyle: TextStyle(color: textColor.withOpacity(0.5), fontSize: 13),
-                      prefixIcon: Icon(Icons.search_rounded, color: textColor.withOpacity(0.7)),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _historySearchQuery.isNotEmpty ? Icons.clear_rounded : Icons.close_rounded,
-                          color: textColor.withOpacity(0.7),
-                        ),
-                        onPressed: () {
-                          if (_historySearchQuery.isNotEmpty) {
-                            setState(() {
-                              _historySearchController.clear();
-                              _historySearchQuery = '';
-                            });
-                          } else {
-                            FocusScope.of(context).unfocus();
-                            setState(() {
-                              _isHistorySearchExpanded = false;
-                            });
-                          }
-                        },
-                      ),
-                      filled: true,
-                      fillColor: tileBackgroundColor,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _historySearchQuery = value.trim();
-                      });
-                    },
-                  )
-                : Row(
-                    key: const ValueKey('history_search_idle'),
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "History Timeline",
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isHistorySearchExpanded = true;
-                          });
-                        },
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: tileBackgroundColor,
-                          child: Icon(
-                            Icons.search_rounded,
-                            color: textColor.withOpacity(0.8),
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
+              key: const ValueKey('history_search_active'),
+              controller: _historySearchController,
+              autofocus: true,
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
+                hintText: "Search history (e.g. member, expense, amount)...",
+                hintStyle: TextStyle(color: textColor.withOpacity(0.5), fontSize: 13),
+                prefixIcon: Icon(Icons.search_rounded, color: textColor.withOpacity(0.7)),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _historySearchQuery.isNotEmpty ? Icons.clear_rounded : Icons.close_rounded,
+                    color: textColor.withOpacity(0.7),
                   ),
+                  onPressed: () {
+                    if (_historySearchQuery.isNotEmpty) {
+                      setState(() {
+                        _historySearchController.clear();
+                        _historySearchQuery = '';
+                      });
+                    } else {
+                      FocusScope.of(context).unfocus();
+                      setState(() {
+                        _isHistorySearchExpanded = false;
+                      });
+                    }
+                  },
+                ),
+                filled: true,
+                fillColor: tileBackgroundColor,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _historySearchQuery = value.trim();
+                });
+              },
+            )
+                : Row(
+              key: const ValueKey('history_search_idle'),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "History Timeline",
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isHistorySearchExpanded = true;
+                    });
+                  },
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: tileBackgroundColor,
+                    child: Icon(
+                      Icons.search_rounded,
+                      color: textColor.withOpacity(0.8),
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
 
-          // Category Filter Chips
           SizedBox(
             height: 38,
             child: ListView(
@@ -1225,9 +1270,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           ),
           const SizedBox(height: 14),
 
-          // StreamBuilder for Activities
           StreamBuilder<List<GroupActivity>>(
-            stream: ActivityService.instance.getGroupActivitiesStream(widget.group.id),
+            stream: ActivityService.instance.getGroupActivitiesStream(targetGroupId),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                 return const Padding(
@@ -1292,7 +1336,6 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 );
               }
 
-              // Apply filtering
               final filteredActivities = allActivities.where((act) {
                 return _matchesHistoryCategory(act, _selectedHistoryCategory) &&
                     _matchesHistorySearch(act, _historySearchQuery);

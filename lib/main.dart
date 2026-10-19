@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:samvibhag/services/notification_service.dart';
 
 import 'screens/account/appearance_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -14,8 +15,23 @@ import 'screens/splash/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'core/theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase using the platform options
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  // Initialize local Hive storage
+  await Hive.initFlutter();
+  await Hive.openBox('samvibhag_storage');
+
+  // Initialize Push Notifications (FCM & Local Notifications)
+  await NotificationService().initialize();
+
   runApp(const SamVibhagBootstrap());
 }
 
@@ -36,16 +52,7 @@ class _SamVibhagBootstrapState extends State<SamVibhagBootstrap> {
   }
 
   Future<void> _initialize() async {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    }
-
-    await Hive.initFlutter();
-    await Hive.openBox('samvibhag_storage');
-
-    // Start background account maintenance only after the first UI can render.
+    // Start background account maintenance only after the app environment is ready.
     AuthService().initializeAuthListener();
   }
 
@@ -81,7 +88,7 @@ class _SamVibhagBootstrapState extends State<SamVibhagBootstrap> {
 }
 
 class _StartupMessage extends StatelessWidget {
-  const _StartupMessage({this.message, this.onRetry});
+  const _StartupMessage({super.key, this.message, this.onRetry});
 
   final String? message;
   final VoidCallback? onRetry;
@@ -126,13 +133,14 @@ class SamVibhagApp extends StatelessWidget {
     return Consumer<AppThemeController>(
       builder: (context, themeController, child) {
         return MaterialApp(
+          navigatorKey: NotificationService().navigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'SamVibhag',
 
           // Define the screen the app opens up to first (Splash Screen)
           initialRoute: '/',
 
-          // Map path strings to your specific Screen Widgets cleanly
+          // Map path strings to specific Screen Widgets
           routes: {
             '/': (context) => const SplashScreen(),
             '/welcome': (context) => const WelcomeScreen(),
@@ -148,7 +156,6 @@ class SamVibhagApp extends StatelessWidget {
           themeMode: themeController.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
-
         );
       },
     );

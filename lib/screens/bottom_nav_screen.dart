@@ -51,7 +51,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           });
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

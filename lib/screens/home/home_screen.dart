@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text('${group.members.length} Members • ${group.expenses.length} Expenses'),
+                  Text('${group.members.length} Members'),
                 ],
               ),
             ),
@@ -209,21 +209,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.w700,
                     color: color,
                   ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'PDF Report',
-                      onPressed: () => openReport(group),
-                      icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                    ),
-                    IconButton(
-                      tooltip: 'Delete Group',
-                      onPressed: () => confirmDeleteGroup(group),
-                      icon: const Icon(Icons.delete_outline, color: AppTheme.warning),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -240,21 +225,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+      floatingActionButton: SizedBox(
+        height: 48,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+            ),
           ),
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: createGroup,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text('Create Group', style: TextStyle(color: Colors.white)),
+          child: FloatingActionButton.extended(
+            onPressed: createGroup,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            extendedPadding: const EdgeInsets.symmetric(horizontal: 10),
+            extendedIconLabelSpacing: 6,
+            icon: const Icon(Icons.add, color: Colors.white, size: 18),
+            label: const Text(
+              'Create Group',
+              style: TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
         ),
       ),
       body: SafeArea(
@@ -276,117 +269,119 @@ class _HomeScreenState extends State<HomeScreen> {
 
             final filteredGroups = getFilteredGroupsList(activeCloudGroups);
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset(
-                          'assets/images/logo.png',
-                          width: 52,
-                          height: 52,
-                        ),
-                        const SizedBox(width: 12),
-                        RichText(
-                          text: TextSpan(
-                            style: GoogleFonts.poppins(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
-                            children: const [
-                              TextSpan(text: 'Sam'),
-                              TextSpan(
-                                text: 'Vibhag',
-                                style: TextStyle(color: Color.fromARGB(255, 52, 107, 225)),
-                              ),
-                            ],
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: SizedBox(
+                    height: 56,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SizeTransition(
+                            axis: Axis.horizontal,
+                            axisAlignment: 1,
+                            sizeFactor: animation,
+                            child: child,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  /// EXPANDABLE SEARCH BAR
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    transitionBuilder: (Widget child, Animation<double> animation) {
-                      return FadeTransition(opacity: animation, child: child);
-                    },
-                    child: _isSearchExpanded
-                        ? Container(
-                            key: const ValueKey('expanded_search'),
-                            decoration: BoxDecoration(
-                              color: theme.cardColor,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: const Color(0xFF83F4EB).withOpacity(0.45),
-                              ),
-                            ),
-                            child: TextField(
-                              controller: _searchController,
-                              autofocus: true,
-                              style: TextStyle(color: theme.colorScheme.onSurface),
-                              decoration: InputDecoration(
-                                hintText: 'Search groups...',
-                                hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.55)),
-                                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF0284C7)),
-                                suffixIcon: IconButton(
-                                  icon: const Icon(Icons.close_rounded),
-                                  onPressed: () {
-                                    FocusScope.of(context).unfocus();
-                                    setState(() {
-                                      _searchController.clear();
-                                      searchQuery = '';
-                                      _isSearchExpanded = false;
-                                    });
-                                  },
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                              ),
-                              onChanged: (value) => setState(() => searchQuery = value),
-                            ),
-                          )
-                        : InkWell(
-                            key: const ValueKey('circle_search_icon'),
-                            onTap: () => setState(() => _isSearchExpanded = true),
-                            borderRadius: BorderRadius.circular(18),
-                            child: Ink(
-                              height: 54,
+                        );
+                      },
+                      child: _isSearchExpanded
+                          ? Container(
+                              key: const ValueKey('expanded-header-search'),
+                              width: double.infinity,
+                              height: 48,
                               decoration: BoxDecoration(
                                 color: theme.cardColor,
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: const Color(0xFF83F4EB).withOpacity(0.28),
+                                  color: const Color(0xFF83F4EB)
+                                      .withOpacity(0.45),
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  const SizedBox(width: 16),
-                                  const Icon(Icons.search_rounded, color: Color(0xFF0284C7)),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Search groups',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: theme.colorScheme.onSurface.withOpacity(0.55),
+                              child: TextField(
+                                controller: _searchController,
+                                autofocus: true,
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Search groups',
+                                  hintStyle: TextStyle(
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.55),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.search_rounded,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                  suffixIcon: IconButton(
+                                    tooltip: 'Close search',
+                                    icon: const Icon(Icons.close_rounded),
+                                    onPressed: () {
+                                      FocusScope.of(context).unfocus();
+                                      setState(() {
+                                        _searchController.clear();
+                                        searchQuery = '';
+                                        _isSearchExpanded = false;
+                                      });
+                                    },
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 13,
+                                  ),
+                                ),
+                                onChanged: (value) =>
+                                    setState(() => searchQuery = value),
+                              ),
+                            )
+                          : Row(
+                              key: const ValueKey('collapsed-header'),
+                              children: [
+                                Image.asset(
+                                  'assets/images/logo.png',
+                                  width: 48,
+                                  height: 48,
+                                ),
+                                const Spacer(),
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: theme.cardColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFF83F4EB)
+                                          .withOpacity(0.28),
                                     ),
                                   ),
-                                ],
-                              ),
+                                  child: IconButton(
+                                    tooltip: 'Search groups',
+                                    onPressed: () => setState(
+                                      () => _isSearchExpanded = true,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.search_rounded,
+                                      color: Color(0xFF0284C7),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                    ),
                   ),
-                  const SizedBox(height: 28),
-
-                  /// TITLE
-                  Row(
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+                    children: [
+                      /// TITLE
+                      Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
@@ -410,27 +405,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                  filteredGroups.isEmpty
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Text('No matching cloud groups found'),
-                          ),
+                      if (filteredGroups.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Center(child: Text('No matching cloud groups found')),
                         )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: filteredGroups.length,
-                          itemBuilder: (context, index) {
-                            final group = filteredGroups[index];
-                            return buildGroupCard(group: group, color: AppTheme.primary);
-                          },
+                      else
+                        ...filteredGroups.map(
+                          (group) => buildGroupCard(
+                            group: group,
+                            color: AppTheme.primary,
+                          ),
                         ),
-                  const SizedBox(height: 100),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             );
           },
         ),

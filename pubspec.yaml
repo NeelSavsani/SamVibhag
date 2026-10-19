@@ -54,6 +54,11 @@ dependencies:
   firebase_storage: ^13.4.3
   http: ^1.6.0
 
+
+  # Notification
+  firebase_messaging: ^16.4.1
+  googleapis_auth: ^1.6.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -78,3 +83,4 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/service_account.json
