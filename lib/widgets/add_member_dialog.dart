@@ -262,7 +262,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                       children: [
                         Text(
                           "Add Group Member",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: theme.colorScheme.onSurface,
@@ -270,7 +270,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         ),
                         Text(
                           "Search by @username or email address",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 12,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
                           ),
@@ -297,10 +297,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                       controller: _searchController,
                       autofocus: true,
                       textInputAction: TextInputAction.search,
-                      style: GoogleFonts.poppins(fontSize: 14),
+                      style: GoogleFonts.dmSans(fontSize: 14),
                       decoration: InputDecoration(
                         hintText: "e.g. @neel_07 or friend@email.com",
-                        hintStyle: GoogleFonts.poppins(
+                        hintStyle: GoogleFonts.dmSans(
                           fontSize: 13,
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
@@ -364,7 +364,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 const SizedBox(height: 14),
                 Text(
                   _errorMessage!,
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.redAccent),
+                  style: GoogleFonts.dmSans(fontSize: 12, color: Colors.redAccent),
                 ),
               ],
 
@@ -386,7 +386,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         const SizedBox(height: 12),
                         Text(
                           "Searching directory...",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 13,
                             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
@@ -435,7 +435,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                 child: (avatarUrl == null || !avatarUrl.startsWith('http'))
                                     ? Text(
                                         displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.dmSans(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 18,
                                           color: const Color(0xFF0284C7),
@@ -450,7 +450,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                   children: [
                                     Text(
                                       displayName,
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.dmSans(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w700,
                                         color: theme.colorScheme.onSurface,
@@ -459,7 +459,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                     if (username != null && username.isNotEmpty)
                                       Text(
                                         "@$username",
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.dmSans(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: const Color(0xFF0284C7),
@@ -468,7 +468,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                     if (email.isNotEmpty)
                                       Text(
                                         email,
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.dmSans(
                                           fontSize: 12,
                                           color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                                         ),
@@ -494,7 +494,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                   const SizedBox(width: 8),
                                   Text(
                                     "Already a member of this group",
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.dmSans(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: isDark ? Colors.amber[300] : Colors.amber[800],
@@ -535,7 +535,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                     : const Icon(Icons.person_add_alt_1_rounded, size: 20),
                                 label: Text(
                                   _isAdding ? "Adding..." : "Add to Group",
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
@@ -574,7 +574,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                               cleanQuery.isNotEmpty
                                   ? "No user found with @$cleanQuery"
                                   : "No registered user found.",
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                                 color: theme.colorScheme.onSurface,
@@ -586,7 +586,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                       const SizedBox(height: 14),
                       Text(
                         "You can still add them as an offline member so expenses and splits can be tracked together.",
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
                         ),
@@ -603,7 +603,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                           child: Center(
                             child: Text(
                               "\"$offlineFallbackName\" is already in this group",
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: isDark ? Colors.amber[300] : Colors.amber[800],
@@ -642,7 +642,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                               _isAdding
                                   ? "Adding..."
                                   : "Add \"$offlineFallbackName\" as offline member",
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                                 color: const Color(0xFF0284C7),

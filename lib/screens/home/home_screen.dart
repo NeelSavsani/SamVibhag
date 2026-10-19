@@ -189,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     group.groupName,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -204,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text(
                   'Rs. ${group.totalExpense.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.dmSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: color,
@@ -386,7 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(
                         'Your Groups',
-                        style: GoogleFonts.poppins(fontSize: 21, fontWeight: FontWeight.w700),
+                        style: GoogleFonts.dmSans(fontSize: 21, fontWeight: FontWeight.w700),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -396,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: Text(
                           '${filteredGroups.length} Total',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: isDark ? const Color(0xFF83F4EB) : const Color(0xFF0369A1),

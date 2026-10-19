@@ -293,7 +293,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       appBar: AppBar(
         title: Text(
           "Create Group",
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 18),
         ),
         leading: const BackButton(),
         elevation: 0,
@@ -314,7 +314,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   ? const CircularProgressIndicator(color: Colors.white)
                   : Text(
                 "Create Group",
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 15),
               ),
             ),
           ),
@@ -393,7 +393,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               // Members Section Header
               Text(
                 "Add Members by @Username or Email",
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: textColor,

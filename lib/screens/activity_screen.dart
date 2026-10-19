@@ -130,7 +130,7 @@ class ActivityScreen extends StatelessWidget {
             toolbarHeight: 72,
             title: Text(
               'Activity & Analytics',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.dmSans(
                 color: textThemeColor,
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -177,7 +177,7 @@ class ActivityScreen extends StatelessWidget {
                             children: [
                               Text(
                                 'Analytics Summary',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   color: Colors.white70, 
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -202,12 +202,12 @@ class ActivityScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           Text(
                             'Total Shared Spending',
-                            style: GoogleFonts.poppins(color: Colors.white70, fontSize: 11),
+                            style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 11),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '₹${totalExpensesCombined.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.dmSans(
                               color: Colors.white,
                               fontSize: 26,
                               fontWeight: FontWeight.w700,
@@ -243,7 +243,7 @@ class ActivityScreen extends StatelessWidget {
                       const SizedBox(width: 10),
                       Text(
                         'Recent Activities',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.dmSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: textThemeColor,
@@ -270,7 +270,7 @@ class ActivityScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           Text(
                             'No recent activity yet',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.dmSans(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: textThemeColor,
@@ -279,7 +279,7 @@ class ActivityScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'New expenses will appear here.',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.dmSans(
                               fontSize: 12,
                               color: textThemeColor.withOpacity(0.5),
                             ),
@@ -325,7 +325,7 @@ class ActivityScreen extends StatelessWidget {
                                       children: [
                                         Text(
                                           item.message,
-                                          style: GoogleFonts.poppins(
+                                          style: GoogleFonts.dmSans(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
                                             color: textThemeColor,
@@ -337,7 +337,7 @@ class ActivityScreen extends StatelessWidget {
                                           children: [
                                             Text(
                                               DateFormat("dd MMM, hh:mm a").format(item.date),
-                                              style: GoogleFonts.poppins(
+                                              style: GoogleFonts.dmSans(
                                                 fontSize: 12,
                                                 color: textThemeColor.withOpacity(0.5),
                                               ),
@@ -350,7 +350,7 @@ class ActivityScreen extends StatelessWidget {
                                               ),
                                               child: Text(
                                                 item.category,
-                                                style: GoogleFonts.poppins(
+                                                style: GoogleFonts.dmSans(
                                                   fontSize: 11,
                                                   color: Color(0xFF0284C7),
                                                   fontWeight: FontWeight.w600,
@@ -381,11 +381,11 @@ class ActivityScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 10)),
+        Text(label, style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 10)),
         const SizedBox(height: 4),
         Text(
           val,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             color: Colors.white,
             fontSize: 14,
             fontWeight: FontWeight.w700,

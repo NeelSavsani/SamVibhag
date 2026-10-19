@@ -459,7 +459,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           icon: const Icon(Icons.add, color: Colors.white),
           label: Text(
             "Add Expense",
-            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600),
+            style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -527,7 +527,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             ),
                             child: Text(
                               _activeGroup!.groupName.toUpperCase(),
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.dmSans(
                                 color: isDark ? Colors.black87 : Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -564,7 +564,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               const SizedBox(width: 6),
                               Text(
                                 "${_activeGroup!.members.length} People",
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   color: isDark ? Colors.white : Colors.black87,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -606,7 +606,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   children: [
                     Text(
                       "Total Group Expense",
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -614,7 +614,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     ),
                     Text(
                       "₹ ${_activeGroup!.totalExpense.toStringAsFixed(0)}",
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -670,7 +670,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 "Expenses",
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: _selectedTab == 0 ? Colors.white : textColor.withOpacity(0.7),
@@ -712,7 +712,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 "History",
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: _selectedTab == 1 ? Colors.white : textColor.withOpacity(0.7),
@@ -753,7 +753,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           if (expenses.isNotEmpty) ...[
             Text(
               "Settlements",
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.dmSans(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -766,7 +766,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 child: Center(
                   child: Text(
                     "All settled up! 🎉",
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       color: textColor.withOpacity(0.5),
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
@@ -936,7 +936,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             children: [
               Text(
                 "Expenses",
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.dmSans(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: textColor,
@@ -944,7 +944,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ),
               Text(
                 "${filteredExpenses.length} Total",
-                style: GoogleFonts.poppins(fontSize: 12, color: textColor.withOpacity(0.7)),
+                style: GoogleFonts.dmSans(fontSize: 12, color: textColor.withOpacity(0.7)),
               ),
             ],
           ),
@@ -981,7 +981,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             Expanded(
                               child: Text(
                                 expense.title,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: textColor,
@@ -996,7 +996,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               ),
                               child: Text(
                                 expense.category,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: theme.colorScheme.primary,
@@ -1037,7 +1037,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           children: [
                             Text(
                               "₹ ${expense.amount.toStringAsFixed(0)}",
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
                                 color: AppTheme.primary,
@@ -1204,7 +1204,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               children: [
                 Text(
                   "History Timeline",
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.dmSans(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: textColor,
@@ -1241,7 +1241,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     label: Text(category),
-                    labelStyle: GoogleFonts.poppins(
+                    labelStyle: GoogleFonts.dmSans(
                       fontSize: 12,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                       color: selected ? Colors.white : textColor.withOpacity(0.8),
@@ -1315,7 +1315,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         const SizedBox(height: 16),
                         Text(
                           "No History Yet",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                             color: textColor,
@@ -1324,7 +1324,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         const SizedBox(height: 6),
                         Text(
                           "Events and expenses created in this group will appear here in chronological order.",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 13,
                             color: textColor.withOpacity(0.6),
                           ),
@@ -1364,7 +1364,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         const SizedBox(height: 16),
                         Text(
                           "No matching history",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: textColor,
@@ -1373,7 +1373,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         const SizedBox(height: 6),
                         Text(
                           "Try adjusting your search query or selecting a different category filter.",
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.dmSans(
                             fontSize: 13,
                             color: textColor.withOpacity(0.6),
                           ),
@@ -1454,7 +1454,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                       ),
                                       child: Text(
                                         activity.typeLabel,
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.dmSans(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                           color: activityColor,
@@ -1463,7 +1463,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     ),
                                     Text(
                                       activity.formattedTime,
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.dmSans(
                                         fontSize: 11,
                                         color: textColor.withOpacity(0.5),
                                       ),
@@ -1473,7 +1473,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 const SizedBox(height: 6),
                                 Text(
                                   activity.message,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                     color: textColor,
@@ -1484,7 +1484,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     "By ${activity.performedByName}",
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.dmSans(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
                                       color: textColor.withOpacity(0.6),

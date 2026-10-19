@@ -276,7 +276,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
           widget.expense == null ? 'Add Expense' : 'Edit Expense',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 19,
             color: isDark ? Colors.white : Colors.black87,
             fontWeight: FontWeight.w700,
@@ -292,7 +292,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 children: [
                   Text(
                     widget.expense == null ? 'Add a new expense' : 'Update expense details',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontSize: 23,
                       fontWeight: FontWeight.w700,
                       color: theme.colorScheme.onSurface,
@@ -301,7 +301,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   const SizedBox(height: 6),
                   Text(
                     'Keep everyone in the group in sync.',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontSize: 13,
                       color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
@@ -309,10 +309,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   const SizedBox(height: 24),
                   TextField(
                     controller: titleController,
-                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
+                    style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Expense Title',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      labelStyle: GoogleFonts.dmSans(fontSize: 13),
                       prefixIcon: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0284C7)),
                       filled: true,
                       fillColor: theme.cardColor,
@@ -327,12 +327,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   TextField(
                     controller: amountController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
+                    style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
                     onChanged: (_) => redistributeCustomAmounts(),
                     decoration: InputDecoration(
                       labelText: 'Amount',
                       prefixText: 'Rs. ',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      labelStyle: GoogleFonts.dmSans(fontSize: 13),
                       prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF0284C7)),
                       filled: true,
                       fillColor: theme.cardColor,
@@ -347,10 +347,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   DropdownButtonFormField<String>(
                     value: selectedCategory,
                     dropdownColor: theme.cardColor,
-                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
+                    style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Category',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      labelStyle: GoogleFonts.dmSans(fontSize: 13),
                       prefixIcon: const Icon(Icons.category_outlined, color: Color(0xFF0284C7)),
                       filled: true,
                       fillColor: theme.cardColor,
@@ -371,10 +371,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   DropdownButtonFormField<String>(
                     value: paidBy,
                     dropdownColor: theme.cardColor,
-                    style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
+                    style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Paid By',
-                      labelStyle: GoogleFonts.poppins(fontSize: 13),
+                      labelStyle: GoogleFonts.dmSans(fontSize: 13),
                       prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF0284C7)),
                       filled: true,
                       fillColor: theme.cardColor,
@@ -394,7 +394,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   const SizedBox(height: 24),
                   Text(
                     'Split Type',
-                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -432,7 +432,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   const SizedBox(height: 20),
                   Text(
                     'Split Between',
-                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 10),
                   Expanded(
@@ -457,7 +457,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                               children: [
                                 Text(
                                   member,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: theme.colorScheme.onSurface,
@@ -526,7 +526,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                       child: Text(
                         widget.expense == null ? 'Save Expense' : 'Update Expense',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.dmSans(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,

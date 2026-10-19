@@ -280,7 +280,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
         title: Text(
           "Group Information",
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 19,
             color: isDark ? Colors.white : Colors.black87,
             fontWeight: FontWeight.w700,
@@ -298,7 +298,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Manage your group',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.dmSans(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
                           color: theme.colorScheme.onSurface,
@@ -310,7 +310,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Update the profile and manage members.',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.dmSans(
                           fontSize: 14,
                           color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
@@ -345,10 +345,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     const SizedBox(height: 24),
                     TextField(
                       controller: groupNameController,
-                      style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
+                      style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
                       decoration: InputDecoration(
                         labelText: "Group Name",
-                        labelStyle: GoogleFonts.poppins(fontSize: 13),
+                        labelStyle: GoogleFonts.dmSans(fontSize: 13),
                         prefixIcon: const Icon(Icons.groups, color: Color(0xFF0284C7)),
                         filled: true,
                         fillColor: theme.cardColor,
@@ -364,10 +364,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       controller: descriptionController,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
-                      style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 14),
+                      style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
                       decoration: InputDecoration(
                         labelText: "Description",
-                        labelStyle: GoogleFonts.poppins(fontSize: 13),
+                        labelStyle: GoogleFonts.dmSans(fontSize: 13),
                         prefixIcon: const Icon(Icons.info_outline, color: Color(0xFF0284C7)),
                         filled: true,
                         fillColor: theme.cardColor,
@@ -387,8 +387,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       ),
                       child: ListTile(
                         leading: const Icon(Icons.calendar_today, color: AppTheme.primary),
-                        title: Text("Created", style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
-                        subtitle: Text(createdDate, style: GoogleFonts.poppins(fontSize: 12)),
+                        title: Text("Created", style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: Text(createdDate, style: GoogleFonts.dmSans(fontSize: 12)),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -412,7 +412,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       children: [
                         Text(
                           "Members",
-                          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.dmSans(fontSize: 20, fontWeight: FontWeight.w700),
                         ),
                         FilledButton.icon(
                           onPressed: addMember,
@@ -451,7 +451,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                                   ),
                                   title: Text(
                                     members[index],
-                                    style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                                    style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
                                   ),
                                   subtitle: Text(
                                     (index < memberUsernames.length && memberUsernames[index].isNotEmpty)
@@ -459,7 +459,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                                         : (index < memberEmails.length && memberEmails[index].isNotEmpty)
                                             ? memberEmails[index]
                                             : "Member ${index + 1}",
-                                    style: GoogleFonts.poppins(fontSize: 12),
+                                    style: GoogleFonts.dmSans(fontSize: 12),
                                   ),
                                   trailing: IconButton(
                                     tooltip: "Remove Member",
@@ -500,7 +500,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           child: Text(
                             "Save Changes",
-                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.dmSans(fontSize: 15, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ),

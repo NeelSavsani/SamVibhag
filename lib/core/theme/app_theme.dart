@@ -61,10 +61,10 @@ class AppTheme {
       useMaterial3: true,
     );
 
-    // FIXED: Injected Ubuntu globally to the textTheme and primaryTextTheme
+    // Use one clear, friendly typeface across the app.
     return baseTheme.copyWith(
-      textTheme: GoogleFonts.ubuntuTextTheme(baseTheme.textTheme),
-      primaryTextTheme: GoogleFonts.ubuntuTextTheme(baseTheme.primaryTextTheme),
+      textTheme: GoogleFonts.dmSansTextTheme(baseTheme.textTheme),
+      primaryTextTheme: GoogleFonts.dmSansTextTheme(baseTheme.primaryTextTheme),
     );
   }
 
@@ -96,10 +96,10 @@ class AppTheme {
       useMaterial3: true,
     );
 
-    // FIXED: Injected Ubuntu globally to the textTheme and primaryTextTheme
+    // Use one clear, friendly typeface across the app.
     return baseTheme.copyWith(
-      textTheme: GoogleFonts.ubuntuTextTheme(baseTheme.textTheme),
-      primaryTextTheme: GoogleFonts.ubuntuTextTheme(baseTheme.primaryTextTheme),
+      textTheme: GoogleFonts.dmSansTextTheme(baseTheme.textTheme),
+      primaryTextTheme: GoogleFonts.dmSansTextTheme(baseTheme.primaryTextTheme),
     );
   }
 }
