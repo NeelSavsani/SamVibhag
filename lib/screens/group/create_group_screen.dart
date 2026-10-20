@@ -32,6 +32,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final List<String> _memberUids = [];
   final List<String> _memberEmails = [];
   final List<String> _memberUsernames = [];
+  final List<Map<String, String>> _memberIdentities = [];
 
   User? get _currentUser => FirebaseAuth.instance.currentUser;
 
@@ -45,7 +46,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           : (_currentUser!.email?.split('@').first ?? 'You');
       _members.add(name);
       _memberUids.add(_currentUser!.uid);
-      if (_currentUser!.email != null) _memberEmails.add(_currentUser!.email!.toLowerCase());
+      _memberIdentities.add({'name': name, 'uid': _currentUser!.uid});
+      if (_currentUser!.email != null)
+        _memberEmails.add(_currentUser!.email!.toLowerCase());
     }
   }
 
@@ -100,7 +103,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       if (snapshot.docs.isNotEmpty) {
         final userData = snapshot.docs.first.data();
         final uid = snapshot.docs.first.id;
-        final name = (userData['displayName'] as String?)?.trim().isNotEmpty == true
+        final name =
+            (userData['displayName'] as String?)?.trim().isNotEmpty == true
             ? userData['displayName'] as String
             : (userData['username'] ?? cleanInput);
         final email = (userData['email'] as String?)?.toLowerCase() ?? '';
@@ -116,6 +120,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         setState(() {
           _members.add(name);
           _memberUids.add(uid);
+          _memberIdentities.add({'name': name, 'uid': uid});
           if (email.isNotEmpty) _memberEmails.add(email);
           _memberUsernames.add(username);
           _memberInputController.clear();
@@ -151,9 +156,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Search failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Search failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSearchingUser = false);
@@ -163,12 +168,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   void _removeMember(int index) {
     if (index == 0 && _memberUids.contains(_currentUser?.uid)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You cannot remove yourself from the group.")),
+        const SnackBar(
+          content: Text("You cannot remove yourself from the group."),
+        ),
       );
       return;
     }
     setState(() {
       final name = _members.removeAt(index);
+      _memberIdentities.removeWhere((identity) => identity['name'] == name);
       if (index < _memberUids.length) _memberUids.removeAt(index);
       if (index < _memberEmails.length) _memberEmails.removeAt(index);
       if (index < _memberUsernames.length) _memberUsernames.removeAt(index);
@@ -188,7 +196,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
     try {
       final groupDoc = FirebaseFirestore.instance.collection('groups').doc();
-      final currentUserName = _currentUser?.displayName?.trim().isNotEmpty == true
+      final currentUserName =
+          _currentUser?.displayName?.trim().isNotEmpty == true
           ? _currentUser!.displayName!
           : (_currentUser?.email?.split('@').first ?? 'Admin');
 
@@ -203,6 +212,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         'memberUids': _memberUids,
         'memberEmails': _memberEmails,
         'memberUsernames': _memberUsernames,
+        'memberIdentities': _memberIdentities,
         'createdBy': _currentUser?.uid ?? '',
         'lastUpdatedBy': _currentUser?.uid ?? '',
         'lastUpdatedByName': currentUserName,
@@ -220,12 +230,16 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         message: '$currentUserName created group "$groupName"',
         metadata: {
           'initialMembers': _members,
-          'groupType': _descController.text.trim().isNotEmpty ? _descController.text.trim() : 'General',
+          'groupType': _descController.text.trim().isNotEmpty
+              ? _descController.text.trim()
+              : 'General',
         },
       );
 
       // Free Spark Tier: Dispatch FCM notifications directly to other members via FCM HTTP v1
-      final recipientUids = _memberUids.where((id) => id != _currentUser?.uid).toList();
+      final recipientUids = _memberUids
+          .where((id) => id != _currentUser?.uid)
+          .toList();
 
       if (recipientUids.isNotEmpty) {
         try {
@@ -256,12 +270,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       final newGroup = GroupModel(
         id: groupDoc.id,
         groupName: groupName,
+        creatorUid: _currentUser?.uid ?? '',
         description: _descController.text.trim(),
         avatarPath: _selectedImage?.path ?? '',
         members: List<String>.from(_members),
         memberUids: List<String>.from(_memberUids),
         memberEmails: List<String>.from(_memberEmails),
         memberUsernames: List<String>.from(_memberUsernames),
+        memberIdentities: List<Map<String, String>>.from(_memberIdentities),
         createdAt: DateTime.now(),
         expenses: [],
         recordedSettlements: [],
@@ -272,9 +288,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create group: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to create group: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -289,7 +305,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final tileBg = isDark ? theme.cardColor : const Color(0xFFF4F3F9);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF121214)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
           "Create Group",
@@ -307,15 +325,20 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             child: FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               onPressed: _isLoading ? null : _createGroup,
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : Text(
-                "Create Group",
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w600, fontSize: 15),
-              ),
+                      "Create Group",
+                      style: GoogleFonts.dmSans(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -336,10 +359,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       CircleAvatar(
                         radius: 46,
                         backgroundColor: tileBg,
-                        backgroundImage:
-                        _selectedImage != null ? FileImage(_selectedImage!) : null,
+                        backgroundImage: _selectedImage != null
+                            ? FileImage(_selectedImage!)
+                            : null,
                         child: _selectedImage == null
-                            ? Icon(Icons.group_add_rounded, size: 40, color: AppTheme.primary)
+                            ? Icon(
+                                Icons.group_add_rounded,
+                                size: 40,
+                                color: AppTheme.primary,
+                              )
                             : null,
                       ),
                       Positioned(
@@ -348,7 +376,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         child: CircleAvatar(
                           radius: 14,
                           backgroundColor: AppTheme.primary,
-                          child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
@@ -370,7 +402,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                validator: (val) => val == null || val.trim().isEmpty ? "Group name required" : null,
+                validator: (val) => val == null || val.trim().isEmpty
+                    ? "Group name required"
+                    : null,
               ),
               const SizedBox(height: 16),
 
@@ -430,15 +464,20 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     child: FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       onPressed: _isSearchingUser ? null : _searchAndAddMember,
                       child: _isSearchingUser
                           ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
                           : const Icon(Icons.add),
                     ),
                   ),
@@ -451,7 +490,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: List.generate(_members.length, (index) {
-                  final isMe = index == 0 && _memberUids.contains(_currentUser?.uid);
+                  final isMe =
+                      index == 0 && _memberUids.contains(_currentUser?.uid);
                   return Chip(
                     backgroundColor: tileBg,
                     shape: RoundedRectangleBorder(

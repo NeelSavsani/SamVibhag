@@ -8,11 +8,13 @@ class GroupModel {
   String description;
   String avatarPath;
   DateTime createdAt;
+  final String creatorUid;
 
   List<String> members;
   List<String> memberUids;
   List<String> memberEmails;
   List<String> memberUsernames;
+  List<Map<String, String>> memberIdentities;
 
   List<ExpenseModel> expenses;
   List<SettlementModel> recordedSettlements;
@@ -24,18 +26,17 @@ class GroupModel {
     this.memberUids = const [],
     this.memberEmails = const [],
     this.memberUsernames = const [],
+    this.memberIdentities = const [],
     required this.expenses,
     this.recordedSettlements = const [],
     this.description = '',
     this.avatarPath = '',
     DateTime? createdAt,
+    this.creatorUid = '',
   }) : createdAt = createdAt ?? DateTime.now();
 
   double get totalExpense {
-    return expenses.fold(
-      0.0,
-          (sum, expense) => sum + expense.amount,
-    );
+    return expenses.fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
   Map<String, double> get memberBalances {
@@ -103,7 +104,9 @@ class GroupModel {
       final debtor = debtors[i];
       final creditor = creditors[j];
 
-      final amount = debtor.value < creditor.value ? debtor.value : creditor.value;
+      final amount = debtor.value < creditor.value
+          ? debtor.value
+          : creditor.value;
 
       result.add(
         SettlementModel(
@@ -142,38 +145,58 @@ class GroupModel {
     return GroupModel(
       id: docId ?? (map['id']?.toString() ?? ''),
       // Supports both 'groupName' and 'name' keys across old/new records
-      groupName: (map['groupName'] ?? map['name'] ?? 'Untitled Group').toString(),
+      groupName: (map['groupName'] ?? map['name'] ?? 'Untitled Group')
+          .toString(),
       description: map['description']?.toString() ?? '',
       avatarPath: map['avatarPath']?.toString() ?? '',
       createdAt: parsedDate,
-      members: (map['members'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList() ??
+      creatorUid: (map['createdBy'] ?? '').toString(),
+      members:
+          (map['members'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
           <String>[],
-      memberUids: (map['memberUids'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList() ??
-          (map['createdBy'] != null ? [map['createdBy'].toString()] : <String>[]),
-      memberEmails: (map['memberEmails'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList() ??
+      memberUids:
+          (map['memberUids'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          (map['createdBy'] != null
+              ? [map['createdBy'].toString()]
+              : <String>[]),
+      memberEmails:
+          (map['memberEmails'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
           <String>[],
-      memberUsernames: (map['memberUsernames'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList() ??
+      memberUsernames:
+          (map['memberUsernames'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
           <String>[],
-      expenses: (map['expenses'] as List<dynamic>?)
-          ?.map(
-            (expense) => ExpenseModel.fromMap(expense as Map<dynamic, dynamic>),
-      )
-          .toList() ??
+      memberIdentities: (map['memberIdentities'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map((entry) => {
+            'name': entry['name']?.toString() ?? '',
+            'uid': entry['uid']?.toString() ?? '',
+          })
+          .where((entry) => entry['name']!.isNotEmpty && entry['uid']!.isNotEmpty)
+          .toList(),
+      expenses:
+          (map['expenses'] as List<dynamic>?)
+              ?.map(
+                (expense) =>
+                    ExpenseModel.fromMap(expense as Map<dynamic, dynamic>),
+              )
+              .toList() ??
           <ExpenseModel>[],
-      recordedSettlements: (map['recordedSettlements'] as List<dynamic>?)
-          ?.map(
-            (settlement) =>
-            SettlementModel.fromMap(settlement as Map<dynamic, dynamic>),
-      )
-          .toList() ??
+      recordedSettlements:
+          (map['recordedSettlements'] as List<dynamic>?)
+              ?.map(
+                (settlement) => SettlementModel.fromMap(
+                  settlement as Map<dynamic, dynamic>,
+                ),
+              )
+              .toList() ??
           <SettlementModel>[],
     );
   }
@@ -186,10 +209,12 @@ class GroupModel {
       'description': description,
       'avatarPath': avatarPath,
       'createdAt': createdAt.toIso8601String(),
+      'createdBy': creatorUid,
       'members': members,
       'memberUids': memberUids,
       'memberEmails': memberEmails,
       'memberUsernames': memberUsernames,
+      'memberIdentities': memberIdentities,
       'expenses': expenses.map((expense) => expense.toMap()).toList(),
       'recordedSettlements': recordedSettlements
           .map((settlement) => settlement.toMap())

@@ -9,6 +9,7 @@ import '../../models/group_model.dart';
 import '../../models/settlement_model.dart';
 import '../../models/group_activity_model.dart';
 import '../../services/activity_service.dart';
+import '../../services/group_backend_service.dart';
 import '../../core/theme/app_theme.dart';
 
 import 'add_expense_screen.dart';
@@ -20,7 +21,10 @@ class GroupDetailsScreen extends StatefulWidget {
     this.group,
     this.groupId,
     this.onGroupUpdated,
-  }) : assert(group != null || groupId != null, 'Either group or groupId must be provided');
+  }) : assert(
+         group != null || groupId != null,
+         'Either group or groupId must be provided',
+       );
 
   final GroupModel? group;
   final String? groupId;
@@ -61,8 +65,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
       final matchesSearch =
           expense.title.toLowerCase().contains(search) ||
-              expense.category.toLowerCase().contains(search) ||
-              expense.paidBy.toLowerCase().contains(search);
+          expense.category.toLowerCase().contains(search) ||
+          expense.paidBy.toLowerCase().contains(search);
 
       final matchesCategory =
           selectedCategory == "All" || expense.category == selectedCategory;
@@ -119,7 +123,69 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   void _triggerHistoricalBackfill() {
     if (_activeGroup != null) {
       ActivityService.instance.ensureHistoricalActivitiesLogged(_activeGroup!);
+      _migrateMemberIdentitiesIfPossible();
     }
+  }
+
+  Future<void> _migrateMemberIdentitiesIfPossible() async {
+    final group = _activeGroup;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (group == null || uid == null || uid != group.creatorUid || group.memberIdentities.isNotEmpty) return;
+    try {
+      if (!await GroupBackendService.migrateGroupMemberIdentities(group.id)) return;
+      final snapshot = await FirebaseFirestore.instance.collection('groups').doc(group.id).get();
+      if (snapshot.exists && mounted) {
+        setState(() => _activeGroup = GroupModel.fromMap(snapshot.data()!, snapshot.id));
+      }
+    } catch (error) {
+      debugPrint('Member identity migration skipped: $error');
+    }
+  }
+
+  String _displayMemberName(String name) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || _activeGroup == null) return name;
+
+    final memberIndex = _activeGroup!.memberUids.indexOf(currentUserId);
+    if (memberIndex >= 0 &&
+        memberIndex < _activeGroup!.members.length &&
+        _activeGroup!.members[memberIndex] == name) {
+      return 'You';
+    }
+    return name;
+  }
+
+  String _activityMessage(GroupActivity activity) {
+    final actorName =
+        activity.performedByUid == FirebaseAuth.instance.currentUser?.uid
+        ? 'You'
+        : activity.performedByName;
+    final metadata = activity.metadata;
+
+    if (activity.type == GroupActivity.typeExpenseCreated && metadata != null) {
+      final title = metadata['title']?.toString() ?? '';
+      final amount = (metadata['amount'] as num?)?.toDouble();
+      final formattedAmount = amount?.toStringAsFixed(0) ?? '0';
+      return '$actorName added "$title" of "₹$formattedAmount" in "${_activeGroup?.groupName ?? ''}"';
+    }
+
+    if (actorName == activity.performedByName ||
+        activity.performedByName.isEmpty) {
+      return activity.message;
+    }
+    return activity.message.replaceFirst(activity.performedByName, actorName);
+  }
+
+  bool _canManageSettlement(SettlementModel settlement) {
+    final user = FirebaseAuth.instance.currentUser;
+    final group = _activeGroup;
+    if (user == null || group == null) return false;
+    if (user.uid == group.creatorUid) return true;
+    if (!group.memberUids.contains(user.uid)) return false;
+    final matches = group.memberIdentities
+        .where((identity) => identity['name'] == settlement.fromUser)
+        .toList();
+    return matches.length == 1 && matches.single['uid'] == user.uid;
   }
 
   @override
@@ -131,12 +197,15 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   Future<void> markAsSettled(SettlementModel settlement) async {
     if (_activeGroup == null) return;
+    if (!_canManageSettlement(settlement)) return;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text("Mark as Settled"),
-        content: Text("Mark ₹${settlement.amount.toStringAsFixed(0)} from ${settlement.fromUser} to ${settlement.toUser} as settled?"),
+        content: Text(
+          "Mark ₹${settlement.amount.toStringAsFixed(0)} from ${settlement.fromUser} to ${settlement.toUser} as settled?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -152,43 +221,26 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     if (confirm != true) return;
 
-    final newSettlement = SettlementModel(
-      fromUser: settlement.fromUser,
-      toUser: settlement.toUser,
-      amount: settlement.amount,
-      isSettled: true,
-      settledAt: DateTime.now(),
-    );
-
     if (!mounted) return;
 
-    setState(() {
-      _activeGroup!.recordedSettlements = List.from(_activeGroup!.recordedSettlements)..add(newSettlement);
-    });
-
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
-
-      await FirebaseFirestore.instance
+      await GroupBackendService.manageSettlement({
+        'groupId': _activeGroup!.id,
+        'action': 'settle',
+        'fromUser': settlement.fromUser,
+        'toUser': settlement.toUser,
+        'amount': settlement.amount,
+      });
+      final snapshot = await FirebaseFirestore.instance
           .collection('groups')
           .doc(_activeGroup!.id)
-          .update({
-        'recordedSettlements': FieldValue.arrayUnion([newSettlement.toMap()]),
-        'lastUpdatedBy': user?.uid,
-        'lastUpdatedByName': userName,
-      });
-
-      await ActivityService.instance.logGroupActivity(
-        groupId: _activeGroup!.id,
-        type: GroupActivity.typeSettlementRecorded,
-        message: 'Settlement: ${settlement.fromUser} paid ₹${settlement.amount.toStringAsFixed(0)} to ${settlement.toUser}',
-        metadata: {
-          'fromUser': settlement.fromUser,
-          'toUser': settlement.toUser,
-          'amount': settlement.amount,
-        },
-      );
+          .get();
+      if (snapshot.exists && mounted) {
+        setState(
+          () =>
+              _activeGroup = GroupModel.fromMap(snapshot.data()!, snapshot.id),
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,12 +258,15 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   Future<void> undoSettlement(SettlementModel settlement) async {
     if (_activeGroup == null) return;
+    if (!_canManageSettlement(settlement)) return;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text("Undo Settlement"),
-        content: Text("Undo Settlement? This will restore the pending balance of ₹${settlement.amount.toStringAsFixed(0)} between ${settlement.fromUser} and ${settlement.toUser}."),
+        content: Text(
+          "Undo Settlement? This will restore the pending balance of ₹${settlement.amount.toStringAsFixed(0)} between ${settlement.fromUser} and ${settlement.toUser}.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -228,33 +283,25 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     if (confirm != true) return;
     if (!mounted) return;
 
-    setState(() {
-      _activeGroup!.recordedSettlements.removeWhere((s) => s.id == settlement.id);
-    });
-
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
-
-      await FirebaseFirestore.instance
+      await GroupBackendService.manageSettlement({
+        'groupId': _activeGroup!.id,
+        'action': 'undo',
+        'fromUser': settlement.fromUser,
+        'toUser': settlement.toUser,
+        'amount': settlement.amount,
+        'settlementId': settlement.id,
+      });
+      final snapshot = await FirebaseFirestore.instance
           .collection('groups')
           .doc(_activeGroup!.id)
-          .update({
-        'recordedSettlements': _activeGroup!.recordedSettlements.map((e) => e.toMap()).toList(),
-        'lastUpdatedBy': user?.uid,
-        'lastUpdatedByName': userName,
-      });
-
-      await ActivityService.instance.logGroupActivity(
-        groupId: _activeGroup!.id,
-        type: GroupActivity.typeSettlementUndone,
-        message: 'Undid settlement: restored balance of ₹${settlement.amount.toStringAsFixed(0)} between ${settlement.fromUser} and ${settlement.toUser}',
-        metadata: {
-          'fromUser': settlement.fromUser,
-          'toUser': settlement.toUser,
-          'amount': settlement.amount,
-        },
-      );
+          .get();
+      if (snapshot.exists && mounted) {
+        setState(
+          () =>
+              _activeGroup = GroupModel.fromMap(snapshot.data()!, snapshot.id),
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -273,14 +320,24 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   Future<void> openGroupInfo() async {
     if (_activeGroup == null) return;
 
-    final GroupModel? updatedGroup = await Navigator.of(context, rootNavigator: true).push<GroupModel>(
-      MaterialPageRoute(builder: (_) => GroupInfoScreen(group: _activeGroup!)),
-    );
+    final result = await Navigator.of(context, rootNavigator: true)
+        .push<Object?>(
+          MaterialPageRoute(
+            builder: (_) => GroupInfoScreen(group: _activeGroup!),
+          ),
+        );
 
     if (!mounted) return;
 
+    if (result == true) {
+      Navigator.of(context).pop();
+      await widget.onGroupUpdated?.call();
+      return;
+    }
+
     setState(() {
-      if (updatedGroup != null) {
+      if (result is GroupModel) {
+        final updatedGroup = result;
         _activeGroup!.groupName = updatedGroup.groupName;
         _activeGroup!.description = updatedGroup.description;
         _activeGroup!.avatarPath = updatedGroup.avatarPath;
@@ -297,9 +354,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   Future<void> addExpense() async {
     if (_activeGroup == null) return;
 
-    final ExpenseModel? result = await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
-      MaterialPageRoute(builder: (_) => AddExpenseScreen(group: _activeGroup!)),
-    );
+    final ExpenseModel? result =
+        await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
+          MaterialPageRoute(
+            builder: (_) => AddExpenseScreen(group: _activeGroup!),
+          ),
+        );
 
     if (result == null) return;
     if (!mounted) return;
@@ -317,11 +377,13 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     final expense = filteredExpenses[index];
     final originalIndex = expenses.indexOf(expense);
 
-    final ExpenseModel? updatedExpense = await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
-      MaterialPageRoute(
-        builder: (_) => AddExpenseScreen(group: _activeGroup!, expense: expense),
-      ),
-    );
+    final ExpenseModel? updatedExpense =
+        await Navigator.of(context, rootNavigator: true).push<ExpenseModel>(
+          MaterialPageRoute(
+            builder: (_) =>
+                AddExpenseScreen(group: _activeGroup!, expense: expense),
+          ),
+        );
 
     if (updatedExpense == null) return;
     if (!mounted) return;
@@ -365,21 +427,23 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
+      final userName =
+          user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
 
       await FirebaseFirestore.instance
           .collection('groups')
           .doc(_activeGroup!.id)
           .update({
-        'expenses': _activeGroup!.expenses.map((e) => e.toMap()).toList(),
-        'lastUpdatedBy': user?.uid,
-        'lastUpdatedByName': userName,
-      });
+            'expenses': _activeGroup!.expenses.map((e) => e.toMap()).toList(),
+            'lastUpdatedBy': user?.uid,
+            'lastUpdatedByName': userName,
+          });
 
       await ActivityService.instance.logGroupActivity(
         groupId: _activeGroup!.id,
         type: GroupActivity.typeExpenseDeleted,
-        message: 'Deleted expense "${expense.title}" (₹${expense.amount.toStringAsFixed(0)}) paid by ${expense.paidBy}',
+        message:
+            'Deleted expense "${expense.title}" (₹${expense.amount.toStringAsFixed(0)}) paid by ${expense.paidBy}',
         metadata: {
           'title': expense.title,
           'amount': expense.amount,
@@ -396,9 +460,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete expense: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete expense: $e')));
       }
     }
 
@@ -409,7 +473,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   Widget build(BuildContext context) {
     if (_activeGroup == null) {
       return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('groups').doc(targetGroupId).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('groups')
+            .doc(targetGroupId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
@@ -439,10 +506,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.colorScheme.onSurface;
-    final tileBackgroundColor = isDark ? theme.cardColor : const Color(0xFFF4F3F9);
+    final tileBackgroundColor = isDark
+        ? theme.cardColor
+        : const Color(0xFFF4F3F9);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF121214)
+          : const Color(0xFFF8FAFC),
       floatingActionButton: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -459,7 +530,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           icon: const Icon(Icons.add, color: Colors.white),
           label: Text(
             "Add Expense",
-            style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
+            style: GoogleFonts.dmSans(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -473,26 +547,35 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               height: 220,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1A1B21) : const Color(0xFFE2E8F0),
+                color: isDark
+                    ? const Color(0xFF1A1B21)
+                    : const Color(0xFFE2E8F0),
                 image: _activeGroup!.avatarPath.isNotEmpty
                     ? DecorationImage(
-                  image: _activeGroup!.avatarPath.startsWith('http')
-                      ? NetworkImage(_activeGroup!.avatarPath)
-                      : FileImage(File(_activeGroup!.avatarPath)) as ImageProvider,
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(isDark ? 0.45 : 0.25),
-                    BlendMode.srcOver,
-                  ),
-                )
+                        image: _activeGroup!.avatarPath.startsWith('http')
+                            ? NetworkImage(_activeGroup!.avatarPath)
+                            : FileImage(File(_activeGroup!.avatarPath))
+                                  as ImageProvider,
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          Colors.black.withOpacity(isDark ? 0.45 : 0.25),
+                          BlendMode.srcOver,
+                        ),
+                      )
                     : DecorationImage(
-                  image: AssetImage(isDark ? 'assets/images/SamDark.png' : 'assets/images/SamLight.png'),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    isDark ? Colors.black38 : Colors.black.withOpacity(0.05),
-                    BlendMode.srcOver,
-                  ),
-                ),
+                        image: AssetImage(
+                          isDark
+                              ? 'assets/images/SamDark.png'
+                              : 'assets/images/SamLight.png',
+                        ),
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          isDark
+                              ? Colors.black38
+                              : Colors.black.withOpacity(0.05),
+                          BlendMode.srcOver,
+                        ),
+                      ),
               ),
               child: SafeArea(
                 bottom: false,
@@ -507,7 +590,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         children: [
                           Container(
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.12)
+                                  : Colors.black.withOpacity(0.06),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
@@ -520,9 +605,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.5),
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.5)
+                                  : Colors.black.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -537,90 +627,98 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           ),
                           Container(
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.12)
+                                  : Colors.black.withOpacity(0.06),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
                               tooltip: "Group Settings",
-                              icon: Icon(Icons.settings, color: isDark ? Colors.white : Colors.black87),
+                              icon: Icon(
+                                Icons.settings,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
                               onPressed: openGroupInfo,
                             ),
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: openGroupInfo,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.06),
-                            borderRadius: BorderRadius.circular(20),
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: openGroupInfo,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withOpacity(0.12)
+                                    : Colors.black.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.people_alt_outlined,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : Colors.black54,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "${_activeGroup!.members.length} People",
+                                    style: GoogleFonts.dmSans(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.people_alt_outlined, color: isDark ? Colors.white70 : Colors.black54, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                "${_activeGroup!.members.length} People",
-                                style: GoogleFonts.dmSans(
-                                  color: isDark ? Colors.white : Colors.black87,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                          const Spacer(),
+                          Flexible(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.white.withOpacity(0.12)
+                                      : Colors.black.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    '₹${_activeGroup!.totalExpense.toStringAsFixed(0)}',
+                                    maxLines: 1,
+                                    style: GoogleFonts.dmSans(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-
-            /// TOTAL EXPENSE CONTAINER
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF0284C7).withOpacity(0.22),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Total Group Expense",
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      "₹ ${_activeGroup!.totalExpense.toStringAsFixed(0)}",
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),
@@ -634,7 +732,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   color: tileBackgroundColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
+                    color: isDark
+                        ? Colors.white.withOpacity(0.08)
+                        : Colors.black.withOpacity(0.06),
                   ),
                 ),
                 child: Row(
@@ -646,16 +746,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: _selectedTab == 0 ? AppTheme.primary : Colors.transparent,
+                            color: _selectedTab == 0
+                                ? AppTheme.primary
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: _selectedTab == 0
                                 ? [
-                              BoxShadow(
-                                color: AppTheme.primary.withOpacity(0.28),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              )
-                            ]
+                                    BoxShadow(
+                                      color: AppTheme.primary.withOpacity(0.28),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
                                 : null,
                           ),
                           alignment: Alignment.center,
@@ -665,7 +767,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               Icon(
                                 Icons.receipt_long_rounded,
                                 size: 18,
-                                color: _selectedTab == 0 ? Colors.white : textColor.withOpacity(0.6),
+                                color: _selectedTab == 0
+                                    ? Colors.white
+                                    : textColor.withOpacity(0.6),
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -673,7 +777,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 style: GoogleFonts.dmSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: _selectedTab == 0 ? Colors.white : textColor.withOpacity(0.7),
+                                  color: _selectedTab == 0
+                                      ? Colors.white
+                                      : textColor.withOpacity(0.7),
                                 ),
                               ),
                             ],
@@ -688,16 +794,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: _selectedTab == 1 ? AppTheme.primary : Colors.transparent,
+                            color: _selectedTab == 1
+                                ? AppTheme.primary
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: _selectedTab == 1
                                 ? [
-                              BoxShadow(
-                                color: AppTheme.primary.withOpacity(0.28),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              )
-                            ]
+                                    BoxShadow(
+                                      color: AppTheme.primary.withOpacity(0.28),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
                                 : null,
                           ),
                           alignment: Alignment.center,
@@ -707,7 +815,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               Icon(
                                 Icons.history_rounded,
                                 size: 18,
-                                color: _selectedTab == 1 ? Colors.white : textColor.withOpacity(0.6),
+                                color: _selectedTab == 1
+                                    ? Colors.white
+                                    : textColor.withOpacity(0.6),
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -715,7 +825,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 style: GoogleFonts.dmSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: _selectedTab == 1 ? Colors.white : textColor.withOpacity(0.7),
+                                  color: _selectedTab == 1
+                                      ? Colors.white
+                                      : textColor.withOpacity(0.7),
                                 ),
                               ),
                             ],
@@ -729,9 +841,21 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             ),
 
             if (_selectedTab == 0)
-              _buildExpensesTab(context, theme, isDark, textColor, tileBackgroundColor)
+              _buildExpensesTab(
+                context,
+                theme,
+                isDark,
+                textColor,
+                tileBackgroundColor,
+              )
             else
-              _buildHistoryTab(context, theme, isDark, textColor, tileBackgroundColor),
+              _buildHistoryTab(
+                context,
+                theme,
+                isDark,
+                textColor,
+                tileBackgroundColor,
+              ),
           ],
         ),
       ),
@@ -739,12 +863,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Widget _buildExpensesTab(
-      BuildContext context,
-      ThemeData theme,
-      bool isDark,
-      Color textColor,
-      Color tileBackgroundColor,
-      ) {
+    BuildContext context,
+    ThemeData theme,
+    bool isDark,
+    Color textColor,
+    Color tileBackgroundColor,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -788,7 +912,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     color: tileBackgroundColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
+                      side: BorderSide(
+                        color: const Color(0xFF83F4EB).withOpacity(0.14),
+                      ),
                     ),
                     child: ListTile(
                       leading: const CircleAvatar(
@@ -796,16 +922,24 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         child: Icon(Icons.swap_horiz, color: AppTheme.primary),
                       ),
                       title: Text(
-                        "${settlement.fromUser} pays ${settlement.toUser}",
+                        _displayMemberName(settlement.fromUser) == 'You'
+                            ? 'You pay ${_displayMemberName(settlement.toUser)}'
+                            : '${_displayMemberName(settlement.fromUser)} pays ${_displayMemberName(settlement.toUser)}',
                         style: TextStyle(
-                          color: settlement.isSettled ? textColor.withOpacity(0.5) : textColor,
-                          decoration: settlement.isSettled ? TextDecoration.lineThrough : null,
+                          color: settlement.isSettled
+                              ? textColor.withOpacity(0.5)
+                              : textColor,
+                          decoration: settlement.isSettled
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                       subtitle: Text(
                         settlement.isSettled ? "Settled" : "Pending",
                         style: TextStyle(
-                          color: settlement.isSettled ? Colors.green : textColor.withOpacity(0.7),
+                          color: settlement.isSettled
+                              ? Colors.green
+                              : textColor.withOpacity(0.7),
                         ),
                       ),
                       trailing: Row(
@@ -815,21 +949,33 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             "₹ ${settlement.amount.toStringAsFixed(0)}",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: settlement.isSettled ? Colors.grey : AppTheme.primary,
+                              color: settlement.isSettled
+                                  ? Colors.grey
+                                  : AppTheme.primary,
                               fontSize: 14,
-                              decoration: settlement.isSettled ? TextDecoration.lineThrough : null,
+                              decoration: settlement.isSettled
+                                  ? TextDecoration.lineThrough
+                                  : null,
                             ),
                           ),
-                          if (!settlement.isSettled) ...[
+                          if (!settlement.isSettled &&
+                              _canManageSettlement(settlement)) ...[
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                              icon: const Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.green,
+                              ),
                               onPressed: () => markAsSettled(settlement),
                             ),
-                          ] else ...[
+                          ] else if (settlement.isSettled &&
+                              _canManageSettlement(settlement)) ...[
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.undo_rounded, color: Colors.orangeAccent),
+                              icon: const Icon(
+                                Icons.undo_rounded,
+                                color: Colors.orangeAccent,
+                              ),
                               tooltip: "Undo Settlement",
                               onPressed: () => undoSettlement(settlement),
                             ),
@@ -851,58 +997,64 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             },
             child: _isSearchExpanded
                 ? TextField(
-              key: const ValueKey('expanded_expense_search'),
-              controller: _searchController,
-              autofocus: true,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                hintText: "Search expenses...",
-                hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-                prefixIcon: Icon(Icons.search, color: textColor.withOpacity(0.7)),
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.close_rounded, color: textColor.withOpacity(0.7)),
-                  onPressed: () {
-                    FocusScope.of(context).unfocus();
-                    setState(() {
-                      _searchController.clear();
-                      searchQuery = '';
-                      _isSearchExpanded = false;
-                    });
-                  },
-                ),
-                filled: true,
-                fillColor: tileBackgroundColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-              },
-            )
+                    key: const ValueKey('expanded_expense_search'),
+                    controller: _searchController,
+                    autofocus: true,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(
+                      hintText: "Search expenses...",
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: textColor.withOpacity(0.7),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: textColor.withOpacity(0.7),
+                        ),
+                        onPressed: () {
+                          FocusScope.of(context).unfocus();
+                          setState(() {
+                            _searchController.clear();
+                            searchQuery = '';
+                            _isSearchExpanded = false;
+                          });
+                        },
+                      ),
+                      filled: true,
+                      fillColor: tileBackgroundColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                      });
+                    },
+                  )
                 : Align(
-              key: const ValueKey('circle_expense_search_icon'),
-              alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _isSearchExpanded = true;
-                  });
-                },
-                child: CircleAvatar(
-                  radius: 26,
-                  backgroundColor: tileBackgroundColor,
-                  child: Icon(
-                    Icons.search_rounded,
-                    color: textColor.withOpacity(0.7),
-                    size: 24,
+                    key: const ValueKey('circle_expense_search_icon'),
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isSearchExpanded = true;
+                        });
+                      },
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: tileBackgroundColor,
+                        child: Icon(
+                          Icons.search_rounded,
+                          color: textColor.withOpacity(0.7),
+                          size: 24,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
           ),
           const SizedBox(height: 18),
 
@@ -944,7 +1096,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ),
               Text(
                 "${filteredExpenses.length} Total",
-                style: GoogleFonts.dmSans(fontSize: 12, color: textColor.withOpacity(0.7)),
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: textColor.withOpacity(0.7),
+                ),
               ),
             ],
           ),
@@ -953,7 +1108,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           if (filteredExpenses.isEmpty)
             Padding(
               padding: const EdgeInsets.all(40),
-              child: Center(child: Text("No Expenses Found", style: TextStyle(color: textColor.withOpacity(0.5)))),
+              child: Center(
+                child: Text(
+                  "No Expenses Found",
+                  style: TextStyle(color: textColor.withOpacity(0.5)),
+                ),
+              ),
             )
           else
             ListView.builder(
@@ -969,7 +1129,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   color: tileBackgroundColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
+                    side: BorderSide(
+                      color: const Color(0xFF83F4EB).withOpacity(0.14),
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -989,9 +1151,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withOpacity(.12),
+                                color: theme.colorScheme.primary.withOpacity(
+                                  .12,
+                                ),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
@@ -1006,7 +1173,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text("Paid by ${expense.paidBy}", style: TextStyle(color: textColor.withOpacity(0.8))),
+                        Text(
+                          "Paid by ${expense.paidBy}",
+                          style: TextStyle(color: textColor.withOpacity(0.8)),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           "${expense.date.day}/${expense.date.month}/${expense.date.year}",
@@ -1019,19 +1189,28 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             runSpacing: 8,
                             children: expense.customSplits.entries.map((entry) {
                               return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary.withOpacity(.08),
+                                  color: theme.colorScheme.primary.withOpacity(
+                                    .08,
+                                  ),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
                                   "${entry.key}: ₹ ${entry.value.toStringAsFixed(0)}",
-                                  style: TextStyle(color: textColor.withOpacity(0.9), fontSize: 11),
+                                  style: TextStyle(
+                                    color: textColor.withOpacity(0.9),
+                                    fontSize: 11,
+                                  ),
                                 ),
                               );
                             }).toList(),
                           ),
-                        if (expense.splitType == "custom") const SizedBox(height: 12),
+                        if (expense.splitType == "custom")
+                          const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1048,12 +1227,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 IconButton(
                                   tooltip: "Edit Expense",
                                   onPressed: () => editExpense(index),
-                                  icon: const Icon(Icons.edit_outlined, color: AppTheme.primary),
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    color: AppTheme.primary,
+                                  ),
                                 ),
                                 IconButton(
                                   tooltip: "Delete Expense",
                                   onPressed: () => deleteExpense(index),
-                                  icon: const Icon(Icons.delete_outline, color: AppTheme.warning),
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: AppTheme.warning,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1075,8 +1260,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     if (_activeGroup == null) return [];
     final List<GroupActivity> list = [];
 
-    final creatorUid = _activeGroup!.memberUids.isNotEmpty ? _activeGroup!.memberUids.first : '';
-    final creatorName = _activeGroup!.members.isNotEmpty ? _activeGroup!.members.first : 'Admin';
+    final creatorUid = _activeGroup!.memberUids.isNotEmpty
+        ? _activeGroup!.memberUids.first
+        : '';
+    final creatorName = _activeGroup!.members.isNotEmpty
+        ? _activeGroup!.members.first
+        : 'Admin';
     list.add(
       GroupActivity(
         id: 'hist_created_${_activeGroup!.id}',
@@ -1088,7 +1277,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         timestamp: _activeGroup!.createdAt,
         metadata: {
           'initialMembers': _activeGroup!.members,
-          'groupType': _activeGroup!.description.isNotEmpty ? _activeGroup!.description : 'General',
+          'groupType': _activeGroup!.description.isNotEmpty
+              ? _activeGroup!.description
+              : 'General',
           'isBackfilled': true,
         },
       ),
@@ -1102,7 +1293,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           type: GroupActivity.typeExpenseCreated,
           performedByUid: '',
           performedByName: exp.paidBy,
-          message: '${exp.paidBy} added ₹${exp.amount.toStringAsFixed(0)} for "${exp.title}"',
+          message:
+              '${exp.paidBy} added ₹${exp.amount.toStringAsFixed(0)} for "${exp.title}"',
           timestamp: exp.date,
           metadata: {
             'expenseId': exp.id,
@@ -1123,7 +1315,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           type: GroupActivity.typeSettlementRecorded,
           performedByUid: '',
           performedByName: s.fromUser,
-          message: '${s.fromUser} settled ₹${s.amount.toStringAsFixed(0)} with ${s.toUser}',
+          message:
+              '${s.fromUser} settled ₹${s.amount.toStringAsFixed(0)} with ${s.toUser}',
           timestamp: s.settledAt ?? _activeGroup!.createdAt,
           metadata: {
             'settlementId': s.id,
@@ -1140,12 +1333,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Widget _buildHistoryTab(
-      BuildContext context,
-      ThemeData theme,
-      bool isDark,
-      Color textColor,
-      Color tileBackgroundColor,
-      ) {
+    BuildContext context,
+    ThemeData theme,
+    bool isDark,
+    Color textColor,
+    Color tileBackgroundColor,
+  ) {
     const historyCategories = ['All', 'Add', 'Edit', 'Remove', 'Create Group'];
 
     return Padding(
@@ -1157,77 +1350,89 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             duration: const Duration(milliseconds: 200),
             child: _isHistorySearchExpanded
                 ? TextField(
-              key: const ValueKey('history_search_active'),
-              controller: _historySearchController,
-              autofocus: true,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                hintText: "Search history (e.g. member, expense, amount)...",
-                hintStyle: TextStyle(color: textColor.withOpacity(0.5), fontSize: 13),
-                prefixIcon: Icon(Icons.search_rounded, color: textColor.withOpacity(0.7)),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _historySearchQuery.isNotEmpty ? Icons.clear_rounded : Icons.close_rounded,
-                    color: textColor.withOpacity(0.7),
-                  ),
-                  onPressed: () {
-                    if (_historySearchQuery.isNotEmpty) {
-                      setState(() {
-                        _historySearchController.clear();
-                        _historySearchQuery = '';
-                      });
-                    } else {
-                      FocusScope.of(context).unfocus();
-                      setState(() {
-                        _isHistorySearchExpanded = false;
-                      });
-                    }
-                  },
-                ),
-                filled: true,
-                fillColor: tileBackgroundColor,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _historySearchQuery = value.trim();
-                });
-              },
-            )
-                : Row(
-              key: const ValueKey('history_search_idle'),
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "History Timeline",
-                  style: GoogleFonts.dmSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isHistorySearchExpanded = true;
-                    });
-                  },
-                  child: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: tileBackgroundColor,
-                    child: Icon(
-                      Icons.search_rounded,
-                      color: textColor.withOpacity(0.8),
-                      size: 20,
+                    key: const ValueKey('history_search_active'),
+                    controller: _historySearchController,
+                    autofocus: true,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(
+                      hintText:
+                          "Search history (e.g. member, expense, amount)...",
+                      hintStyle: TextStyle(
+                        color: textColor.withOpacity(0.5),
+                        fontSize: 13,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: textColor.withOpacity(0.7),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _historySearchQuery.isNotEmpty
+                              ? Icons.clear_rounded
+                              : Icons.close_rounded,
+                          color: textColor.withOpacity(0.7),
+                        ),
+                        onPressed: () {
+                          if (_historySearchQuery.isNotEmpty) {
+                            setState(() {
+                              _historySearchController.clear();
+                              _historySearchQuery = '';
+                            });
+                          } else {
+                            FocusScope.of(context).unfocus();
+                            setState(() {
+                              _isHistorySearchExpanded = false;
+                            });
+                          }
+                        },
+                      ),
+                      filled: true,
+                      fillColor: tileBackgroundColor,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    onChanged: (value) {
+                      setState(() {
+                        _historySearchQuery = value.trim();
+                      });
+                    },
+                  )
+                : Row(
+                    key: const ValueKey('history_search_idle'),
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "History Timeline",
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isHistorySearchExpanded = true;
+                          });
+                        },
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: tileBackgroundColor,
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: textColor.withOpacity(0.8),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 14),
 
@@ -1244,7 +1449,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     labelStyle: GoogleFonts.dmSans(
                       fontSize: 12,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? Colors.white : textColor.withOpacity(0.8),
+                      color: selected
+                          ? Colors.white
+                          : textColor.withOpacity(0.8),
                     ),
                     selected: selected,
                     selectedColor: AppTheme.primary,
@@ -1254,7 +1461,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       side: BorderSide(
                         color: selected
                             ? AppTheme.primary
-                            : (isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08)),
+                            : (isDark
+                                  ? Colors.white.withOpacity(0.08)
+                                  : Colors.black.withOpacity(0.08)),
                       ),
                     ),
                     showCheckmark: false,
@@ -1271,9 +1480,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           const SizedBox(height: 14),
 
           StreamBuilder<List<GroupActivity>>(
-            stream: ActivityService.instance.getGroupActivitiesStream(targetGroupId),
+            stream: ActivityService.instance.getGroupActivitiesStream(
+              targetGroupId,
+            ),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 60),
                   child: Center(child: CircularProgressIndicator()),
@@ -1283,7 +1495,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               List<GroupActivity> allActivities = [];
 
               if (snapshot.hasError) {
-                debugPrint('Activities stream error (handled gracefully): ${snapshot.error}');
+                debugPrint(
+                  'Activities stream error (handled gracefully): ${snapshot.error}',
+                );
                 allActivities = _generateFallbackActivities();
               } else {
                 allActivities = snapshot.data ?? [];
@@ -1294,7 +1508,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
               if (allActivities.isEmpty) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 50,
+                    horizontal: 24,
+                  ),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1343,7 +1560,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
               if (filteredActivities.isEmpty) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 50,
+                    horizontal: 24,
+                  ),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1441,7 +1661,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -1472,7 +1693,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  activity.message,
+                                  _activityMessage(activity),
                                   style: GoogleFonts.dmSans(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
@@ -1483,7 +1704,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 if (activity.performedByName.isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    "By ${activity.performedByName}",
+                                    "By ${activity.performedByUid == FirebaseAuth.instance.currentUser?.uid ? 'You' : activity.performedByName}",
                                     style: GoogleFonts.dmSans(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,

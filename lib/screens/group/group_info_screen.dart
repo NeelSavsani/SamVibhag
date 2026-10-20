@@ -4,13 +4,15 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http; // REQUIRED: For the HTTP network request
+import 'package:http/http.dart'
+    as http; // REQUIRED: For the HTTP network request
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/group_model.dart';
 import '../../models/group_activity_model.dart';
 import '../../services/activity_service.dart';
+import '../../services/group_backend_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/add_member_dialog.dart';
@@ -41,7 +43,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   void initState() {
     super.initState();
     groupNameController = TextEditingController(text: widget.group.groupName);
-    descriptionController = TextEditingController(text: widget.group.description);
+    descriptionController = TextEditingController(
+      text: widget.group.description,
+    );
     members = List<String>.from(widget.group.members);
     memberUids = List<String>.from(widget.group.memberUids);
     memberEmails = List<String>.from(widget.group.memberEmails);
@@ -93,6 +97,12 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         widget.group.memberUids = List<String>.from(memberUids);
         widget.group.memberEmails = List<String>.from(memberEmails);
         widget.group.memberUsernames = List<String>.from(memberUsernames);
+        if (result.uid != null && result.uid!.isNotEmpty) {
+          widget.group.memberIdentities = [
+            ...widget.group.memberIdentities,
+            {'name': result.displayName, 'uid': result.uid!},
+          ];
+        }
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,7 +127,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     if (isUsedByExpense) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Can't remove $member because they are included in an expense"),
+          content: Text(
+            "Can't remove $member because they are included in an expense",
+          ),
         ),
       );
       return;
@@ -141,12 +153,15 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   members.removeAt(index);
                   if (index < memberUids.length) memberUids.removeAt(index);
                   if (index < memberEmails.length) memberEmails.removeAt(index);
-                  if (index < memberUsernames.length) memberUsernames.removeAt(index);
+                  if (index < memberUsernames.length)
+                    memberUsernames.removeAt(index);
 
                   widget.group.members = List<String>.from(members);
                   widget.group.memberUids = List<String>.from(memberUids);
                   widget.group.memberEmails = List<String>.from(memberEmails);
-                  widget.group.memberUsernames = List<String>.from(memberUsernames);
+                  widget.group.memberUsernames = List<String>.from(
+                    memberUsernames,
+                  );
                 });
                 Navigator.pop(context);
               },
@@ -192,10 +207,14 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
 
           final request = http.MultipartRequest(
             'POST',
-            Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload'),
+            Uri.parse(
+              'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+            ),
           );
           request.fields['upload_preset'] = uploadPreset;
-          request.files.add(await http.MultipartFile.fromPath('file', file.path));
+          request.files.add(
+            await http.MultipartFile.fromPath('file', file.path),
+          );
 
           final response = await request.send();
           final responseBody = await response.stream.bytesToString();
@@ -249,9 +268,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       Navigator.pop(context, widget.group);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save changes: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to save changes: $e")));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -267,13 +286,57 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     return DateFormat("dd MMM yyyy, hh:mm a").format(widget.group.createdAt);
   }
 
+  bool get _isGroupCreator =>
+      FirebaseAuth.instance.currentUser?.uid == widget.group.creatorUid &&
+      widget.group.creatorUid.isNotEmpty;
+
+  Future<void> deleteGroup() async {
+    if (!_isGroupCreator || _isLoading) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Group?'),
+        content: Text(
+          'Delete "${widget.group.groupName}"? Its expenses, settlements, and group activity history will also be deleted. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete Group'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      await GroupBackendService.deleteGroup(widget.group.id);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete group: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF121214)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -289,7 +352,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       ),
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppTheme.primary),
+              )
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -328,16 +393,25 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                             backgroundImage: avatarPath.isEmpty
                                 ? null
                                 : (avatarPath.startsWith('http')
-                                    ? NetworkImage(avatarPath)
-                                    : FileImage(File(avatarPath)) as ImageProvider),
+                                      ? NetworkImage(avatarPath)
+                                      : FileImage(File(avatarPath))
+                                            as ImageProvider),
                             child: avatarPath.isEmpty
-                                ? const Icon(Icons.groups, size: 60, color: AppTheme.primary)
+                                ? const Icon(
+                                    Icons.groups,
+                                    size: 60,
+                                    color: AppTheme.primary,
+                                  )
                                 : null,
                           ),
                           CircleAvatar(
                             radius: 18,
                             backgroundColor: AppTheme.primary,
-                            child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                           ),
                         ],
                       ),
@@ -345,17 +419,29 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     const SizedBox(height: 24),
                     TextField(
                       controller: groupNameController,
-                      style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
+                      style: GoogleFonts.dmSans(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 14,
+                      ),
                       decoration: InputDecoration(
                         labelText: "Group Name",
                         labelStyle: GoogleFonts.dmSans(fontSize: 13),
-                        prefixIcon: const Icon(Icons.groups, color: Color(0xFF0284C7)),
+                        prefixIcon: const Icon(
+                          Icons.groups,
+                          color: Color(0xFF0284C7),
+                        ),
                         filled: true,
                         fillColor: theme.cardColor,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF83F4EB),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -364,17 +450,29 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       controller: descriptionController,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
-                      style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
+                      style: GoogleFonts.dmSans(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 14,
+                      ),
                       decoration: InputDecoration(
                         labelText: "Description",
                         labelStyle: GoogleFonts.dmSans(fontSize: 13),
-                        prefixIcon: const Icon(Icons.info_outline, color: Color(0xFF0284C7)),
+                        prefixIcon: const Icon(
+                          Icons.info_outline,
+                          color: Color(0xFF0284C7),
+                        ),
                         filled: true,
                         fillColor: theme.cardColor,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: Color(0xFF83F4EB), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF83F4EB),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -383,25 +481,49 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.16)),
+                        side: BorderSide(
+                          color: const Color(0xFF83F4EB).withOpacity(0.16),
+                        ),
                       ),
                       child: ListTile(
-                        leading: const Icon(Icons.calendar_today, color: AppTheme.primary),
-                        title: Text("Created", style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600)),
-                        subtitle: Text(createdDate, style: GoogleFonts.dmSans(fontSize: 12)),
+                        leading: const Icon(
+                          Icons.calendar_today,
+                          color: AppTheme.primary,
+                        ),
+                        title: Text(
+                          "Created",
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          createdDate,
+                          style: GoogleFonts.dmSans(fontSize: 12),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Card(
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: openReport,
                         child: const ListTile(
-                          leading: Icon(Icons.picture_as_pdf, color: Colors.red),
-                          title: Text("Export PDF Report", style: TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text("Generate and download expense balance statements"),
+                          leading: Icon(
+                            Icons.picture_as_pdf,
+                            color: Colors.red,
+                          ),
+                          title: Text(
+                            "Export PDF Report",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            "Generate and download expense balance statements",
+                          ),
                           trailing: Icon(Icons.chevron_right_rounded),
                         ),
                       ),
@@ -412,7 +534,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       children: [
                         Text(
                           "Members",
-                          style: GoogleFonts.dmSans(fontSize: 20, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         FilledButton.icon(
                           onPressed: addMember,
@@ -430,41 +555,63 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                               color: theme.cardColor,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Center(child: Text("No Members", style: TextStyle(fontSize: 14))),
+                            child: const Center(
+                              child: Text(
+                                "No Members",
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
                           )
                         : ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: members.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               return Card(
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
+                                  side: BorderSide(
+                                    color: const Color(
+                                      0xFF83F4EB,
+                                    ).withOpacity(0.14),
+                                  ),
                                 ),
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: AppTheme.primary.withOpacity(0.15),
-                                    child: const Icon(Icons.person, color: AppTheme.primary),
+                                    backgroundColor: AppTheme.primary
+                                        .withOpacity(0.15),
+                                    child: const Icon(
+                                      Icons.person,
+                                      color: AppTheme.primary,
+                                    ),
                                   ),
                                   title: Text(
                                     members[index],
-                                    style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                   subtitle: Text(
-                                    (index < memberUsernames.length && memberUsernames[index].isNotEmpty)
+                                    (index < memberUsernames.length &&
+                                            memberUsernames[index].isNotEmpty)
                                         ? "@${memberUsernames[index]}"
-                                        : (index < memberEmails.length && memberEmails[index].isNotEmpty)
-                                            ? memberEmails[index]
-                                            : "Member ${index + 1}",
+                                        : (index < memberEmails.length &&
+                                              memberEmails[index].isNotEmpty)
+                                        ? memberEmails[index]
+                                        : "Member ${index + 1}",
                                     style: GoogleFonts.dmSans(fontSize: 12),
                                   ),
                                   trailing: IconButton(
                                     tooltip: "Remove Member",
                                     onPressed: () => removeMember(index),
-                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
                                   ),
                                 ),
                               );
@@ -500,20 +647,29 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           child: Text(
                             "Save Changes",
-                            style: GoogleFonts.dmSans(fontSize: 15, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 26),
-                    OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        child: Text("Back"),
+                    if (_isGroupCreator) ...[
+                      OutlinedButton.icon(
+                        onPressed: deleteGroup,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Delete Group'),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 14),
+                    ],
                     const SizedBox(height: 30),
                   ],
                 ),

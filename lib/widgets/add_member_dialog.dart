@@ -7,6 +7,7 @@ import '../models/group_activity_model.dart';
 import '../models/group_model.dart';
 import '../models/user_model.dart';
 import '../services/activity_service.dart';
+import '../services/group_backend_service.dart';
 import '../services/user_service.dart';
 
 class AddedMemberResult {
@@ -162,22 +163,13 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     setState(() => _isAdding = true);
 
     try {
-      final updates = <String, dynamic>{
-        'members': FieldValue.arrayUnion([displayName]),
-      };
-
-      if (email != null && email.trim().isNotEmpty) {
-        updates['memberEmails'] = FieldValue.arrayUnion([email.trim().toLowerCase()]);
-      }
-      if (uid != null && uid.trim().isNotEmpty) {
-        updates['memberUids'] = FieldValue.arrayUnion([uid.trim()]);
-      }
-      if (username != null && username.trim().isNotEmpty) {
-        updates['memberUsernames'] = FieldValue.arrayUnion([UserModel.normalizeUsername(username)]);
-      }
-
-      // 1. Atomic Firestore mutation
-      await FirebaseFirestore.instance.collection('groups').doc(widget.group.id).update(updates);
+      await GroupBackendService.addGroupMember(
+        groupId: widget.group.id,
+        displayName: displayName,
+        uid: uid,
+        email: email,
+        username: username == null ? null : UserModel.normalizeUsername(username),
+      );
 
       // 2. Activity history logging
       final currentUser = FirebaseAuth.instance.currentUser;
