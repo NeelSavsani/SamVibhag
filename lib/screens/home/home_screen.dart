@@ -47,12 +47,32 @@ class _HomeScreenState extends State<HomeScreen> {
         )
         .snapshots()
         .map((snapshot) {
+          final orderedDocuments = snapshot.docs.toList()
+            ..sort((first, second) {
+              final firstCreatedAt = _readCreatedAt(first.data());
+              final secondCreatedAt = _readCreatedAt(second.data());
+
+              if (firstCreatedAt == null && secondCreatedAt == null) {
+                return first.id.compareTo(second.id);
+              }
+              if (firstCreatedAt == null) return 1;
+              if (secondCreatedAt == null) return -1;
+              return secondCreatedAt.compareTo(firstCreatedAt);
+            });
+
           final uniqueGroups = <String, GroupModel>{};
-          for (var doc in snapshot.docs) {
+          for (final doc in orderedDocuments) {
             uniqueGroups[doc.id] = GroupModel.fromMap(doc.data());
           }
           return uniqueGroups.values.toList();
         });
+  }
+
+  DateTime? _readCreatedAt(Map<String, dynamic> groupData) {
+    final value = groupData['createdAt'];
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   Future<void> createGroup() async {
