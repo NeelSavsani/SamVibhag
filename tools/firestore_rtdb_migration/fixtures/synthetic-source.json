@@ -1,0 +1,61 @@
+{
+  "format": "samvibhag-firestore-fixture-v1",
+  "types": {
+    "/users/uid_creator/data/createdAt": { "type": "Timestamp", "seconds": 1790000000, "nanoseconds": 123456789 },
+    "/users/uid_creator/data/scoreInt": { "type": "Integer" },
+    "/groups/group_one/data/createdAt": { "type": "Timestamp", "seconds": 1790000100, "nanoseconds": 987654321 },
+    "/groups/group_one/activities/hist_exp_meal_001/timestamp": { "type": "Timestamp", "seconds": 1790000200, "nanoseconds": 1 }
+  },
+  "collections": {
+    "users": [
+      { "id": "uid_creator", "data": { "uid": "uid_creator", "email": "creator@example.invalid", "displayName": "Creator", "createdAt": null, "scoreInt": 4, "explicitNull": null } },
+      { "id": "uid_riya", "data": { "uid": "uid_riya", "email": "riya@example.invalid", "displayName": "Riya", "createdAt": "2026-10-20T12:30:00.000Z", "literalEnvelope": { "__rtdbType": "firestoreNull" } } }
+    ],
+    "usernames": [
+      { "id": "creator_1", "data": { "uid": "uid_creator", "username": "creator_1", "createdAt": "2026-10-20T12:30:00.000Z" } }
+    ],
+    "groups": [
+      {
+        "id": "group_one",
+        "data": {
+          "id": "group_one",
+          "name": "Sample Group",
+          "groupName": "Sample Group",
+          "createdBy": "uid_creator",
+          "createdAt": null,
+          "members": ["Creator", "Riya", "Offline Member"],
+          "memberUids": ["uid_creator", "uid_riya"],
+          "memberEmails": ["creator@example.invalid"],
+          "memberUsernames": ["creator_1"],
+          "memberIdentities": [
+            { "name": "Creator", "uid": "uid_creator" },
+            { "name": "Riya", "uid": "uid_riya" }
+          ],
+          "expenses": [
+            {
+              "id": "meal_001",
+              "title": "Shared meal",
+              "amount": 120.5,
+              "paidBy": "Riya",
+              "splitBetween": ["Riya", "Offline Member"],
+              "date": "2026-10-20T12:30:00.000Z",
+              "category": "Food",
+              "splitType": "custom",
+              "customSplits": { "Riya": 80.25, "Offline Member": 40.25 }
+            }
+          ],
+          "recordedSettlements": [
+            { "id": "settle_001", "fromUser": "Offline Member", "toUser": "Riya", "amount": 20.5, "isSettled": true, "settledAt": null }
+          ],
+          "avatarPath": "https://images.example.invalid/group.png",
+          "optionalMissingFieldIsNotAdded": "present"
+        },
+        "subcollections": {
+          "activities": [
+            { "id": "hist_exp_meal_001", "data": { "id": "hist_exp_meal_001", "groupId": "group_one", "type": "expense_created", "performedByUid": "uid_riya", "performedByName": "Riya", "message": "Riya added an expense", "timestamp": null, "metadata": { "expenseId": "meal_001", "amount": 120.5 } } }
+          ]
+        }
+      }
+    ]
+  }
+}

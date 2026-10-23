@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:samvibhag/widgets/admob_banner.dart';
 import '../../models/group_model.dart';
 import 'analytics/analytics_screen.dart';
 import '../../models/expense_model.dart'; 
@@ -37,14 +39,26 @@ class ActivityScreen extends StatelessWidget {
   }
 
   // FIXED: Generates clean statements for every single transaction across all your groups without filtering it out
-  List<ActivityLogItem> getActivityLogs(List<GroupModel> activeGroups) {
+  List<ActivityLogItem> getActivityLogs(
+    List<GroupModel> activeGroups,
+    String currentUserId,
+  ) {
     List<ActivityLogItem> logs = [];
 
     for (var group in activeGroups) {
       for (var expense in group.expenses) {
+        final currentMemberIndex = group.memberUids.indexOf(currentUserId);
+        final currentMemberName = currentMemberIndex >= 0 &&
+                currentMemberIndex < group.members.length
+            ? group.members[currentMemberIndex]
+            : null;
+        final actorName = currentMemberName == expense.paidBy
+            ? 'You'
+            : expense.paidBy;
+
         // Log entry for the person who paid/added the expense
         logs.add(ActivityLogItem(
-          message: '${expense.paidBy} added "${expense.title}" of "₹${expense.amount.toStringAsFixed(0)}" in "${group.groupName}"',
+          message: '$actorName added "${expense.title}" of "₹${expense.amount.toStringAsFixed(0)}" in "${group.groupName}"',
           date: expense.date,
           category: expense.category,
           displayAmount: expense.amount,
@@ -76,15 +90,30 @@ class ActivityScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final textThemeColor = isDark ? Colors.white : Colors.black87;
     final tileColor = isDark ? const Color(0xFF1E1F24) : const Color(0xFFF1F5F9);
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('groups').snapshots(),
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: currentUser == null
+          ? null
+          : FirebaseFirestore.instance
+              .collection('groups')
+              .where(
+                Filter.or(
+                  Filter('memberUids', arrayContains: currentUser.uid),
+                  Filter('createdBy', isEqualTo: currentUser.uid),
+                ),
+              )
+              .snapshots(),
       builder: (context, snapshot) {
         List<GroupModel> currentGroups = [];
         
         if (snapshot.hasData && snapshot.data != null) {
           currentGroups = snapshot.data!.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
+            final memberUids = List<String>.from(data['memberUids'] ?? []);
+            if (memberUids.isEmpty && data['createdBy'] != null) {
+              memberUids.add(data['createdBy'].toString());
+            }
             
             final List<dynamic> rawExpenses = data['expenses'] as List<dynamic>? ?? [];
             final List<ExpenseModel> parsedExpenses = rawExpenses.map((e) {
@@ -107,10 +136,11 @@ class ActivityScreen extends StatelessWidget {
 
             return GroupModel(
               id: doc.id,
-              groupName: data['groupName'] ?? '',
+              groupName: data['groupName'] ?? data['name'] ?? '',
               description: data['description'] ?? '',
               avatarPath: data['avatarPath'] ?? '',
               members: List<String>.from(data['members'] ?? []),
+              memberUids: memberUids,
               expenses: parsedExpenses,
               createdAt: _parseDateTime(data['createdAt']),
             );
@@ -120,7 +150,7 @@ class ActivityScreen extends StatelessWidget {
         double totalExpensesCombined = currentGroups.fold<double>(0, (total, group) => total + group.totalExpense);
         int combinedExpensesCount = currentGroups.fold<int>(0, (total, group) => total + group.expenses.length);
         
-        final logs = getActivityLogs(currentGroups);
+        final logs = getActivityLogs(currentGroups, currentUser?.uid ?? '');
 
         return Scaffold(
           backgroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFF8FAFC),
@@ -137,6 +167,11 @@ class ActivityScreen extends StatelessWidget {
               ),
             ),
             iconTheme: IconThemeData(color: textThemeColor),
+          ),
+          bottomNavigationBar: const Align(
+            alignment: Alignment.center,
+            heightFactor: 1,
+            child: AdMobBanner(),
           ),
           body: SafeArea(
             child: SingleChildScrollView(

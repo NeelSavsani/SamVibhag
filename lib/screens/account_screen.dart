@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/utils/support_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:samvibhag/widgets/admob_banner.dart';
 import 'account/appearance_screen.dart';
 import '../../core/theme/app_theme.dart';
 import 'account/edit_profile_screen.dart';
@@ -60,6 +61,11 @@ class AccountScreen extends StatelessWidget {
       backgroundColor: isDark
           ? const Color(0xFF121214)
           : const Color(0xFFF8FAFC),
+      bottomNavigationBar: const Align(
+        alignment: Alignment.center,
+        heightFactor: 1,
+        child: AdMobBanner(),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

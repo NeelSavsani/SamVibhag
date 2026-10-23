@@ -60,14 +60,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       if (!mounted) return;
 
       if (userCredential != null && userCredential.user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Welcome ${userCredential.user!.displayName ?? "User"}!')),
+        final hasPhone = await _authService.hasSavedPhoneNumber(
+          userCredential.user!.uid,
         );
-        Navigator.pushReplacementNamed(context, '/home');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Welcome ${userCredential.user!.displayName ?? "User"}!',
+            ),
+          ),
+        );
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+          arguments: !hasPhone,
+        );
       }
     } on FirebaseAuthException catch (error) {
       _showError(error.message ?? 'Google Sign-In failed.');
     } catch (error) {
+      debugPrint(
+        'Google Sign-In flow failed while checking profile completion.',
+      );
       _showError('An unexpected error occurred during Google Sign-In.');
     } finally {
       if (mounted) {
@@ -306,7 +322,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.primary,
+                              ),
                             )
                           : Image.asset(
                               "assets/images/google.png",
@@ -314,7 +333,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               width: 24,
                             ),
                       label: Text(
-                        _isGoogleLoading ? "Connecting..." : "Continue with Google",
+                        _isGoogleLoading
+                            ? "Connecting..."
+                            : "Continue with Google",
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
@@ -348,7 +369,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Version 1.0.4",
+                    "Version 1.0.0",
                     style: TextStyle(
                       color: theme.colorScheme.onSurface.withValues(alpha: .52),
                     ),

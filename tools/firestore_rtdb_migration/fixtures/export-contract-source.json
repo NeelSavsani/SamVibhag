@@ -1,0 +1,56 @@
+{
+  "format": "samvibhag-firestore-fixture-v1",
+  "types": {
+    "/users/user_doc_1/data/createdAt": { "type": "Timestamp", "seconds": 1790000000, "nanoseconds": 123456789 },
+    "/users/user_doc_1/data/safeInteger": { "type": "Integer" },
+    "/users/user_doc_1/data/exactLargeInteger": { "type": "Integer", "integerDecimal": "9007199254740993" },
+    "/users/user_doc_1/data/floatingValue": { "type": "Double" },
+    "/users/user_doc_1/data/negativeZero": { "type": "Double", "ieee754Hex": "8000000000000000" },
+    "/groups/group_source/data/expenses/0/amount": { "type": "Double" },
+    "/groups/group_source/data/recordedSettlements/0/settledAt": { "type": "Timestamp", "seconds": 1790000100, "nanoseconds": 987654321 },
+    "/groups/group_source/activities/activity_source/createdAt": { "type": "Timestamp", "seconds": 1790000200, "nanoseconds": 3 }
+  },
+  "collections": {
+    "users": [
+      {
+        "id": "user_doc_1",
+        "data": {
+          "uid": "user_doc_1",
+          "displayName": "Synthetic Alice",
+          "createdAt": null,
+          "safeInteger": 7,
+          "exactLargeInteger": null,
+          "floatingValue": 7,
+          "negativeZero": null,
+          "nested": { "list": ["first", null, { "value": "last" }] },
+          "explicitNull": null
+        }
+      }
+    ],
+    "usernames": [],
+    "groups": [
+      {
+        "id": "group_source",
+        "data": {
+          "id": "embedded_group_field_is_distinct",
+          "createdBy": "user_doc_1",
+          "members": ["Synthetic Alice", "Offline Member"],
+          "memberUids": ["user_doc_1"],
+          "memberIdentities": [{ "name": "Synthetic Alice", "uid": "user_doc_1" }],
+          "expenses": [
+            { "id": "expense_source_id", "title": "Synthetic meal", "amount": 12.5, "paidBy": "Synthetic Alice", "splitBetween": ["Synthetic Alice", "Offline Member"], "customSplits": { "Synthetic Alice": "8.25", "Offline Member": "4.25" } }
+          ],
+          "recordedSettlements": [
+            { "id": "settlement_source_id", "from": "Offline Member", "to": "Synthetic Alice", "amount": "4.25", "isSettled": true, "settledAt": null }
+          ],
+          "optionalField": "retained"
+        },
+        "subcollections": {
+          "activities": [
+            { "id": "activity_source", "data": { "id": "embedded_activity_field_is_distinct", "groupId": "group_source", "createdAt": null, "metadata": { "sequence": ["one", "two"] } } }
+          ]
+        }
+      }
+    ]
+  }
+}

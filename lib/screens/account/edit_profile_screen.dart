@@ -115,12 +115,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _fetchUserProfileData() async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists && mounted) {
-        final data = doc.data()!;
+      if (mounted) {
+        final data = doc.data() ?? <String, dynamic>{};
         _fullNameController.text = data['fullName'] ?? user.displayName ?? '';
         
         final rawUsername = (data['username'] as String?)?.trim().toLowerCase() ?? '';
@@ -129,7 +132,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _usernameController.text = effectiveUsername;
         _initialUsername = rawUsername;
 
-        String rawPhone = data['phoneNumber'] ?? '';
+        String rawPhone =
+            (data['phoneNumber'] as String?) ?? (data['phone'] as String?) ?? '';
         String cCode = data['countryCode'] ?? '+91';
         if (rawPhone.startsWith(cCode)) {
           rawPhone = rawPhone.substring(cCode.length);
@@ -284,14 +288,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       await user.updateDisplayName(fullName);
 
-      await _firestore.collection('users').doc(user.uid).set({
+      final profileUpdate = <String, dynamic>{
         'fullName': fullName,
         'displayName': fullName,
         'username': normalizedUsername,
         'usernameSearch': normalizedUsername,
-        'phoneNumber': '${_selectedCountry.dialCode}$phone',
-        'countryCode': _selectedCountry.dialCode,
-        'countryName': _selectedCountry.name,
         'currencyName': _selectedCurrency.name,
         'currencyCode': _selectedCurrency.code,
         'currencySymbol': _selectedCurrency.symbol,
@@ -299,7 +300,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'language': _selectedLanguage,
         'avatarLocalPath': _avatar?.path ?? _existingAvatarPath,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+      if (phone.isNotEmpty) {
+        profileUpdate['phoneNumber'] = '${_selectedCountry.dialCode}$phone';
+        profileUpdate['countryCode'] = _selectedCountry.dialCode;
+        profileUpdate['countryName'] = _selectedCountry.name;
+      }
+
+      await _firestore.collection('users').doc(user.uid).set(
+            profileUpdate,
+            SetOptions(merge: true),
+          );
 
       _initialUsername = normalizedUsername;
 

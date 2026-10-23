@@ -72,12 +72,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (credential != null && credential.user != null) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        final hasPhone = await _authService.hasSavedPhoneNumber(
+          credential.user!.uid,
+        );
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+          arguments: !hasPhone,
+        );
       }
     } on FirebaseAuthException catch (error) {
       _showError(_authErrorMessage(error));
     } catch (error) {
-      debugPrint("Google Sign-In Error: $error");
+      debugPrint('Google Sign-In flow failed while checking profile completion.');
       _showError('Google Sign-In failed. Please try again.');
     } finally {
       if (mounted) {

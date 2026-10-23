@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:samvibhag/widgets/admob_banner.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/group_model.dart';
@@ -271,11 +270,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const Align(
-        alignment: Alignment.center,
-        heightFactor: 1,
-        child: AdMobBanner(),
-      ),
       body: SafeArea(
         child: StreamBuilder<List<GroupModel>>(
           stream: _getGroupsStream(),
@@ -411,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Your Groups',
+                        'Groups',
                         style: GoogleFonts.dmSans(fontSize: 21, fontWeight: FontWeight.w700),
                       ),
                       Container(
@@ -421,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '${filteredGroups.length} Total',
+                          '${filteredGroups.length}',
                           style: GoogleFonts.dmSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,

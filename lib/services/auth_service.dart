@@ -25,6 +25,9 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  Future<bool> hasSavedPhoneNumber(String uid) =>
+      _userService.hasSavedPhoneNumber(uid);
+
   /// Starts autonomous self-healing listener on active auth sessions.
   void initializeAuthListener() {
     _authSubscription?.cancel();

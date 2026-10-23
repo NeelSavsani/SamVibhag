@@ -9,6 +9,8 @@ import '../../models/group_model.dart';
 import '../../models/group_activity_model.dart';
 import '../../services/activity_service.dart';
 import '../../services/fcm_sender_service.dart';
+import '../../services/user_service.dart';
+import '../account/edit_profile_screen.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -184,17 +186,73 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   }
 
   Future<void> _createGroup() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_members.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one other member.')),
-      );
-      return;
-    }
-
+    if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
+      final user = _currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in before creating a group.'),
+          ),
+        );
+        return;
+      }
+
+      bool hasPhoneNumber;
+      try {
+        hasPhoneNumber = await UserService().hasSavedPhoneNumber(user.uid);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not check your profile. Please try again.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      if (!hasPhoneNumber) {
+        final openProfile = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Add phone number first'),
+            content: const Text(
+              'Add a phone number to your profile before creating a group.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('No'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Yes'),
+              ),
+            ],
+          ),
+        );
+        if (openProfile == true && mounted) {
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const EditProfileScreen(),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!_formKey.currentState!.validate()) return;
+      if (_members.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please add at least one other member.')),
+        );
+        return;
+      }
+
       final groupDoc = FirebaseFirestore.instance.collection('groups').doc();
       final currentUserName =
           _currentUser?.displayName?.trim().isNotEmpty == true

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'home/home_screen.dart';
 import 'activity_screen.dart';
 import 'account_screen.dart';
+import 'account/edit_profile_screen.dart';
 
 class BottomNavScreen extends StatefulWidget {
-  const BottomNavScreen({super.key});
+  const BottomNavScreen({super.key, this.openProfileOnLaunch = false});
+
+  final bool openProfileOnLaunch;
 
   @override
   State<BottomNavScreen> createState() => _BottomNavScreenState();
@@ -13,6 +17,27 @@ class BottomNavScreen extends StatefulWidget {
 
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int _selectedIndex = 0;
+  bool _profileRedirectScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openProfileOnLaunch) {
+      _scheduleProfileRedirect();
+    }
+  }
+
+  void _scheduleProfileRedirect() {
+    if (_profileRedirectScheduled) return;
+    _profileRedirectScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
+        );
+      }
+    });
+  }
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -85,10 +110,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
         }
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: _selectedIndex,
-          children: _screens,
-        ),
+        body: IndexedStack(index: _selectedIndex, children: _screens),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,

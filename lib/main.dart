@@ -150,7 +150,10 @@ class SamVibhagApp extends StatelessWidget {
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
             '/appearance': (context) => const AppearanceScreen(),
-            '/home': (context) => const BottomNavScreen(),
+            '/home': (context) => BottomNavScreen(
+                  openProfileOnLaunch:
+                      ModalRoute.of(context)?.settings.arguments == true,
+                ),
           },
 
           theme: AppTheme.light(),

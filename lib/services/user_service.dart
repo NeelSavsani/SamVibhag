@@ -1,11 +1,54 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/user_model.dart';
 
 class UserService {
   final FirebaseFirestore _firestore;
 
   UserService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  /// Checks the phone values used by the existing profile schema.
+  /// A country dialing prefix by itself is not a saved phone number.
+  static bool profileHasPhoneNumber(Map<String, dynamic>? data) {
+    if (data == null) return false;
+
+    final countryCode = data['countryCode'];
+    if (_hasPhoneDigits(data['phoneNumber'], countryCode: countryCode)) {
+      return true;
+    }
+
+    return _hasPhoneDigits(data['phone']);
+  }
+
+  static bool _hasPhoneDigits(Object? value, {Object? countryCode}) {
+    if (value is! String) return false;
+
+    var digits = value.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    final countryDigits = countryCode is String
+        ? countryCode.replaceAll(RegExp(r'[^0-9]'), '')
+        : '';
+    if (countryDigits.isNotEmpty && digits.startsWith(countryDigits)) {
+      digits = digits.substring(countryDigits.length);
+    }
+
+    // A country prefix alone is not a phone number. The profile form accepts
+    // 10 local digits; seven is the shortest broadly valid local number.
+    return digits.length >= 7;
+  }
+
+  /// Looks up a user's profile by their Firebase Authentication UID.
+  /// Firestore errors are allowed to propagate so callers can fail closed.
+  Future<bool> hasSavedPhoneNumber(String uid) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .get()
+        .timeout(const Duration(seconds: 10));
+    return snapshot.exists && profileHasPhoneNumber(snapshot.data());
+  }
 
   /// Claims or changes a username atomically via a Firestore transaction
   /// on the root `usernames` collection where each document ID is the lowercase username.
@@ -32,7 +75,9 @@ class UserService {
       return true;
     }
 
-    final newUsernameRef = _firestore.collection('usernames').doc(normalizedNew);
+    final newUsernameRef = _firestore
+        .collection('usernames')
+        .doc(normalizedNew);
     final oldUsernameRef = normalizedOld != null
         ? _firestore.collection('usernames').doc(normalizedOld)
         : null;
@@ -65,27 +110,29 @@ class UserService {
       });
 
       // 4. Update the user document
-      transaction.set(
-        userDocRef,
-        {
-          'username': normalizedNew,
-          'usernameSearch': normalizedNew,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(userDocRef, {
+        'username': normalizedNew,
+        'usernameSearch': normalizedNew,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       return true;
     });
   }
 
   /// Checks if a username is available in the `usernames` collection.
-  Future<bool> isUsernameAvailable(String username, {String? excludeUid}) async {
+  Future<bool> isUsernameAvailable(
+    String username, {
+    String? excludeUid,
+  }) async {
     final normalized = UserModel.normalizeUsername(username);
     if (!UserModel.isValidUsername(normalized)) return false;
 
     try {
-      final doc = await _firestore.collection('usernames').doc(normalized).get();
+      final doc = await _firestore
+          .collection('usernames')
+          .doc(normalized)
+          .get();
       if (!doc.exists) return true;
       if (excludeUid != null && doc.data()?['uid'] == excludeUid) return true;
       return false;
@@ -113,7 +160,10 @@ class UserService {
 
     // 1. Direct point lookup in usernames collection
     try {
-      final usernameDoc = await _firestore.collection('usernames').doc(normalized).get();
+      final usernameDoc = await _firestore
+          .collection('usernames')
+          .doc(normalized)
+          .get();
       if (usernameDoc.exists && usernameDoc.data()?['uid'] != null) {
         final uid = usernameDoc.data()!['uid'] as String;
         final userDoc = await _firestore.collection('users').doc(uid).get();
