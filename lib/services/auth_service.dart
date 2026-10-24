@@ -17,13 +17,17 @@ class AuthService {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     UserService? userService,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _userService = userService ??
-            UserService(firestore: firestore ?? FirebaseFirestore.instance);
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _userService =
+           userService ??
+           UserService(firestore: firestore ?? FirebaseFirestore.instance);
 
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  Future<bool> hasSavedPhoneNumber(String uid) =>
+      _userService.hasSavedPhoneNumber(uid);
 
   /// Starts autonomous self-healing listener on active auth sessions.
   void initializeAuthListener() {
@@ -48,15 +52,26 @@ class AuthService {
       final userSnapshot = await userDocRef.get();
       final userData = userSnapshot.data();
 
-      final effectiveEmail = (user.email ?? userData?['email'] as String? ?? '').toLowerCase().trim();
+      final effectiveEmail = (user.email ?? userData?['email'] as String? ?? '')
+          .toLowerCase()
+          .trim();
       String rawUsername = (userData?['username'] as String?)?.trim() ?? '';
 
       if (rawUsername.isEmpty) {
         if (effectiveEmail.isNotEmpty && effectiveEmail.contains('@')) {
-          rawUsername = effectiveEmail.split('@').first.replaceAll(RegExp(r'[^a-z0-9_]'), '');
+          rawUsername = effectiveEmail
+              .split('@')
+              .first
+              .replaceAll(RegExp(r'[^a-z0-9_]'), '');
         } else {
-          final displayName = user.displayName ?? userData?['displayName'] as String? ?? userData?['fullName'] as String?;
-          rawUsername = UserModel.generateFallbackUsername(effectiveEmail, displayName);
+          final displayName =
+              user.displayName ??
+              userData?['displayName'] as String? ??
+              userData?['fullName'] as String?;
+          rawUsername = UserModel.generateFallbackUsername(
+            effectiveEmail,
+            displayName,
+          );
         }
         if (rawUsername.length < 3) rawUsername = '${rawUsername}_01';
         if (rawUsername.length > 20) rawUsername = rawUsername.substring(0, 20);
@@ -78,15 +93,11 @@ class AuthService {
               'createdAt': FieldValue.serverTimestamp(),
             });
           }
-          transaction.set(
-            userDocRef,
-            {
-              'username': normalized,
-              'usernameSearch': normalized,
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
+          transaction.set(userDocRef, {
+            'username': normalized,
+            'usernameSearch': normalized,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
         });
 
         print('Backfilled username: $normalized for UID: ${user.uid}');
@@ -95,14 +106,19 @@ class AuthService {
         // If username doc exists and belongs to this user, ensure users/{uid} is synced
         final existingUid = usernameDoc.data()?['uid'];
         if (existingUid == user.uid) {
-          if (userData?['username'] != normalized || userData?['usernameSearch'] != normalized) {
+          if (userData?['username'] != normalized ||
+              userData?['usernameSearch'] != normalized) {
             await userDocRef.set({
               'username': normalized,
               'usernameSearch': normalized,
               'updatedAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
-            print('Synchronized user doc username: $normalized for UID: ${user.uid}');
-            debugPrint('Synchronized user doc username: $normalized for UID: ${user.uid}');
+            print(
+              'Synchronized user doc username: $normalized for UID: ${user.uid}',
+            );
+            debugPrint(
+              'Synchronized user doc username: $normalized for UID: ${user.uid}',
+            );
           }
         }
       }
@@ -123,24 +139,36 @@ class AuthService {
       for (final doc in usersSnapshot.docs) {
         final uid = doc.id;
         final data = doc.data();
-        final effectiveEmail = (data['email'] as String? ?? '').toLowerCase().trim();
-        final displayName = (data['displayName'] ?? data['fullName']) as String?;
+        final effectiveEmail = (data['email'] as String? ?? '')
+            .toLowerCase()
+            .trim();
+        final displayName =
+            (data['displayName'] ?? data['fullName']) as String?;
 
         String rawUsername = (data['username'] as String?)?.trim() ?? '';
         if (rawUsername.isEmpty) {
           if (effectiveEmail.isNotEmpty && effectiveEmail.contains('@')) {
-            rawUsername = effectiveEmail.split('@').first.replaceAll(RegExp(r'[^a-z0-9_]'), '');
+            rawUsername = effectiveEmail
+                .split('@')
+                .first
+                .replaceAll(RegExp(r'[^a-z0-9_]'), '');
           } else {
-            rawUsername = UserModel.generateFallbackUsername(effectiveEmail, displayName);
+            rawUsername = UserModel.generateFallbackUsername(
+              effectiveEmail,
+              displayName,
+            );
           }
           if (rawUsername.length < 3) rawUsername = '${rawUsername}_01';
-          if (rawUsername.length > 20) rawUsername = rawUsername.substring(0, 20);
+          if (rawUsername.length > 20)
+            rawUsername = rawUsername.substring(0, 20);
         }
 
         final normalized = UserModel.normalizeUsername(rawUsername);
         if (!UserModel.isValidUsername(normalized)) continue;
 
-        final usernameDocRef = _firestore.collection('usernames').doc(normalized);
+        final usernameDocRef = _firestore
+            .collection('usernames')
+            .doc(normalized);
         final usernameDoc = await usernameDocRef.get();
 
         if (!usernameDoc.exists) {
@@ -153,15 +181,11 @@ class AuthService {
                 'createdAt': FieldValue.serverTimestamp(),
               });
             }
-            transaction.set(
-              doc.reference,
-              {
-                'username': normalized,
-                'usernameSearch': normalized,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
-            );
+            transaction.set(doc.reference, {
+              'username': normalized,
+              'usernameSearch': normalized,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
           });
           backfilledCount++;
           print('Backfilled username: $normalized for UID: $uid');
@@ -169,14 +193,19 @@ class AuthService {
         } else {
           final existingUid = usernameDoc.data()?['uid'];
           if (existingUid == uid) {
-            if (data['username'] != normalized || data['usernameSearch'] != normalized) {
+            if (data['username'] != normalized ||
+                data['usernameSearch'] != normalized) {
               await doc.reference.set({
                 'username': normalized,
                 'usernameSearch': normalized,
                 'updatedAt': FieldValue.serverTimestamp(),
               }, SetOptions(merge: true));
-              print('Synchronized user doc username: $normalized for UID: $uid');
-              debugPrint('Synchronized user doc username: $normalized for UID: $uid');
+              print(
+                'Synchronized user doc username: $normalized for UID: $uid',
+              );
+              debugPrint(
+                'Synchronized user doc username: $normalized for UID: $uid',
+              );
             }
           }
         }
@@ -213,7 +242,10 @@ class AuthService {
       await user.updateDisplayName(fullName.trim());
 
       // 2. Prepare user profile fields
-      final defaultUsername = UserModel.generateFallbackUsername(email, fullName);
+      final defaultUsername = UserModel.generateFallbackUsername(
+        email,
+        fullName,
+      );
       String chosenUsername = defaultUsername;
 
       // 3. Robust write to users/{user.uid} with SetOptions(merge: true)
@@ -244,8 +276,8 @@ class AuthService {
           uid: user.uid,
         );
         if (!claimed) {
-          final randomSuffix =
-              (DateTime.now().millisecondsSinceEpoch % 1000).toString();
+          final randomSuffix = (DateTime.now().millisecondsSinceEpoch % 1000)
+              .toString();
           final trimmedBase = chosenUsername.length > 16
               ? chosenUsername.substring(0, 16)
               : chosenUsername;
@@ -262,8 +294,11 @@ class AuthService {
         }
       } catch (usernameError, usernameStack) {
         debugPrint(
-            'AuthService: Username reservation note (non-fatal): $usernameError\n$usernameStack');
-        print('AuthService: Username reservation note (non-fatal): $usernameError');
+          'AuthService: Username reservation note (non-fatal): $usernameError\n$usernameStack',
+        );
+        print(
+          'AuthService: Username reservation note (non-fatal): $usernameError',
+        );
       }
     }
 
@@ -296,7 +331,8 @@ class AuthService {
       try {
         credential = await _auth.signInWithPopup(googleProvider);
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request') {
+        if (e.code == 'popup-closed-by-user' ||
+            e.code == 'cancelled-popup-request') {
           return null;
         }
         rethrow;
@@ -309,7 +345,8 @@ class AuthService {
         return null;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final AuthCredential authCred = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -334,13 +371,19 @@ class AuthService {
       final userSnapshot = await userDocRef.get();
 
       final effectiveEmail = (user.email ?? '').toLowerCase().trim();
-      final displayName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+      final displayName =
+          (user.displayName != null && user.displayName!.trim().isNotEmpty)
           ? user.displayName!.trim()
-          : (effectiveEmail.isNotEmpty ? effectiveEmail.split('@').first : 'User');
+          : (effectiveEmail.isNotEmpty
+                ? effectiveEmail.split('@').first
+                : 'User');
 
       if (!userSnapshot.exists) {
         // Brand new user registering via Google Sign-In
-        String chosenUsername = UserModel.generateFallbackUsername(effectiveEmail, displayName);
+        String chosenUsername = UserModel.generateFallbackUsername(
+          effectiveEmail,
+          displayName,
+        );
 
         await userDocRef.set({
           'uid': user.uid,
@@ -370,9 +413,10 @@ class AuthService {
             uid: user.uid,
           );
           if (!claimed) {
-            final randomSuffix = (DateTime.now().millisecondsSinceEpoch % 1000).toString();
-            final trimmedBase = chosenUsername.length > 16 
-                ? chosenUsername.substring(0, 16) 
+            final randomSuffix = (DateTime.now().millisecondsSinceEpoch % 1000)
+                .toString();
+            final trimmedBase = chosenUsername.length > 16
+                ? chosenUsername.substring(0, 16)
                 : chosenUsername;
             chosenUsername = '${trimmedBase}_$randomSuffix';
             await _userService.claimUsername(
@@ -386,7 +430,9 @@ class AuthService {
             }, SetOptions(merge: true));
           }
         } catch (usernameError) {
-          debugPrint('Google Sign-In username reservation note (non-fatal): $usernameError');
+          debugPrint(
+            'Google Sign-In username reservation note (non-fatal): $usernameError',
+          );
         }
       } else {
         // Existing user logging in: record active timestamp and photoUrl if missing
@@ -394,7 +440,9 @@ class AuthService {
         final updates = <String, dynamic>{
           'lastActive': FieldValue.serverTimestamp(),
         };
-        if (user.photoURL != null && (existingData?['photoUrl'] == null || existingData?['photoUrl'] == '')) {
+        if (user.photoURL != null &&
+            (existingData?['photoUrl'] == null ||
+                existingData?['photoUrl'] == '')) {
           updates['photoUrl'] = user.photoURL;
         }
         await userDocRef.set(updates, SetOptions(merge: true));

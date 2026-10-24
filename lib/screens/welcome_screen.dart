@@ -60,10 +60,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       if (!mounted) return;
 
       if (userCredential != null && userCredential.user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Welcome ${userCredential.user!.displayName ?? "User"}!')),
+        final hasPhone = await _authService.hasSavedPhoneNumber(
+          userCredential.user!.uid,
         );
-        Navigator.pushReplacementNamed(context, '/home');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Welcome ${userCredential.user!.displayName ?? "User"}!',
+            ),
+          ),
+        );
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+          arguments: !hasPhone,
+        );
       }
     } on FirebaseAuthException catch (error) {
       _showError(error.message ?? 'Google Sign-In failed.');
@@ -306,7 +319,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.primary,
+                              ),
                             )
                           : Image.asset(
                               "assets/images/google.png",
@@ -314,7 +330,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               width: 24,
                             ),
                       label: Text(
-                        _isGoogleLoading ? "Connecting..." : "Continue with Google",
+                        _isGoogleLoading
+                            ? "Connecting..."
+                            : "Continue with Google",
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,

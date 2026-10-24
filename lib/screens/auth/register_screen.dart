@@ -72,7 +72,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (credential != null && credential.user != null) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        final hasPhone = await _authService.hasSavedPhoneNumber(
+          credential.user!.uid,
+        );
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+          arguments: !hasPhone,
+        );
       }
     } on FirebaseAuthException catch (error) {
       _showError(_authErrorMessage(error));
@@ -239,7 +248,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await user.updateDisplayName(fullName);
 
       // 3. Save User Document directly in users/{uid}
-      final defaultUsername = UserModel.generateFallbackUsername(email, fullName);
+      final defaultUsername = UserModel.generateFallbackUsername(
+        email,
+        fullName,
+      );
       String chosenUsername = defaultUsername;
 
       await _firestore.collection('users').doc(user.uid).set({
@@ -270,9 +282,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           uid: user.uid,
         );
         if (!claimed) {
-          final randomSuffix = (DateTime.now().millisecondsSinceEpoch % 1000).toString();
-          final trimmedBase = chosenUsername.length > 16 
-              ? chosenUsername.substring(0, 16) 
+          final randomSuffix = (DateTime.now().millisecondsSinceEpoch % 1000)
+              .toString();
+          final trimmedBase = chosenUsername.length > 16
+              ? chosenUsername.substring(0, 16)
               : chosenUsername;
           chosenUsername = '${trimmedBase}_$randomSuffix';
           await userService.claimUsername(
@@ -286,7 +299,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           }, SetOptions(merge: true));
         }
       } catch (usernameError, usernameStack) {
-        debugPrint('Username reservation note (non-fatal): $usernameError\n$usernameStack');
+        debugPrint(
+          'Username reservation note (non-fatal): $usernameError\n$usernameStack',
+        );
         print('Username reservation note (non-fatal): $usernameError');
       }
 
@@ -701,11 +716,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           children: [
                             const Expanded(child: Divider()),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Text(
                                 "OR",
                                 style: TextStyle(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: .55),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: .55,
+                                  ),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -718,12 +737,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           width: double.infinity,
                           height: 58,
                           child: OutlinedButton.icon(
-                            onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
+                            onPressed: (_isLoading || _isGoogleLoading)
+                                ? null
+                                : _signInWithGoogle,
                             icon: _isGoogleLoading
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.primary,
+                                    ),
                                   )
                                 : Image.asset(
                                     "assets/images/google.png",
@@ -731,7 +755,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     width: 24,
                                   ),
                             label: Text(
-                              _isGoogleLoading ? "Connecting..." : "Continue with Google",
+                              _isGoogleLoading
+                                  ? "Connecting..."
+                                  : "Continue with Google",
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -740,7 +766,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: theme.colorScheme.onSurface,
                               side: BorderSide(
-                                color: theme.colorScheme.outline.withValues(alpha: .18),
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: .18,
+                                ),
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -768,7 +796,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ],
                               ),
                               style: TextStyle(
-                                color: theme.colorScheme.onSurface.withValues(alpha: .65),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: .65,
+                                ),
                               ),
                             ),
                           ),

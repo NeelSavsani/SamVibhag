@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../models/group_model.dart';
 import 'analytics/analytics_screen.dart';
 import '../../models/expense_model.dart'; 
+import '../../widgets/admob_banner.dart';
 
 class ActivityLogItem {
   final String message;
@@ -77,14 +79,34 @@ class ActivityScreen extends StatelessWidget {
     final textThemeColor = isDark ? Colors.white : Colors.black87;
     final tileColor = isDark ? const Color(0xFF1E1F24) : const Color(0xFFF1F5F9);
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('groups').snapshots(),
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      initialData: FirebaseAuth.instance.currentUser,
+      builder: (context, authSnapshot) {
+        final currentUser = authSnapshot.data;
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: currentUser == null
+          ? null
+          : FirebaseFirestore.instance
+              .collection('groups')
+              .where(
+                Filter.or(
+                  Filter('memberUids', arrayContains: currentUser.uid),
+                  Filter('createdBy', isEqualTo: currentUser.uid),
+                ),
+              )
+              .snapshots(),
       builder: (context, snapshot) {
         List<GroupModel> currentGroups = [];
         
         if (snapshot.hasData && snapshot.data != null) {
-          currentGroups = snapshot.data!.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+          currentGroups = snapshot.data!.docs.where((doc) {
+            final data = doc.data();
+            final memberUids = List<String>.from(data['memberUids'] ?? const []);
+            return memberUids.contains(currentUser?.uid) ||
+                data['createdBy'] == currentUser?.uid;
+          }).map((doc) {
+            final data = doc.data();
             
             final List<dynamic> rawExpenses = data['expenses'] as List<dynamic>? ?? [];
             final List<ExpenseModel> parsedExpenses = rawExpenses.map((e) {
@@ -137,6 +159,10 @@ class ActivityScreen extends StatelessWidget {
               ),
             ),
             iconTheme: IconThemeData(color: textThemeColor),
+          ),
+          bottomNavigationBar: const SafeArea(
+            top: false,
+            child: AdMobBanner(),
           ),
           body: SafeArea(
             child: SingleChildScrollView(
@@ -373,6 +399,8 @@ class ActivityScreen extends StatelessWidget {
             ),
           ),
         );
+      },
+    );
       },
     );
   }

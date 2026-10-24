@@ -2,9 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/utils/support_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/profile_avatar.dart';
 import 'account/appearance_screen.dart';
 import '../../core/theme/app_theme.dart';
 import 'account/edit_profile_screen.dart';
+import '../widgets/admob_banner.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -60,6 +62,10 @@ class AccountScreen extends StatelessWidget {
       backgroundColor: isDark
           ? const Color(0xFF121214)
           : const Color(0xFFF8FAFC),
+      bottomNavigationBar: const SafeArea(
+        top: false,
+        child: AdMobBanner(),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -89,19 +95,28 @@ class AccountScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
-                      backgroundImage: photoUrl != null
-                          ? NetworkImage(photoUrl)
+                    StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: user != null
+                          ? FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .snapshots()
                           : null,
-                      child: photoUrl == null
-                          ? const Icon(
-                              Icons.person_rounded,
-                              color: AppTheme.primary,
-                              size: 32,
-                            )
-                          : null,
+                      builder: (context, snapshot) {
+                        final data = snapshot.data?.data();
+                        final savedAvatarUrl =
+                            (data?['avatarUrl'] as String?)?.trim();
+                        return ProfileAvatar(
+                          radius: 32,
+                          imageUrl: savedAvatarUrl?.isNotEmpty == true
+                              ? savedAvatarUrl
+                              : photoUrl,
+                          localPath: data?['avatarLocalPath'] as String?,
+                          backgroundColor:
+                              AppTheme.primary.withValues(alpha: 0.15),
+                          iconColor: AppTheme.primary,
+                        );
+                      },
                     ),
                     const SizedBox(width: 16),
 

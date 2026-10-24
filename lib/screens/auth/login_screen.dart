@@ -34,7 +34,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (credential != null && credential.user != null) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        final hasPhone = await _authService.hasSavedPhoneNumber(
+          credential.user!.uid,
+        );
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/home',
+          (route) => false,
+          arguments: !hasPhone,
+        );
       }
     } on FirebaseAuthException catch (error) {
       _showError(_authErrorMessage(error));
@@ -94,12 +103,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // FIXED: Completely wipe all background routes so back button doesn't reload forms
       Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-      
     } on FirebaseAuthException catch (error) {
       _showError(_authErrorMessage(error));
     } catch (error) {
       debugPrint("Login Navigation Exception: $error");
-      _showError('Logged in successfully, but could not load home screen. Ensure /home route is configured.');
+      _showError(
+        'Logged in successfully, but could not load home screen. Ensure /home route is configured.',
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -109,8 +119,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _forgotPassword() async {
     final email = _emailController.text.trim();
-    if (email.isEmpty || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
-      _showError('Please enter a valid email address first to reset your password.');
+    if (email.isEmpty ||
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      _showError(
+        'Please enter a valid email address first to reset your password.',
+      );
       return;
     }
 
@@ -223,7 +236,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           'Log in to access your dashboard and manage group expenses.',
                           style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: .65),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: .65,
+                            ),
                             height: 1.45,
                           ),
                         ),
@@ -236,7 +251,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           textInputAction: TextInputAction.next,
                           validator: (value) {
                             final email = value?.trim() ?? '';
-                            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+                            if (!RegExp(
+                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                            ).hasMatch(email)) {
                               return 'Enter a valid email address.';
                             }
                             return null;
@@ -291,7 +308,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,
-                              disabledBackgroundColor: AppTheme.primary.withValues(alpha: .55),
+                              disabledBackgroundColor: AppTheme.primary
+                                  .withValues(alpha: .55),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
                               ),
@@ -319,11 +337,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             const Expanded(child: Divider()),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Text(
                                 "OR",
                                 style: TextStyle(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: .55),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: .55,
+                                  ),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -336,12 +358,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: double.infinity,
                           height: 58,
                           child: OutlinedButton.icon(
-                            onPressed: (_isLoading || _isGoogleLoading) ? null : _signInWithGoogle,
+                            onPressed: (_isLoading || _isGoogleLoading)
+                                ? null
+                                : _signInWithGoogle,
                             icon: _isGoogleLoading
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.primary,
+                                    ),
                                   )
                                 : Image.asset(
                                     "assets/images/google.png",
@@ -349,7 +376,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     width: 24,
                                   ),
                             label: Text(
-                              _isGoogleLoading ? "Connecting..." : "Continue with Google",
+                              _isGoogleLoading
+                                  ? "Connecting..."
+                                  : "Continue with Google",
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -358,7 +387,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: theme.colorScheme.onSurface,
                               side: BorderSide(
-                                color: theme.colorScheme.outline.withValues(alpha: .18),
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: .18,
+                                ),
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -386,7 +417,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ],
                               ),
                               style: TextStyle(
-                                color: theme.colorScheme.onSurface.withValues(alpha: .65),
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: .65,
+                                ),
                               ),
                             ),
                           ),

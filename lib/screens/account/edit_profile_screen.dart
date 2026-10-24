@@ -6,17 +6,27 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/user_model.dart';
+import '../../services/cloudinary_avatar_service.dart';
 import '../../services/user_service.dart';
+import '../../widgets/profile_avatar.dart';
 
 class CountryCode {
-  const CountryCode({required this.name, required this.dialCode, required this.flag});
+  const CountryCode({
+    required this.name,
+    required this.dialCode,
+    required this.flag,
+  });
   final String name;
   final String dialCode;
   final String flag;
 }
 
 class CurrencyOption {
-  const CurrencyOption({required this.name, required this.code, required this.symbol});
+  const CurrencyOption({
+    required this.name,
+    required this.code,
+    required this.symbol,
+  });
   final String name;
   final String code;
   final String symbol;
@@ -34,10 +44,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _fullNameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
-  
+
   String _initialUsername = '';
   String? _usernameError;
-  
+
   // Password Change Controllers
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
@@ -47,21 +57,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _firestore = FirebaseFirestore.instance;
   late final UserService _userService = UserService(firestore: _firestore);
   final _imagePicker = ImagePicker();
+  final _cloudinaryAvatarService = CloudinaryAvatarService();
 
   XFile? _avatar;
   String _existingAvatarPath = '';
+  String _existingAvatarUrl = '';
   bool _isLoading = true;
   bool _isUpdating = false;
-  
+
   // Password Form Visibility Flags
   bool _showPasswordModule = false;
   bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
-  CountryCode _selectedCountry = const CountryCode(name: 'India', dialCode: '+91', flag: '🇮🇳');
-  CurrencyOption _selectedCurrency = const CurrencyOption(name: 'Indian Rupee', code: 'INR', symbol: '₹');
-  
+  CountryCode _selectedCountry = const CountryCode(
+    name: 'India',
+    dialCode: '+91',
+    flag: '🇮🇳',
+  );
+  CurrencyOption _selectedCurrency = const CurrencyOption(
+    name: 'Indian Rupee',
+    code: 'INR',
+    symbol: '₹',
+  );
+
   // Timezone and Language State Settings
   String _selectedTimezone = 'Asia/Kolkata (GMT+5:30)';
   String _selectedLanguage = 'English (EN)';
@@ -78,7 +98,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   static const _currencies = [
     CurrencyOption(name: 'US Dollar', code: 'USD', symbol: r'$'),
-    CurrencyOption(name: 'United Arab Emirates Dirham', code: 'AED', symbol: 'د.إ'),
+    CurrencyOption(
+      name: 'United Arab Emirates Dirham',
+      code: 'AED',
+      symbol: 'د.إ',
+    ),
     CurrencyOption(name: 'Indian Rupee', code: 'INR', symbol: '₹'),
     CurrencyOption(name: 'Euro', code: 'EUR', symbol: '€'),
     CurrencyOption(name: 'British Pound', code: 'GBP', symbol: '£'),
@@ -115,27 +139,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _fetchUserProfileData() async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists && mounted) {
-        final data = doc.data()!;
+      if (mounted) {
+        final data = doc.data() ?? <String, dynamic>{};
         _fullNameController.text = data['fullName'] ?? user.displayName ?? '';
-        
-        final rawUsername = (data['username'] as String?)?.trim().toLowerCase() ?? '';
-        final fallbackUsername = UserModel.generateFallbackUsername(user.email, user.displayName ?? data['fullName']);
-        final effectiveUsername = rawUsername.isNotEmpty ? rawUsername : fallbackUsername;
+
+        final rawUsername =
+            (data['username'] as String?)?.trim().toLowerCase() ?? '';
+        final fallbackUsername = UserModel.generateFallbackUsername(
+          user.email,
+          user.displayName ?? data['fullName'],
+        );
+        final effectiveUsername = rawUsername.isNotEmpty
+            ? rawUsername
+            : fallbackUsername;
         _usernameController.text = effectiveUsername;
         _initialUsername = rawUsername;
 
-        String rawPhone = data['phoneNumber'] ?? '';
+        final savedPhoneNumber = data['phoneNumber'] as String?;
+        String rawPhone = savedPhoneNumber?.trim().isNotEmpty == true
+            ? savedPhoneNumber!
+            : (data['phone'] as String? ?? '');
         String cCode = data['countryCode'] ?? '+91';
         if (rawPhone.startsWith(cCode)) {
           rawPhone = rawPhone.substring(cCode.length);
         }
         _phoneController.text = rawPhone;
-        _existingAvatarPath = data['avatarLocalPath'] ?? '';
+        _existingAvatarPath = data['avatarLocalPath'] as String? ?? '';
+        final savedAvatarUrl = (data['avatarUrl'] as String?)?.trim();
+        final authPhotoUrl = (data['photoUrl'] as String?)?.trim();
+        _existingAvatarUrl = savedAvatarUrl?.isNotEmpty == true
+            ? savedAvatarUrl!
+            : (authPhotoUrl ?? '');
         _selectedTimezone = data['timezone'] ?? 'Asia/Kolkata (GMT+5:30)';
         _selectedLanguage = data['language'] ?? 'English (EN)';
 
@@ -164,7 +205,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickAvatar() async {
-    final pickedImage = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 78, maxWidth: 900);
+    final pickedImage = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 78,
+      maxWidth: 900,
+    );
     if (pickedImage == null || !mounted) return;
     setState(() => _avatar = pickedImage);
   }
@@ -182,7 +227,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         itemBuilder: (context, country) => ListTile(
           leading: Text(country.flag, style: const TextStyle(fontSize: 22)),
           title: Text(country.name),
-          trailing: Text(country.dialCode, style: const TextStyle(fontWeight: FontWeight.w800)),
+          trailing: Text(
+            country.dialCode,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
           onTap: () => Navigator.pop(context, country),
         ),
       ),
@@ -199,11 +247,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         title: 'Choose currency',
         items: _currencies,
         searchHint: 'Search currency or code',
-        searchText: (currency) => '${currency.name} ${currency.code} ${currency.symbol}',
+        searchText: (currency) =>
+            '${currency.name} ${currency.code} ${currency.symbol}',
         itemBuilder: (context, currency) => ListTile(
           leading: CircleAvatar(
             backgroundColor: AppTheme.primary.withValues(alpha: .12),
-            child: Text(currency.symbol, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900)),
+            child: Text(
+              currency.symbol,
+              style: const TextStyle(
+                color: AppTheme.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
           title: Text(currency.name),
           subtitle: Text(currency.code),
@@ -227,7 +282,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         itemBuilder: (context, tz) => ListTile(
           leading: const Icon(Icons.public_rounded, color: AppTheme.primary),
           title: Text(tz),
-          trailing: _selectedTimezone == tz ? const Icon(Icons.check_circle, color: Color(0xFF00B074)) : null,
+          trailing: _selectedTimezone == tz
+              ? const Icon(Icons.check_circle, color: Color(0xFF00B074))
+              : null,
           onTap: () => Navigator.pop(context, tz),
         ),
       ),
@@ -261,7 +318,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final fullName = _fullNameController.text.trim();
       final phone = _phoneController.text.trim();
-      final normalizedUsername = UserModel.normalizeUsername(_usernameController.text);
+      final normalizedUsername = UserModel.normalizeUsername(
+        _usernameController.text,
+      );
 
       // Claim username atomically via transaction on the `usernames` collection
       if (normalizedUsername != _initialUsername) {
@@ -274,7 +333,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (!claimed) {
           if (!mounted) return;
           setState(() {
-            _usernameError = 'Username is already taken. Please choose another.';
+            _usernameError =
+                'Username is already taken. Please choose another.';
             _isUpdating = false;
           });
           _formKey.currentState?.validate();
@@ -284,22 +344,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       await user.updateDisplayName(fullName);
 
-      await _firestore.collection('users').doc(user.uid).set({
+      String? uploadedAvatarUrl;
+      if (_avatar != null) {
+        uploadedAvatarUrl = await _cloudinaryAvatarService.upload(
+          File(_avatar!.path),
+        );
+      }
+
+      final profileUpdate = <String, dynamic>{
         'fullName': fullName,
         'displayName': fullName,
         'username': normalizedUsername,
         'usernameSearch': normalizedUsername,
-        'phoneNumber': '${_selectedCountry.dialCode}$phone',
-        'countryCode': _selectedCountry.dialCode,
-        'countryName': _selectedCountry.name,
         'currencyName': _selectedCurrency.name,
         'currencyCode': _selectedCurrency.code,
         'currencySymbol': _selectedCurrency.symbol,
         'timezone': _selectedTimezone,
         'language': _selectedLanguage,
-        'avatarLocalPath': _avatar?.path ?? _existingAvatarPath,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+      if (uploadedAvatarUrl != null) {
+        profileUpdate['avatarUrl'] = uploadedAvatarUrl;
+        profileUpdate['photoUrl'] = uploadedAvatarUrl;
+        // Retain the local path for compatibility; avatarUrl is the durable source.
+        profileUpdate['avatarLocalPath'] = _avatar!.path;
+      }
+      if (phone.isNotEmpty) {
+        profileUpdate['phoneNumber'] = '${_selectedCountry.dialCode}$phone';
+        profileUpdate['countryCode'] = _selectedCountry.dialCode;
+        profileUpdate['countryName'] = _selectedCountry.name;
+      }
+
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set(profileUpdate, SetOptions(merge: true));
 
       _initialUsername = normalizedUsername;
 
@@ -335,15 +414,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? const [Color(0xFF07111F), Color(0xFF0F172A), Color(0xFF172554)]
-                : const [Color(0xFFEFF6FF), Color(0xFFFFFBF7), Color(0xFFDBEAFE)],
+                ? const [
+                    Color(0xFF07111F),
+                    Color(0xFF0F172A),
+                    Color(0xFF172554),
+                  ]
+                : const [
+                    Color(0xFFEFF6FF),
+                    Color(0xFFFFFBF7),
+                    Color(0xFFDBEAFE),
+                  ],
           ),
         ),
         child: SafeArea(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppTheme.primary),
+                )
               : CustomScrollView(
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   slivers: [
                     SliverAppBar(
                       backgroundColor: Colors.transparent,
@@ -351,7 +441,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       pinned: true,
                       leading: IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.primary, size: 24),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: AppTheme.primary,
+                          size: 24,
+                        ),
                       ),
                     ),
                     SliverPadding(
@@ -376,27 +470,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   child: Stack(
                                     alignment: Alignment.bottomRight,
                                     children: [
-                                      CircleAvatar(
-                                        radius: 50,
-                                        backgroundColor: AppTheme.primary.withValues(alpha: .14),
-                                        backgroundImage: _avatar != null
-                                            ? FileImage(File(_avatar!.path))
-                                            : (_existingAvatarPath.isNotEmpty
-                                                ? FileImage(File(_existingAvatarPath)) as ImageProvider
-                                                : null),
-                                        child: _avatar == null && _existingAvatarPath.isEmpty
-                                            ? const Icon(Icons.person_rounded, size: 52, color: AppTheme.primary)
-                                            : null,
-                                      ),
+                                      _avatar != null
+                                          ? ProfileAvatar(
+                                              radius: 50,
+                                              localPath: _avatar!.path,
+                                              backgroundColor: AppTheme.primary
+                                                  .withValues(alpha: .14),
+                                              iconColor: AppTheme.primary,
+                                            )
+                                          : ProfileAvatar(
+                                              radius: 50,
+                                              imageUrl: _existingAvatarUrl,
+                                              localPath: _existingAvatarPath,
+                                              backgroundColor: AppTheme.primary
+                                                  .withValues(alpha: .14),
+                                              iconColor: AppTheme.primary,
+                                            ),
                                       Container(
                                         height: 34,
                                         width: 34,
                                         decoration: BoxDecoration(
                                           color: AppTheme.primary,
                                           shape: BoxShape.circle,
-                                          border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                                          border: Border.all(
+                                            color:
+                                                theme.scaffoldBackgroundColor,
+                                            width: 3,
+                                          ),
                                         ),
-                                        child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 18),
+                                        child: const Icon(
+                                          Icons.photo_camera_rounded,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -409,7 +515,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 icon: Icons.person_outline_rounded,
                                 textInputAction: TextInputAction.next,
                                 validator: (value) {
-                                  if (value == null || value.trim().length < 2) return 'Enter your full name.';
+                                  if (value == null || value.trim().length < 2)
+                                    return 'Enter your full name.';
                                   return null;
                                 },
                               ),
@@ -421,7 +528,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 prefixText: '@',
                                 textInputAction: TextInputAction.next,
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'[a-zA-Z0-9_]'),
+                                  ),
                                 ],
                                 maxLength: 20,
                                 onChanged: (value) {
@@ -442,7 +551,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   if (value.contains(' ')) {
                                     return 'Username cannot contain spaces.';
                                   }
-                                  final uname = UserModel.normalizeUsername(value);
+                                  final uname = UserModel.normalizeUsername(
+                                    value,
+                                  );
                                   if (uname.length < 3) {
                                     return 'Username must be at least 3 characters.';
                                   }
@@ -465,7 +576,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       borderRadius: BorderRadius.circular(18),
                                       onTap: _selectCountryCode,
                                       child: InputDecorator(
-                                        decoration: _fieldDecoration(context, 'Code'),
+                                        decoration: _fieldDecoration(
+                                          context,
+                                          'Code',
+                                        ),
                                         child: Row(
                                           children: [
                                             Text(_selectedCountry.flag),
@@ -474,10 +588,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               child: Text(
                                                 _selectedCountry.dialCode,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.w800),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                ),
                                               ),
                                             ),
-                                            const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+                                            const Icon(
+                                              Icons.keyboard_arrow_down_rounded,
+                                              size: 20,
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -494,7 +613,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       textInputAction: TextInputAction.done,
                                       validator: (value) {
                                         final phone = value?.trim() ?? '';
-                                        if (!RegExp(r'^\d{10}$').hasMatch(phone)) return 'Enter 10 digits.';
+                                        if (!RegExp(
+                                          r'^\d{10}$',
+                                        ).hasMatch(phone))
+                                          return 'Enter 10 digits.';
                                         return null;
                                       },
                                     ),
@@ -502,32 +624,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              _CurrencyTile(currency: _selectedCurrency, onChange: _selectCurrency),
-                              
+                              _CurrencyTile(
+                                currency: _selectedCurrency,
+                                onChange: _selectCurrency,
+                              ),
+
                               const SizedBox(height: 20),
-                              const Text('Preferences', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              const Text(
+                                'Preferences',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               const SizedBox(height: 10),
 
                               // Timezone Selector Tile
                               ListTile(
-                                leading: const Icon(Icons.access_time_filled_rounded, color: AppTheme.primary),
-                                title: const Text('Timezone', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                                subtitle: Text(_selectedTimezone, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                tileColor: theme.cardColor.withValues(alpha: .86),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                trailing: const Icon(Icons.chevron_right_rounded),
+                                leading: const Icon(
+                                  Icons.access_time_filled_rounded,
+                                  color: AppTheme.primary,
+                                ),
+                                title: const Text(
+                                  'Timezone',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  _selectedTimezone,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                tileColor: theme.cardColor.withValues(
+                                  alpha: .86,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                ),
                                 onTap: _selectTimezone,
                               ),
                               const SizedBox(height: 12),
-                              
+
                               // PASSWORD RECOVERY EXPANDABLE ACTION BAR
                               Theme(
-                                data: theme.copyWith(dividerColor: Colors.transparent),
+                                data: theme.copyWith(
+                                  dividerColor: Colors.transparent,
+                                ),
                                 child: ExpansionTile(
-                                  title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                                  title: const Text(
+                                    'Change Password',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary,
+                                    ),
+                                  ),
                                   iconColor: AppTheme.primary,
                                   initiallyExpanded: _showPasswordModule,
-                                  onExpansionChanged: (value) => setState(() => _showPasswordModule = value),
+                                  onExpansionChanged: (value) => setState(
+                                    () => _showPasswordModule = value,
+                                  ),
                                   children: [
                                     const SizedBox(height: 8),
                                     _InputField(
@@ -536,11 +697,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       icon: Icons.lock_open_rounded,
                                       obscureText: _obscureCurrent,
                                       suffixIcon: IconButton(
-                                        icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility),
-                                        onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                                        icon: Icon(
+                                          _obscureCurrent
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _obscureCurrent =
+                                              !_obscureCurrent,
+                                        ),
                                       ),
                                       validator: (val) {
-                                        if (_showPasswordModule && (val == null || val.isEmpty)) return 'Current password required.';
+                                        if (_showPasswordModule &&
+                                            (val == null || val.isEmpty))
+                                          return 'Current password required.';
                                         return null;
                                       },
                                     ),
@@ -551,11 +721,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       icon: Icons.lock_outline_rounded,
                                       obscureText: _obscureNew,
                                       suffixIcon: IconButton(
-                                        icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
-                                        onPressed: () => setState(() => _obscureNew = !_obscureNew),
+                                        icon: Icon(
+                                          _obscureNew
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _obscureNew = !_obscureNew,
+                                        ),
                                       ),
                                       validator: (val) {
-                                        if (_showPasswordModule && (val == null || val.length < 6)) return 'Password must be >= 6 characters.';
+                                        if (_showPasswordModule &&
+                                            (val == null || val.length < 6))
+                                          return 'Password must be >= 6 characters.';
                                         return null;
                                       },
                                     ),
@@ -566,11 +744,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       icon: Icons.lock_reset_rounded,
                                       obscureText: _obscureConfirm,
                                       suffixIcon: IconButton(
-                                        icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                                        onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                                        icon: Icon(
+                                          _obscureConfirm
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _obscureConfirm =
+                                              !_obscureConfirm,
+                                        ),
                                       ),
                                       validator: (val) {
-                                        if (_showPasswordModule && val != _newPasswordController.text) return 'Passwords do not match.';
+                                        if (_showPasswordModule &&
+                                            val != _newPasswordController.text)
+                                          return 'Passwords do not match.';
                                         return null;
                                       },
                                     ),
@@ -584,20 +771,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 width: double.infinity,
                                 height: 58,
                                 child: ElevatedButton(
-                                  onPressed: _isUpdating ? null : _updateProfile,
+                                  onPressed: _isUpdating
+                                      ? null
+                                      : _updateProfile,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppTheme.primary,
                                     foregroundColor: Colors.white,
-                                    disabledBackgroundColor: AppTheme.primary.withValues(alpha: .55),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                    disabledBackgroundColor: AppTheme.primary
+                                        .withValues(alpha: .55),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
                                   ),
                                   child: _isUpdating
                                       ? const SizedBox(
                                           height: 22,
                                           width: 22,
-                                          child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.4,
+                                            color: Colors.white,
+                                          ),
                                         )
-                                      : const Text('Save Changes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                                      : const Text(
+                                          'Save Changes',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
                                 ),
                               ),
                             ],
@@ -626,13 +827,21 @@ class _CurrencyTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.cardColor.withValues(alpha: .82),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.colorScheme.outline.withValues(alpha: .14)),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: .14),
+        ),
       ),
       child: Row(
         children: [
           CircleAvatar(
             backgroundColor: AppTheme.primary.withValues(alpha: .12),
-            child: Text(currency.symbol, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w900)),
+            child: Text(
+              currency.symbol,
+              style: const TextStyle(
+                color: AppTheme.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -640,14 +849,23 @@ class _CurrencyTile extends StatelessWidget {
               TextSpan(
                 text: 'I use ',
                 children: [
-                  TextSpan(text: '${currency.code} (${currency.symbol})', style: const TextStyle(fontWeight: FontWeight.w900)),
+                  TextSpan(
+                    text: '${currency.code} (${currency.symbol})',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
                   const TextSpan(text: ' as my currency.'),
                 ],
               ),
               style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
             ),
           ),
-          TextButton(onPressed: onChange, child: const Text('Change >>', style: TextStyle(fontWeight: FontWeight.w900))),
+          TextButton(
+            onPressed: onChange,
+            child: const Text(
+              'Change >>',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
         ],
       ),
     );
@@ -726,16 +944,39 @@ InputDecoration _fieldDecoration(
     counterText: '',
     filled: true,
     fillColor: theme.cardColor.withValues(alpha: .86),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: .12))),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppTheme.primary, width: 1.6)),
-    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppTheme.warning)),
-    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppTheme.warning, width: 1.4)),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide(
+        color: theme.colorScheme.outline.withValues(alpha: .12),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: AppTheme.primary, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: AppTheme.warning),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: const BorderSide(color: AppTheme.warning, width: 1.4),
+    ),
   );
 }
 
 class _SearchablePicker<T> extends StatefulWidget {
-  const _SearchablePicker({required this.title, required this.items, required this.searchHint, required this.searchText, required this.itemBuilder});
+  const _SearchablePicker({
+    required this.title,
+    required this.items,
+    required this.searchHint,
+    required this.searchText,
+    required this.itemBuilder,
+  });
   final String title;
   final List<T> items;
   final String searchHint;
@@ -753,7 +994,12 @@ class _SearchablePickerState<T> extends State<_SearchablePicker<T>> {
   void _filter(String query) {
     final normalizedQuery = query.trim().toLowerCase();
     setState(() {
-      _filteredItems = widget.items.where((item) => widget.searchText(item).toLowerCase().contains(normalizedQuery)).toList();
+      _filteredItems = widget.items
+          .where(
+            (item) =>
+                widget.searchText(item).toLowerCase().contains(normalizedQuery),
+          )
+          .toList();
     });
   }
 
@@ -761,13 +1007,22 @@ class _SearchablePickerState<T> extends State<_SearchablePicker<T>> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, bottom: MediaQuery.viewInsetsOf(context).bottom + 20),
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+        ),
         child: SizedBox(
           height: MediaQuery.sizeOf(context).height * .72,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+              Text(
+                widget.title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              ),
               const SizedBox(height: 14),
               TextField(
                 controller: _searchController,
@@ -777,7 +1032,10 @@ class _SearchablePickerState<T> extends State<_SearchablePicker<T>> {
                   hintText: widget.searchHint,
                   prefixIcon: const Icon(Icons.search_rounded),
                   filled: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -787,7 +1045,8 @@ class _SearchablePickerState<T> extends State<_SearchablePicker<T>> {
                     : ListView.separated(
                         itemCount: _filteredItems.length,
                         separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) => widget.itemBuilder(context, _filteredItems[index]),
+                        itemBuilder: (context, index) =>
+                            widget.itemBuilder(context, _filteredItems[index]),
                       ),
               ),
             ],
