@@ -285,11 +285,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-          : Padding(
-              padding: const EdgeInsets.all(16),
+          : SafeArea(
+              top: false,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                   Text(
                     widget.expense == null ? 'Add a new expense' : 'Update expense details',
                     style: GoogleFonts.dmSans(
@@ -344,52 +349,80 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  DropdownButtonFormField<String>(
-                    value: selectedCategory,
-                    dropdownColor: theme.cardColor,
-                    style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
-                    decoration: InputDecoration(
-                      labelText: 'Category',
-                      labelStyle: GoogleFonts.dmSans(fontSize: 13),
-                      prefixIcon: const Icon(Icons.category_outlined, color: Color(0xFF0284C7)),
-                      filled: true,
-                      fillColor: theme.cardColor,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                    ),
-                    items: categories.map((category) {
-                      return DropdownMenuItem<String>(
-                        value: category,
-                        child: Text(category),
-                      ); 
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => selectedCategory = value);
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  DropdownButtonFormField<String>(
-                    value: paidBy,
-                    dropdownColor: theme.cardColor,
-                    style: GoogleFonts.dmSans(color: theme.colorScheme.onSurface, fontSize: 14),
-                    decoration: InputDecoration(
-                      labelText: 'Paid By',
-                      labelStyle: GoogleFonts.dmSans(fontSize: 13),
-                      prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF0284C7)),
-                      filled: true,
-                      fillColor: theme.cardColor,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                    ),
-                    items: widget.group.members.map((member) {
-                      return DropdownMenuItem<String>(
-                        value: member,
-                        child: Text(member),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => paidBy = value);
-                    },
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          value: selectedCategory,
+                          dropdownColor: theme.cardColor,
+                          style: GoogleFonts.dmSans(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 14,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Category',
+                            labelStyle: GoogleFonts.dmSans(fontSize: 13),
+                            prefixIcon: const Icon(
+                              Icons.category_outlined,
+                              color: Color(0xFF0284C7),
+                            ),
+                            filled: true,
+                            fillColor: theme.cardColor,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          items: categories.map((category) {
+                            return DropdownMenuItem<String>(
+                              value: category,
+                              child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => selectedCategory = value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          value: paidBy,
+                          dropdownColor: theme.cardColor,
+                          style: GoogleFonts.dmSans(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 14,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Paid By',
+                            labelStyle: GoogleFonts.dmSans(fontSize: 13),
+                            prefixIcon: const Icon(
+                              Icons.person_outline_rounded,
+                              color: Color(0xFF0284C7),
+                            ),
+                            filled: true,
+                            fillColor: theme.cardColor,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          items: widget.group.members.map((member) {
+                            return DropdownMenuItem<String>(
+                              value: member,
+                              child: Text(member, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => paidBy = value);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -435,10 +468,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 10),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: widget.group.members.length,
-                      itemBuilder: (context, index) {
+                  Column(
+                    children: List.generate(widget.group.members.length, (index) {
                         final member = widget.group.members[index];
                         final isSelected = selectedMembers.contains(member);
 
@@ -496,10 +527,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             },
                           ),
                         );
-                      },
+                      }),
+                  ),
+                        ],
+                      ),
                     ),
                   ),
-                  Container(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
@@ -533,6 +569,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         ),
                       ),
                     ),
+                  ),
                   ),
                 ],
               ),
