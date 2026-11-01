@@ -17,10 +17,7 @@ class CloudinaryAvatarService {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.https(
-          'api.cloudinary.com',
-          '/v1_1/$_cloudName/image/upload',
-        ),
+        Uri.https('api.cloudinary.com', '/v1_1/$_cloudName/image/upload'),
       )..fields['upload_preset'] = _uploadPreset;
       request.files.add(await http.MultipartFile.fromPath('file', image.path));
 

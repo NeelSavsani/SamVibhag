@@ -25,6 +25,15 @@ class GroupInfoScreen extends StatefulWidget {
   State<GroupInfoScreen> createState() => _GroupInfoScreenState();
 }
 
+enum _MemberProfileStatus { registered, offline, unavailable }
+
+class _MemberProfileLookup {
+  const _MemberProfileLookup(this.status, [this.profile]);
+
+  final _MemberProfileStatus status;
+  final Map<String, dynamic>? profile;
+}
+
 class _GroupInfoScreenState extends State<GroupInfoScreen> {
   late TextEditingController groupNameController;
   late TextEditingController descriptionController;
@@ -32,6 +41,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   late List<String> memberUids;
   late List<String> memberEmails;
   late List<String> memberUsernames;
+  late Future<String?> _creatorUidFuture;
+  late Future<String> _creatorNameFuture;
+  final Map<String, Future<_MemberProfileLookup>> _memberProfileFutures = {};
+  final Map<String, Future<_MemberProfileLookup>> _memberNameProfileFutures = {};
   String avatarPath = "";
   bool _isLoading = false;
 
@@ -47,6 +60,178 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     memberEmails = List<String>.from(widget.group.memberEmails);
     memberUsernames = List<String>.from(widget.group.memberUsernames);
     avatarPath = widget.group.avatarPath.trim();
+    _creatorUidFuture = _loadCreatorUid();
+    _creatorNameFuture = _loadCreatorName();
+  }
+
+  Future<String?> _loadCreatorUid() async {
+    try {
+      final groupSnapshot = await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(widget.group.id)
+          .get();
+      final creatorUid = groupSnapshot.data()?['createdBy']?.toString().trim();
+      return creatorUid?.isNotEmpty == true ? creatorUid : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String> _loadCreatorName() async {
+    try {
+      final creatorUid = await _creatorUidFuture;
+      if (creatorUid == null) return 'Unavailable';
+      final creatorSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(creatorUid)
+          .get();
+      final data = creatorSnapshot.data();
+      final fullName = (data?['fullName'] as String?)?.trim();
+      if (fullName?.isNotEmpty == true) return fullName!;
+
+      final displayName = (data?['displayName'] as String?)?.trim();
+      if (displayName?.isNotEmpty == true) return displayName!;
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser?.uid == creatorUid &&
+          currentUser?.displayName?.trim().isNotEmpty == true) {
+        return currentUser!.displayName!.trim();
+      }
+    } catch (_) {
+      // Keep the group information screen usable if profile lookup fails.
+    }
+    return 'Unavailable';
+  }
+
+  Future<_MemberProfileLookup> _loadGroupMemberProfile(int index) async {
+    if (members.length == memberUids.length &&
+        memberUids[index].trim().isNotEmpty) {
+      return _loadMemberProfile(memberUids[index]);
+    }
+
+    // Group creation stores the creator as the first member and first UID.
+    // The explicit createdBy field is authoritative for that row, including
+    // older groups whose member UID list is incomplete.
+    final creatorUid = await _creatorUidFuture;
+    if (index == 0 && creatorUid != null) {
+      return _loadMemberProfile(creatorUid);
+    }
+
+    return _loadMemberProfileByName(members[index]);
+  }
+
+  Future<_MemberProfileLookup> _loadMemberProfile(String uid) {
+    return _memberProfileFutures.putIfAbsent(uid, () async {
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
+        final profile = snapshot.data();
+        return profile == null
+            ? const _MemberProfileLookup(_MemberProfileStatus.unavailable)
+            : _MemberProfileLookup(_MemberProfileStatus.registered, profile);
+      } catch (_) {
+        return const _MemberProfileLookup(_MemberProfileStatus.unavailable);
+      }
+    });
+  }
+
+  Future<_MemberProfileLookup> _loadMemberProfileByName(String memberName) {
+    final normalizedName = memberName.trim();
+    if (normalizedName.isEmpty) {
+      return Future.value(
+        const _MemberProfileLookup(_MemberProfileStatus.unavailable),
+      );
+    }
+
+    return _memberNameProfileFutures.putIfAbsent(normalizedName, () async {
+      try {
+        final users = FirebaseFirestore.instance.collection('users');
+        final snapshots = await Future.wait([
+          users.where('displayName', isEqualTo: normalizedName).limit(2).get(),
+          users.where('fullName', isEqualTo: normalizedName).limit(2).get(),
+        ]);
+        final matches = <String, Map<String, dynamic>>{};
+        for (final snapshot in snapshots) {
+          for (final document in snapshot.docs) {
+            final data = document.data();
+            if (data['displayName'] == normalizedName ||
+                data['fullName'] == normalizedName) {
+              matches[document.id] = data;
+            }
+          }
+        }
+        if (matches.length == 1) {
+          final matchedUid = matches.keys.single;
+          final creatorUid = await _creatorUidFuture;
+          if (!memberUids.contains(matchedUid) && matchedUid != creatorUid) {
+            return const _MemberProfileLookup(
+              _MemberProfileStatus.unavailable,
+            );
+          }
+          return _MemberProfileLookup(
+            _MemberProfileStatus.registered,
+            matches.values.first,
+          );
+        }
+        return _MemberProfileLookup(
+          matches.isEmpty
+              ? _MemberProfileStatus.offline
+              : _MemberProfileStatus.unavailable,
+        );
+      } catch (_) {
+        return const _MemberProfileLookup(_MemberProfileStatus.unavailable);
+      }
+    });
+  }
+
+  Widget _buildMemberCard(
+    int index, {
+    Map<String, dynamic>? profile,
+    _MemberProfileStatus? profileStatus,
+    bool profileLoading = false,
+  }) {
+    final profileName = (profile?['fullName'] as String?)?.trim();
+    final displayName = (profile?['displayName'] as String?)?.trim();
+    final name = profileName?.isNotEmpty == true
+        ? profileName!
+        : (displayName?.isNotEmpty == true ? displayName! : members[index]);
+    final username = (profile?['username'] as String?)?.trim();
+    final email = (profile?['email'] as String?)?.trim();
+    final subtitle = profileStatus == _MemberProfileStatus.offline
+        ? 'Offline member'
+        : (username?.isNotEmpty == true
+              ? '@$username'
+              : (email?.isNotEmpty == true
+                    ? email!
+                    : (profileLoading
+                          ? 'Loading profile…'
+                          : 'Profile details unavailable')));
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: AppTheme.primary.withOpacity(0.15),
+          child: const Icon(Icons.person, color: AppTheme.primary),
+        ),
+        title: Text(
+          name,
+          style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(subtitle, style: GoogleFonts.dmSans(fontSize: 12)),
+        trailing: IconButton(
+          tooltip: "Remove Member",
+          onPressed: () => removeMember(index),
+          icon: const Icon(Icons.delete_outline, color: Colors.red),
+        ),
+      ),
+    );
   }
 
   @override
@@ -388,7 +573,16 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       child: ListTile(
                         leading: const Icon(Icons.calendar_today, color: AppTheme.primary),
                         title: Text("Created", style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600)),
-                        subtitle: Text(createdDate, style: GoogleFonts.dmSans(fontSize: 12)),
+                        subtitle: FutureBuilder<String>(
+                          future: _creatorNameFuture,
+                          builder: (context, snapshot) {
+                            final creatorName = snapshot.data ?? 'Loading…';
+                            return Text(
+                              '$createdDate\nCreated by $creatorName',
+                              style: GoogleFonts.dmSans(fontSize: 12),
+                            );
+                          },
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -438,34 +632,17 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                             itemCount: members.length,
                             separatorBuilder: (_, _) => const SizedBox(height: 10),
                             itemBuilder: (context, index) {
-                              return Card(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(color: const Color(0xFF83F4EB).withOpacity(0.14)),
-                                ),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: AppTheme.primary.withOpacity(0.15),
-                                    child: const Icon(Icons.person, color: AppTheme.primary),
-                                  ),
-                                  title: Text(
-                                    members[index],
-                                    style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w600),
-                                  ),
-                                  subtitle: Text(
-                                    (index < memberUsernames.length && memberUsernames[index].isNotEmpty)
-                                        ? "@${memberUsernames[index]}"
-                                        : (index < memberEmails.length && memberEmails[index].isNotEmpty)
-                                            ? memberEmails[index]
-                                            : "Member ${index + 1}",
-                                    style: GoogleFonts.dmSans(fontSize: 12),
-                                  ),
-                                  trailing: IconButton(
-                                    tooltip: "Remove Member",
-                                    onPressed: () => removeMember(index),
-                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  ),
+                              // Never pair sparse username/email arrays by index.
+                              // Resolve through UID, or use the guarded legacy lookup.
+                              return FutureBuilder<_MemberProfileLookup>(
+                                future: _loadGroupMemberProfile(index),
+                                builder: (context, snapshot) => _buildMemberCard(
+                                  index,
+                                  profile: snapshot.data?.profile,
+                                  profileStatus: snapshot.data?.status,
+                                  profileLoading:
+                                      snapshot.connectionState ==
+                                      ConnectionState.waiting,
                                 ),
                               );
                             },
