@@ -462,14 +462,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Split Between',
-                    style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 10),
-                  Column(
-                    children: List.generate(widget.group.members.length, (index) {
+                  if (splitType == 'custom') ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      'Split Between',
+                      style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 10),
+                    Column(
+                      children: List.generate(widget.group.members.length, (index) {
                         final member = widget.group.members[index];
                         final isSelected = selectedMembers.contains(member);
 
@@ -528,7 +529,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           ),
                         );
                       }),
-                  ),
+                    ),
+                  ],
                         ],
                       ),
                     ),
