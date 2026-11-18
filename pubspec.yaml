@@ -1,7 +1,7 @@
 name: samvibhag
 description: "SamVibhag - Smart Expense Splitter App"
 publish_to: "none"
-version: 1.0.2+4
+version: 1.0.3+8
 
 environment:
   sdk: ^3.10.7

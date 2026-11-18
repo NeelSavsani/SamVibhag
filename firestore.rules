@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function ownerUid(data) {
+      return data.get('ownerUid', '') == ''
+        ? data.get('createdBy', '')
+        : data.get('ownerUid', '');
+    }
+
+    function isMember(data) {
+      return isAuthenticated() && (
+        request.auth.uid == ownerUid(data) ||
+        request.auth.uid in data.get('memberUids', [])
+      );
+    }
+
+    function isDeleting(data) {
+      return data.keys().hasAny(['deletionInProgressBy']);
+    }
+
+    function lockBelongsToCaller(data) {
+      return isDeleting(data) &&
+        data.get('deletionInProgressBy', '') == request.auth.uid;
+    }
+
+    function protectedFieldsUnchanged() {
+      return request.resource.data.get('createdBy', '') ==
+          resource.data.get('createdBy', '') &&
+        ownerUid(request.resource.data) == ownerUid(resource.data) &&
+        !resource.data.keys().hasAny([
+          'deletionInProgressBy', 'deletionStartedAt'
+        ]) &&
+        !request.resource.data.keys().hasAny([
+          'deletionInProgressBy', 'deletionStartedAt'
+        ]);
+    }
+
+    function validSelfLeave() {
+      let previousUids = resource.data.get('memberUids', []);
+      let nextUids = request.resource.data.get('memberUids', []);
+      let previousMembers = resource.data.get('members', []);
+      let nextMembers = request.resource.data.get('members', []);
+      let previousOffline = resource.data.get('offlineMembers', []);
+      let nextOffline = request.resource.data.get('offlineMembers', []);
+      let beforeOwner = ownerUid(resource.data);
+      let afterOwner = ownerUid(request.resource.data);
+      let registeredBefore = previousUids.removeAll(['']);
+      let registeredAfter = nextUids.removeAll(['']);
+
+      return isAuthenticated() &&
+        previousUids is list && nextUids is list &&
+        previousMembers is list && nextMembers is list &&
+        previousOffline is list && nextOffline is list &&
+        request.auth.uid in registeredBefore &&
+        !(request.auth.uid in nextUids) &&
+        registeredBefore.toSet().size() == registeredBefore.size() &&
+        registeredAfter == registeredBefore.removeAll([request.auth.uid]) &&
+        nextUids.size() == nextMembers.size() &&
+        previousMembers.size() == nextMembers.size() + 1 &&
+        previousMembers.hasAll(nextMembers) &&
+        nextOffline == previousOffline &&
+        request.resource.data.get('createdBy', '') ==
+          resource.data.get('createdBy', '') &&
+        !isDeleting(resource.data) && !isDeleting(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'members', 'memberUids', 'memberEmails', 'memberUsernames',
+          'offlineMembers', 'ownerUid', 'lastUpdatedBy', 'lastUpdatedByName'
+        ]) &&
+        request.resource.data.get('lastUpdatedBy', '') == request.auth.uid &&
+        (beforeOwner == request.auth.uid
+          ? afterOwner != request.auth.uid &&
+            afterOwner != '' && afterOwner in nextUids
+          : afterOwner == beforeOwner);
+    }
+
+    function canStartOrRetryDelete() {
+      return isAuthenticated() &&
+        ownerUid(resource.data) == request.auth.uid &&
+        ownerUid(request.resource.data) == request.auth.uid &&
+        request.resource.data.get('deletionInProgressBy', '') ==
+          request.auth.uid &&
+        (!isDeleting(resource.data) || lockBelongsToCaller(resource.data)) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'deletionInProgressBy', 'deletionStartedAt'
+        ]);
+    }
+
+    function canDeleteGroup() {
+      return isAuthenticated() &&
+        ownerUid(resource.data) == request.auth.uid &&
+        lockBelongsToCaller(resource.data);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /groups/{groupId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.get('createdBy', '') == request.auth.uid &&
+        request.resource.data.get('ownerUid', '') == request.auth.uid;
+
+      // Keep existing authenticated group editing working while reserving
+      // ownership and deletion locks for the guarded transitions below.
+      allow update: if (isMember(resource.data) && protectedFieldsUnchanged()) ||
+        validSelfLeave() || canStartOrRetryDelete();
+      allow delete: if canDeleteGroup();
+
+      match /activities/{activityId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isMember(
+          get(/databases/$(database)/documents/groups/$(groupId)).data
+        ) && !isDeleting(
+          get(/databases/$(database)/documents/groups/$(groupId)).data
+        );
+        allow delete: if lockBelongsToCaller(
+          get(/databases/$(database)/documents/groups/$(groupId)).data
+        );
+      }
+    }
+  }
+}

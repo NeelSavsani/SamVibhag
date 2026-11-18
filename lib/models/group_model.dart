@@ -9,6 +9,7 @@ class GroupModel {
   String avatarPath;
   DateTime createdAt;
   String creatorUid;
+  String ownerUid;
 
   List<String> members;
   List<String> memberUids;
@@ -32,6 +33,7 @@ class GroupModel {
     this.description = '',
     this.avatarPath = '',
     this.creatorUid = '',
+    this.ownerUid = '',
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -163,6 +165,7 @@ class GroupModel {
       description: map['description']?.toString() ?? '',
       avatarPath: map['avatarPath']?.toString() ?? '',
       creatorUid: map['createdBy']?.toString() ?? '',
+      ownerUid: map['ownerUid']?.toString() ?? map['createdBy']?.toString() ?? '',
       createdAt: parsedDate,
       members: (map['members'] as List<dynamic>?)
           ?.map((e) => e.toString())
@@ -208,6 +211,7 @@ class GroupModel {
       'description': description,
       'avatarPath': avatarPath,
       'createdBy': creatorUid,
+      'ownerUid': ownerUid.isNotEmpty ? ownerUid : creatorUid,
       'createdAt': createdAt.toIso8601String(),
       'members': members,
       'memberUids': memberUids,

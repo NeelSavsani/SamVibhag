@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/group_model.dart';
+import '../../services/group_membership_service.dart';
 import '../analytics/analytics_screen.dart';
 import '../group/create_group_screen.dart';
 import '../group/group_details_screen.dart';
@@ -150,15 +151,18 @@ class _HomeScreenState extends State<HomeScreen> {
     if (shouldDelete != true || !mounted) return;
 
     try {
-      await FirebaseFirestore.instance.collection('groups').doc(group.id).delete();
+      await GroupMembershipService().deleteGroup(group.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${group.groupName} Group Permanently Deleted From Cloud')),
       );
     } catch (e) {
       if (!mounted) return;
+      final message = e is GroupMembershipException
+          ? e.message
+          : 'Could not delete this group. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Cloud Deletion Error: $e")),
+        SnackBar(content: Text(message)),
       );
     }
   }

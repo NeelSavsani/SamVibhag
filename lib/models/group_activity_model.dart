@@ -24,6 +24,7 @@ class GroupActivity {
 
   static const String typeGroupCreated = 'group_created';
   static const String typeMemberAdded = 'member_added';
+  static const String typeMemberLeft = 'member_left';
   static const String typeExpenseCreated = 'expense_created';
   static const String typeExpenseUpdated = 'expense_updated';
   static const String typeExpenseDeleted = 'expense_deleted';
@@ -74,6 +75,8 @@ class GroupActivity {
         return 'Group Created';
       case typeMemberAdded:
         return 'Member Added';
+      case typeMemberLeft:
+        return 'Member Left';
       case typeExpenseCreated:
         return 'Expense Added';
       case typeExpenseUpdated:
@@ -96,6 +99,8 @@ class GroupActivity {
         return Icons.group_add_rounded;
       case typeMemberAdded:
         return Icons.person_add_alt_1_rounded;
+      case typeMemberLeft:
+        return Icons.logout_rounded;
       case typeExpenseCreated:
         return Icons.receipt_long_rounded;
       case typeExpenseUpdated:

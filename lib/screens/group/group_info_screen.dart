@@ -9,8 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/group_model.dart';
-import '../../models/group_activity_model.dart';
-import '../../services/activity_service.dart';
+import '../../services/group_membership_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/add_member_dialog.dart';
@@ -50,6 +49,22 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   bool _isLoading = false;
 
   final ImagePicker picker = ImagePicker();
+  final GroupMembershipService _membershipService = GroupMembershipService();
+
+  bool get _isCurrentOwner {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return false;
+    final ownerUid = widget.group.ownerUid.isNotEmpty
+        ? widget.group.ownerUid
+        : widget.group.creatorUid;
+    return uid == ownerUid;
+  }
+
+  bool get _isCurrentMember {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return uid != null &&
+        (widget.group.memberUids.contains(uid) || _isCurrentOwner);
+  }
 
   @override
   void initState() {
@@ -459,6 +474,95 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     );
   }
 
+  Future<void> _leaveGroup() async {
+    if (!_isCurrentMember || _isLoading) return;
+    final isOwner = _isCurrentOwner;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave Group?'),
+        content: Text(
+          isOwner
+              ? 'Leave “${widget.group.groupName}”? The first remaining registered member will become the new owner. Your expenses and group history will stay with the group.'
+              : 'Leave “${widget.group.groupName}”? Your past expenses and group history will stay with the group.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Leave Group'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _membershipService.leaveGroup(widget.group.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You left ${widget.group.groupName}.')),
+      );
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is GroupMembershipException
+          ? error.message
+          : 'Could not leave this group. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteGroup() async {
+    if (!_isCurrentOwner || _isLoading) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Group?'),
+        content: Text(
+          'Permanently delete “${widget.group.groupName}”, including its expenses, settlements, and group activity history? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete Group'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _membershipService.deleteGroup(widget.group.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.group.groupName} was deleted.')),
+      );
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is GroupMembershipException
+          ? error.message
+          : 'Could not delete this group. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   String get createdDate {
     return DateFormat("dd MMM yyyy, hh:mm a").format(widget.group.createdAt);
   }
@@ -693,6 +797,38 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         ),
                       ),
                     ),
+                    if (_isCurrentOwner) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _deleteGroup,
+                        icon: const Icon(Icons.delete_forever_outlined),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Delete Group'),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                      ),
+                    ],
+                    if (_isCurrentMember) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _leaveGroup,
+                        icon: const Icon(Icons.logout_rounded),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('Leave Group'),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                          side: const BorderSide(color: Colors.orange),
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 26),
                     OutlinedButton.icon(
                       onPressed: () => Navigator.pop(context),

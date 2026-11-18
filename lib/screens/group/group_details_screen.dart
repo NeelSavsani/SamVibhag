@@ -83,7 +83,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         return activity.type == GroupActivity.typeExpenseUpdated;
       case 'Remove':
         return activity.type == GroupActivity.typeExpenseDeleted ||
-            activity.type == GroupActivity.typeSettlementUndone;
+            activity.type == GroupActivity.typeSettlementUndone ||
+            activity.type == GroupActivity.typeMemberLeft;
       case 'Create Group':
         return activity.type == GroupActivity.typeGroupCreated;
       default:
