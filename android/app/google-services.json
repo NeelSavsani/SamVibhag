@@ -15,11 +15,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "889674633243-8n93arl7jelbc5p24hc3s6kh0k0m36cv.apps.googleusercontent.com",
+          "client_id": "889674633243-ap6ikdegfbqg9ctl98mnah84bg8kuacr.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.neelsavsani.samvibhag",
-            "certificate_hash": "603ee083da9ed8a2c4f0b189511956595dfd477f"
+            "certificate_hash": "434a3a32f1784b3ce4d3120e80045101a7460929"
           }
         },
         {
