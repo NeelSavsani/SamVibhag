@@ -359,21 +359,65 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     if (confirm != true) return;
     if (!mounted) return;
 
-    setState(() {
-      _activeGroup!.expenses.remove(expense);
-    });
-
     try {
       final user = FirebaseAuth.instance.currentUser;
       final userName = user?.displayName ?? user?.email?.split('@').first ?? 'Someone';
+
+      final remainingExpenses = List<ExpenseModel>.from(_activeGroup!.expenses)
+        ..remove(expense);
+      final remainingSettlements = List<SettlementModel>.from(
+        _activeGroup!.recordedSettlements,
+      );
+
+      // Settlement records are stored separately from expenses. Remove one
+      // matching settled obligation created by this expense so it cannot
+      // continue reducing balances after the expense itself is deleted.
+      final expenseObligations = <String, double>{};
+      if (expense.splitType == 'custom') {
+        expense.customSplits.forEach((member, amount) {
+          if (member != expense.paidBy && amount > 0) {
+            expenseObligations[member] = amount;
+          }
+        });
+      } else if (expense.splitBetween.isNotEmpty) {
+        final share = expense.amount / expense.splitBetween.length;
+        for (final member in expense.splitBetween) {
+          if (member != expense.paidBy && share > 0) {
+            expenseObligations[member] = share;
+          }
+        }
+      }
+
+      for (final obligation in expenseObligations.entries) {
+        final matchingSettlementIndex = remainingSettlements.indexWhere(
+          (settlement) =>
+              settlement.isSettled &&
+              settlement.fromUser == obligation.key &&
+              settlement.toUser == expense.paidBy &&
+              (settlement.amount - obligation.value).abs() < 0.01,
+        );
+        if (matchingSettlementIndex != -1) {
+          remainingSettlements.removeAt(matchingSettlementIndex);
+        }
+      }
 
       await FirebaseFirestore.instance
           .collection('groups')
           .doc(_activeGroup!.id)
           .update({
-        'expenses': _activeGroup!.expenses.map((e) => e.toMap()).toList(),
+        'expenses': remainingExpenses.map((e) => e.toMap()).toList(),
+        'recordedSettlements':
+            remainingSettlements.map((settlement) => settlement.toMap()).toList(),
         'lastUpdatedBy': user?.uid,
         'lastUpdatedByName': userName,
+      });
+
+      if (!mounted) return;
+      setState(() {
+        _activeGroup!.expenses
+          ..clear()
+          ..addAll(remainingExpenses);
+        _activeGroup!.recordedSettlements = remainingSettlements;
       });
 
       await ActivityService.instance.logGroupActivity(
