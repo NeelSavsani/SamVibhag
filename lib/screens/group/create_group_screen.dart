@@ -34,6 +34,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final List<String> _memberUids = [];
   final List<String> _memberEmails = [];
   final List<String> _memberUsernames = [];
+  final List<String> _offlineMembers = [];
 
   User? get _currentUser => FirebaseAuth.instance.currentUser;
 
@@ -149,6 +150,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         if (addOffline == true && mounted) {
           setState(() {
             _members.add(rawInput);
+            _memberUids.add('');
+            _offlineMembers.add(rawInput);
             _memberInputController.clear();
           });
         }
@@ -175,6 +178,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     }
     setState(() {
       final name = _members.removeAt(index);
+      _offlineMembers.remove(name);
       if (index < _memberUids.length) _memberUids.removeAt(index);
       if (index < _memberEmails.length) _memberEmails.removeAt(index);
       if (index < _memberUsernames.length) _memberUsernames.removeAt(index);
@@ -263,6 +267,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         'memberUids': _memberUids,
         'memberEmails': _memberEmails,
         'memberUsernames': _memberUsernames,
+        'offlineMembers': _offlineMembers,
         'createdBy': _currentUser?.uid ?? '',
         'lastUpdatedBy': _currentUser?.uid ?? '',
         'lastUpdatedByName': currentUserName,
@@ -288,7 +293,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
       // Free Spark Tier: Dispatch FCM notifications directly to other members via FCM HTTP v1
       final recipientUids = _memberUids
-          .where((id) => id != _currentUser?.uid)
+          .where((id) => id.isNotEmpty && id != _currentUser?.uid)
           .toList();
 
       if (recipientUids.isNotEmpty) {
@@ -326,6 +331,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         memberUids: List<String>.from(_memberUids),
         memberEmails: List<String>.from(_memberEmails),
         memberUsernames: List<String>.from(_memberUsernames),
+        offlineMembers: List<String>.from(_offlineMembers),
+        creatorUid: _currentUser?.uid ?? '',
         createdAt: DateTime.now(),
         expenses: [],
         recordedSettlements: [],

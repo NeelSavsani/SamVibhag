@@ -7,6 +7,9 @@ class SettlementModel {
   final double amount;
   final bool isSettled;
   final DateTime? settledAt;
+  final List<String> expenseIds;
+  final List<String> addedByUids;
+  final bool includesOfflinePayer;
 
   SettlementModel({
     String? id,
@@ -15,6 +18,9 @@ class SettlementModel {
     required this.amount,
     this.isSettled = false,
     this.settledAt,
+    this.expenseIds = const [],
+    this.addedByUids = const [],
+    this.includesOfflinePayer = false,
   }) : id = id ?? const Uuid().v4();
 
   // Backwards compatibility getters
@@ -29,6 +35,15 @@ class SettlementModel {
       amount: (map['amount'] as num).toDouble(),
       isSettled: map['isSettled'] as bool? ?? false,
       settledAt: map['settledAt'] != null ? DateTime.parse(map['settledAt'] as String) : null,
+      expenseIds: (map['expenseIds'] as List<dynamic>?)
+              ?.map((value) => value.toString())
+              .toList() ??
+          const [],
+      addedByUids: (map['addedByUids'] as List<dynamic>?)
+              ?.map((value) => value.toString())
+              .toList() ??
+          const [],
+      includesOfflinePayer: map['includesOfflinePayer'] as bool? ?? false,
     );
   }
 
@@ -40,6 +55,9 @@ class SettlementModel {
       'amount': amount,
       'isSettled': isSettled,
       'settledAt': settledAt?.toIso8601String(),
+      'expenseIds': expenseIds,
+      'addedByUids': addedByUids,
+      'includesOfflinePayer': includesOfflinePayer,
     };
   }
 }

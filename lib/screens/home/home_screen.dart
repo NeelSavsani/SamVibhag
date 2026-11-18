@@ -32,9 +32,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Stream<List<GroupModel>> _getGroupsStream() {
+  Query<Map<String, dynamic>>? _getGroupsQuery() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return Stream.value(<GroupModel>[]);
+    if (user == null) return null;
 
     return FirebaseFirestore.instance
         .collection('groups')
@@ -43,8 +43,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Filter('memberUids', arrayContains: user.uid),
             Filter('createdBy', isEqualTo: user.uid),
           ),
-        )
-        .snapshots()
+        );
+  }
+
+  Stream<List<GroupModel>> _getGroupsStream() {
+    final query = _getGroupsQuery();
+    if (query == null) return Stream.value(<GroupModel>[]);
+
+    return query.snapshots()
         .map((snapshot) {
           final orderedDocuments = snapshot.docs.toList()
             ..sort((first, second) {
@@ -65,6 +71,21 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           return uniqueGroups.values.toList();
         });
+  }
+
+  Future<void> _refreshGroups() async {
+    final query = _getGroupsQuery();
+    if (query == null) return;
+
+    try {
+      await query.get(const GetOptions(source: Source.server));
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not refresh groups. Please try again.')),
+      );
+    }
   }
 
   DateTime? _readCreatedAt(Map<String, dynamic> groupData) {
@@ -397,7 +418,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Expanded(
-                  child: ListView(
+                  child: RefreshIndicator(
+                    onRefresh: _refreshGroups,
+                    child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
                     children: [
                       /// TITLE
@@ -440,6 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                     ],
+                  ),
                   ),
                 ),
               ],

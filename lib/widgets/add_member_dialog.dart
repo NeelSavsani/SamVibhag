@@ -166,11 +166,19 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         'members': FieldValue.arrayUnion([displayName]),
       };
 
+      if (isOffline) {
+        updates['offlineMembers'] = FieldValue.arrayUnion([displayName]);
+        updates['memberUids'] = [...widget.group.memberUids, ''];
+      }
+
       if (email != null && email.trim().isNotEmpty) {
         updates['memberEmails'] = FieldValue.arrayUnion([email.trim().toLowerCase()]);
       }
       if (uid != null && uid.trim().isNotEmpty) {
-        updates['memberUids'] = FieldValue.arrayUnion([uid.trim()]);
+        updates['memberUids'] = [
+          ...widget.group.memberUids,
+          uid.trim(),
+        ];
       }
       if (username != null && username.trim().isNotEmpty) {
         updates['memberUsernames'] = FieldValue.arrayUnion([UserModel.normalizeUsername(username)]);

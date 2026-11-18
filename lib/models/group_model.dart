@@ -8,11 +8,13 @@ class GroupModel {
   String description;
   String avatarPath;
   DateTime createdAt;
+  String creatorUid;
 
   List<String> members;
   List<String> memberUids;
   List<String> memberEmails;
   List<String> memberUsernames;
+  List<String> offlineMembers;
 
   List<ExpenseModel> expenses;
   List<SettlementModel> recordedSettlements;
@@ -24,10 +26,12 @@ class GroupModel {
     this.memberUids = const [],
     this.memberEmails = const [],
     this.memberUsernames = const [],
+    this.offlineMembers = const [],
     required this.expenses,
     this.recordedSettlements = const [],
     this.description = '',
     this.avatarPath = '',
+    this.creatorUid = '',
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -36,6 +40,19 @@ class GroupModel {
       0.0,
           (sum, expense) => sum + expense.amount,
     );
+  }
+
+  bool isOfflineMember(String memberName) {
+    if (offlineMembers.contains(memberName)) return true;
+
+    final memberIndex = members.indexOf(memberName);
+    if (memberIndex < 0) return false;
+    if (members.length != memberUids.length) {
+      // Legacy records may have compacted UID arrays. Don't guess which name
+      // belongs to which UID; the creator remains the safe settlement option.
+      return true;
+    }
+    return memberUids[memberIndex].trim().isEmpty;
   }
 
   Map<String, double> get memberBalances {
@@ -145,6 +162,7 @@ class GroupModel {
       groupName: (map['groupName'] ?? map['name'] ?? 'Untitled Group').toString(),
       description: map['description']?.toString() ?? '',
       avatarPath: map['avatarPath']?.toString() ?? '',
+      creatorUid: map['createdBy']?.toString() ?? '',
       createdAt: parsedDate,
       members: (map['members'] as List<dynamic>?)
           ?.map((e) => e.toString())
@@ -159,6 +177,10 @@ class GroupModel {
           .toList() ??
           <String>[],
       memberUsernames: (map['memberUsernames'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ??
+          <String>[],
+      offlineMembers: (map['offlineMembers'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList() ??
           <String>[],
@@ -185,11 +207,13 @@ class GroupModel {
       'groupName': groupName,
       'description': description,
       'avatarPath': avatarPath,
+      'createdBy': creatorUid,
       'createdAt': createdAt.toIso8601String(),
       'members': members,
       'memberUids': memberUids,
       'memberEmails': memberEmails,
       'memberUsernames': memberUsernames,
+      'offlineMembers': offlineMembers,
       'expenses': expenses.map((expense) => expense.toMap()).toList(),
       'recordedSettlements': recordedSettlements
           .map((settlement) => settlement.toMap())

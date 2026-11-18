@@ -41,6 +41,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   late List<String> memberUids;
   late List<String> memberEmails;
   late List<String> memberUsernames;
+  late List<String> offlineMembers;
   late Future<String?> _creatorUidFuture;
   late Future<String> _creatorNameFuture;
   final Map<String, Future<_MemberProfileLookup>> _memberProfileFutures = {};
@@ -59,6 +60,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     memberUids = List<String>.from(widget.group.memberUids);
     memberEmails = List<String>.from(widget.group.memberEmails);
     memberUsernames = List<String>.from(widget.group.memberUsernames);
+    offlineMembers = List<String>.from(widget.group.offlineMembers);
     avatarPath = widget.group.avatarPath.trim();
     _creatorUidFuture = _loadCreatorUid();
     _creatorNameFuture = _loadCreatorName();
@@ -263,6 +265,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     if (result != null && mounted) {
       setState(() {
         members.add(result.displayName);
+        if (result.isOffline && !offlineMembers.contains(result.displayName)) {
+          offlineMembers.add(result.displayName);
+          memberUids.add('');
+        }
         if (result.uid != null && result.uid!.isNotEmpty) {
           memberUids.add(result.uid!);
         }
@@ -278,6 +284,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         widget.group.memberUids = List<String>.from(memberUids);
         widget.group.memberEmails = List<String>.from(memberEmails);
         widget.group.memberUsernames = List<String>.from(memberUsernames);
+        widget.group.offlineMembers = List<String>.from(offlineMembers);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -324,6 +331,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               onPressed: () {
                 setState(() {
                   members.removeAt(index);
+                  offlineMembers.remove(member);
                   if (index < memberUids.length) memberUids.removeAt(index);
                   if (index < memberEmails.length) memberEmails.removeAt(index);
                   if (index < memberUsernames.length) memberUsernames.removeAt(index);
@@ -332,6 +340,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   widget.group.memberUids = List<String>.from(memberUids);
                   widget.group.memberEmails = List<String>.from(memberEmails);
                   widget.group.memberUsernames = List<String>.from(memberUsernames);
+                  widget.group.offlineMembers = List<String>.from(offlineMembers);
                 });
                 Navigator.pop(context);
               },
@@ -418,6 +427,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             'memberUids': memberUids,
             'memberEmails': memberEmails,
             'memberUsernames': memberUsernames,
+            'offlineMembers': offlineMembers,
           });
 
       // Synchronize changes back to the active tracking instance model
@@ -428,6 +438,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       widget.group.memberUids = List<String>.from(memberUids);
       widget.group.memberEmails = List<String>.from(memberEmails);
       widget.group.memberUsernames = List<String>.from(memberUsernames);
+      widget.group.offlineMembers = List<String>.from(offlineMembers);
 
       if (!mounted) return;
       // Pass the updated model back to GroupDetailsScreen so the cover updates dynamically

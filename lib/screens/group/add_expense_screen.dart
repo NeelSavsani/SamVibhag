@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -171,6 +172,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
 
     final updatedExpense = ExpenseModel(
+      addedByUid: widget.expense == null
+          ? FirebaseAuth.instance.currentUser?.uid
+          : widget.expense!.addedByUid,
+      paidByOffline: widget.group.isOfflineMember(paidBy) ||
+          (widget.expense?.paidBy == paidBy &&
+              (widget.expense?.paidByOffline ?? false)),
       title: title,
       amount: amount,
       paidBy: paidBy,

@@ -1,5 +1,7 @@
 class ExpenseModel {
   final String id;
+  final String? addedByUid;
+  final bool paidByOffline;
   final String title;
   final double amount;
   final String paidBy;
@@ -19,6 +21,8 @@ class ExpenseModel {
 
   ExpenseModel({
     String? id,
+    this.addedByUid,
+    this.paidByOffline = false,
     required this.title,
     required this.amount,
     required this.paidBy,
@@ -34,6 +38,8 @@ class ExpenseModel {
   ) {
     return ExpenseModel(
       id: map['id'] as String? ?? '${map['title']}_${map['date']}',
+      addedByUid: map['addedByUid'] as String?,
+      paidByOffline: map['paidByOffline'] as bool? ?? false,
       title: map['title'] as String,
 
       amount:
@@ -72,6 +78,8 @@ class ExpenseModel {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'addedByUid': addedByUid,
+      'paidByOffline': paidByOffline,
       'title': title,
       'amount': amount,
       'paidBy': paidBy,

@@ -122,6 +122,34 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     }
   }
 
+  Future<void> _refreshGroupDetails() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(targetGroupId)
+          .get(const GetOptions(source: Source.server));
+
+      if (!mounted) return;
+      if (!snapshot.exists) {
+        setState(() => _activeGroup = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This group is no longer available.')),
+        );
+        return;
+      }
+
+      final data = snapshot.data()!;
+      data['id'] = snapshot.id;
+      setState(() => _activeGroup = GroupModel.fromMap(data));
+      _triggerHistoricalBackfill();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not refresh this group. Please try again.')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -129,8 +157,61 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     super.dispose();
   }
 
+  List<ExpenseModel> _expensesContributingToSettlement(
+    SettlementModel settlement,
+  ) {
+    final group = _activeGroup;
+    if (group == null) return const [];
+
+    return group.expenses.where((expense) {
+      if (expense.paidBy != settlement.toUser ||
+          settlement.fromUser == expense.paidBy) {
+        return false;
+      }
+
+      if (expense.splitType == 'custom') {
+        return (expense.customSplits[settlement.fromUser] ?? 0) > 0;
+      }
+      return expense.splitBetween.contains(settlement.fromUser) &&
+          expense.splitBetween.isNotEmpty;
+    }).toList();
+  }
+
+  bool _isOfflinePayer(ExpenseModel expense) {
+    return expense.paidByOffline ||
+        (_activeGroup?.isOfflineMember(expense.paidBy) ?? false);
+  }
+
+  bool _canSettle(SettlementModel settlement) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null || currentUid.isEmpty || _activeGroup == null) {
+      return false;
+    }
+
+    if (_activeGroup!.creatorUid.isNotEmpty &&
+        currentUid == _activeGroup!.creatorUid) {
+      return true;
+    }
+
+    if (!_activeGroup!.memberUids.contains(currentUid)) return false;
+
+    if (settlement.isSettled) {
+      return settlement.expenseIds.isNotEmpty &&
+          settlement.addedByUids.isNotEmpty &&
+          !settlement.includesOfflinePayer &&
+          settlement.addedByUids.every((uid) => uid == currentUid);
+    }
+
+    final sourceExpenses = _expensesContributingToSettlement(settlement);
+    return sourceExpenses.isNotEmpty &&
+        sourceExpenses.every(
+          (expense) =>
+              !_isOfflinePayer(expense) && expense.addedByUid == currentUid,
+        );
+  }
+
   Future<void> markAsSettled(SettlementModel settlement) async {
-    if (_activeGroup == null) return;
+    if (_activeGroup == null || !_canSettle(settlement)) return;
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -152,12 +233,22 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     if (confirm != true) return;
 
+    // Recheck after the confirmation dialog in case the active account changed.
+    if (!_canSettle(settlement)) return;
+
+    final sourceExpenses = _expensesContributingToSettlement(settlement);
+
     final newSettlement = SettlementModel(
       fromUser: settlement.fromUser,
       toUser: settlement.toUser,
       amount: settlement.amount,
       isSettled: true,
       settledAt: DateTime.now(),
+      expenseIds: sourceExpenses.map((expense) => expense.id).toList(),
+      addedByUids: sourceExpenses
+          .map((expense) => expense.addedByUid ?? '')
+          .toList(),
+      includesOfflinePayer: sourceExpenses.any(_isOfflinePayer),
     );
 
     if (!mounted) return;
@@ -205,7 +296,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   Future<void> undoSettlement(SettlementModel settlement) async {
-    if (_activeGroup == null) return;
+    if (_activeGroup == null || !_canSettle(settlement)) return;
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -226,6 +317,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     );
 
     if (confirm != true) return;
+    if (!_canSettle(settlement)) return;
     if (!mounted) return;
 
     setState(() {
@@ -288,6 +380,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         _activeGroup!.memberUids = updatedGroup.memberUids;
         _activeGroup!.memberEmails = updatedGroup.memberEmails;
         _activeGroup!.memberUsernames = updatedGroup.memberUsernames;
+        _activeGroup!.offlineMembers = updatedGroup.offlineMembers;
       }
     });
 
@@ -507,7 +600,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: RefreshIndicator(
+        onRefresh: _refreshGroupDetails,
+        child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -778,6 +874,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               _buildHistoryTab(context, theme, isDark, textColor, tileBackgroundColor),
           ],
         ),
+        ),
       ),
     );
   }
@@ -864,13 +961,14 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                               decoration: settlement.isSettled ? TextDecoration.lineThrough : null,
                             ),
                           ),
-                          if (!settlement.isSettled) ...[
+                          if (!settlement.isSettled && _canSettle(settlement)) ...[
                             const SizedBox(width: 8),
                             IconButton(
                               icon: const Icon(Icons.check_circle_outline, color: Colors.green),
                               onPressed: () => markAsSettled(settlement),
                             ),
-                          ] else ...[
+                          ] else if (settlement.isSettled &&
+                              _canSettle(settlement)) ...[
                             const SizedBox(width: 8),
                             IconButton(
                               icon: const Icon(Icons.undo_rounded, color: Colors.orangeAccent),
