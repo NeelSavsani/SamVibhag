@@ -2,9 +2,15 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import 'user_service.dart';
+
+/// Indicates that Google rejected the Android OAuth client configuration.
+class GoogleSignInConfigurationException implements Exception {
+  const GoogleSignInConfigurationException();
+}
 
 class AuthService {
   final FirebaseAuth _auth;
@@ -339,20 +345,33 @@ class AuthService {
       }
     } else {
       final GoogleSignIn googleSignIn = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        // User cancelled the Google sign-in flow
-        return null;
+      try {
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          // User cancelled the Google sign-in flow.
+          return null;
+        }
+
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+        final AuthCredential authCred = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        credential = await _auth.signInWithCredential(authCred);
+      } on PlatformException catch (error) {
+        // ApiException 10 is Google's DEVELOPER_ERROR, commonly caused by a
+        // missing or mismatched Android SHA-1 in Firebase/Google OAuth setup.
+        final details = (error.message ?? '').toUpperCase();
+        if (RegExp(r'APIEXCEPTION:\s*10\b|DEVELOPER_ERROR').hasMatch(details)) {
+          throw const GoogleSignInConfigurationException();
+        }
+
+        // Keep diagnostics useful without logging account details or tokens.
+        debugPrint('Google Sign-In platform failure: ${error.code}');
+        rethrow;
       }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final AuthCredential authCred = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      credential = await _auth.signInWithCredential(authCred);
     }
 
     final user = credential.user;

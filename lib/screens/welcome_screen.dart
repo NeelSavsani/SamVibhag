@@ -80,7 +80,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       }
     } on FirebaseAuthException catch (error) {
       _showError(error.message ?? 'Google Sign-In failed.');
+    } on GoogleSignInConfigurationException {
+      _showError(
+        'Google Sign-In setup is incomplete for this app build. Add this Android app’s SHA-1 in Firebase Console, then download the updated google-services.json.',
+      );
     } catch (error) {
+      debugPrint('Google Sign-In failed (${error.runtimeType}).');
       _showError('An unexpected error occurred during Google Sign-In.');
     } finally {
       if (mounted) {

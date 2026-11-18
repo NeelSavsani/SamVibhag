@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "889674633243",
+    "firebase_url": "https://samvibhag-a2299-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "samvibhag-a2299",
     "storage_bucket": "samvibhag-a2299.firebasestorage.app"
   },
@@ -14,11 +15,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "889674633243-h1us8hasb3ss9f2j7q9vkggkjns8qi47.apps.googleusercontent.com",
+          "client_id": "889674633243-8n93arl7jelbc5p24hc3s6kh0k0m36cv.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.neelsavsani.samvibhag",
-            "certificate_hash": "55237e04efa66dc8479217fef3a5fdc30c0db8cb"
+            "certificate_hash": "603ee083da9ed8a2c4f0b189511956595dfd477f"
           }
         },
         {

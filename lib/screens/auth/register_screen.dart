@@ -85,8 +85,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } on FirebaseAuthException catch (error) {
       _showError(_authErrorMessage(error));
+    } on GoogleSignInConfigurationException {
+      _showError(
+        'Google Sign-In setup is incomplete for this app build. Add this Android app’s SHA-1 in Firebase Console, then download the updated google-services.json.',
+      );
     } catch (error) {
-      debugPrint("Google Sign-In Error: $error");
+      debugPrint('Google Sign-In failed (${error.runtimeType}).');
       _showError('Google Sign-In failed. Please try again.');
     } finally {
       if (mounted) {
